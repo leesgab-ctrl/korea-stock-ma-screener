@@ -80,13 +80,20 @@ def register_position(
     )
 
 
-def close_position(payload: dict[str, Any], code: str, current: dt.datetime) -> None:
-    for item in payload.get("positions", []):
-        if item.get("code") == code and item.get("status") == "open":
-            item["status"] = "closed"
-            item["closedAt"] = current.isoformat(timespec="minutes")
-            return
-    raise ValueError(f"열려 있는 보유종목 {code}을 찾지 못했습니다.")
+def close_position(payload: dict[str, Any], code: str, sell_price: int, current: dt.datetime) -> None:
+    if sell_price <= 0:
+        raise ValueError("매도가는 0보다 커야 합니다.")
+    matching = [item for item in payload.get("positions", []) if item.get("code") == code]
+    item = next((entry for entry in reversed(matching) if entry.get("status") == "open"), None)
+    if item is None:
+        item = next((entry for entry in reversed(matching) if entry.get("status") == "closed"), None)
+    if item is None:
+        raise ValueError(f"보유 또는 매도이력 종목 {code}을 찾지 못했습니다.")
+    item["status"] = "closed"
+    item["sellPrice"] = sell_price
+    item["realizedProfitPerShare"] = sell_price - item["buyPrice"]
+    item["realizedReturnPct"] = round(100 * (sell_price / item["buyPrice"] - 1), 2)
+    item.setdefault("closedAt", current.isoformat(timespec="minutes"))
 
 
 def latest_regular_price(rows: list[dict[str, Any]]) -> tuple[int | None, dt.datetime | None]:
@@ -184,6 +191,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--name", default="")
     parser.add_argument("--buy-price", type=int)
     parser.add_argument("--stop-price", type=int)
+    parser.add_argument("--sell-price", type=int)
     parser.add_argument("--stop-pct", type=float, default=3.0)
     parser.add_argument("--target-pct", type=float, default=5.0)
     parser.add_argument("--data", default=str(DEFAULT_PATH))
@@ -217,9 +225,9 @@ def main() -> None:
             args.target_pct, args.stop_pct, current, stop_source,
         )
     elif args.action == "sold":
-        if args.code is None:
-            raise ValueError("매도 완료 처리에는 종목코드가 필요합니다.")
-        close_position(payload, args.code, current)
+        if args.code is None or args.sell_price is None:
+            raise ValueError("매도 완료 처리에는 종목코드와 매도가가 필요합니다.")
+        close_position(payload, args.code, args.sell_price, current)
     else:
         alerts = monitor_positions(payload, current, args.minute_count, args.no_notify)
     save_positions(path, payload, current)

@@ -43,6 +43,7 @@ const elements = {
   positionCode: document.querySelector("#positionCode"),
   positionName: document.querySelector("#positionName"),
   positionBuyPrice: document.querySelector("#positionBuyPrice"),
+  positionSellPrice: document.querySelector("#positionSellPrice"),
   positionStopPrice: document.querySelector("#positionStopPrice"),
   positionTargetPct: document.querySelector("#positionTargetPct"),
   githubConnection: document.querySelector("#githubConnection"),
@@ -103,16 +104,18 @@ function render() {
   elements.pushState.textContent = summary.pushConfigured ? "휴대폰 푸시 연결" : "푸시 연결 대기";
   elements.pushState.className = `status-chip${summary.pushConfigured ? "" : " rising"}`;
   renderCandidates(candidates);
-  renderPositions(openPositions);
+  const closedPositions = (state.positions?.positions || []).filter((item) => item.status === "closed");
+  renderPositions(openPositions, closedPositions);
   renderDetail(candidates.find((item) => item.code === state.selectedCode));
 }
 
-function renderPositions(positions) {
+function renderPositions(positions, closedPositions = []) {
   elements.positionList.innerHTML = "";
-  if (!positions.length) {
+  if (!positions.length && !closedPositions.length) {
     elements.positionList.innerHTML = '<div class="empty-list">등록된 보유종목이 없습니다. “보유 등록·수정”에서 추가하세요.</div>';
     return;
   }
+  if (positions.length) appendPositionGroupTitle("보유 중", `${positions.length}종목`);
   for (const item of positions) {
     const article = document.createElement("article");
     const returnPct = item.returnPct;
@@ -145,6 +148,46 @@ function renderPositions(positions) {
     });
     elements.positionList.append(article);
   }
+  if (closedPositions.length) {
+    const recentClosed = [...closedPositions]
+      .sort((left, right) => String(right.closedAt || "").localeCompare(String(left.closedAt || "")))
+      .slice(0, 20);
+    appendPositionGroupTitle("매도 이력", `최근 ${recentClosed.length}건`);
+    for (const item of recentClosed) renderClosedPosition(item);
+  }
+}
+
+function appendPositionGroupTitle(title, meta) {
+  const heading = document.createElement("div");
+  heading.className = "position-group-title";
+  heading.innerHTML = "<strong></strong><span></span>";
+  heading.querySelector("strong").textContent = title;
+  heading.querySelector("span").textContent = meta;
+  elements.positionList.append(heading);
+}
+
+function renderClosedPosition(item) {
+  const article = document.createElement("article");
+  const returnPct = item.realizedReturnPct;
+  const returnClass = returnPct == null ? "" : returnPct >= 0 ? "positive" : "negative";
+  article.className = "position-item closed-position";
+  article.innerHTML = `
+    <header><strong></strong><span></span></header>
+    <div class="position-values"><span class="position-price"></span><span class="position-return ${returnClass}"></span></div>
+    <div class="position-values"><span class="position-profit"></span><span class="position-date"></span></div>
+    <div class="position-item-actions"><button class="position-sell-edit" type="button"></button></div>`;
+  article.querySelector("strong").textContent = item.name;
+  article.querySelector("header span").textContent = item.code;
+  const sellPrice = item.sellPrice == null ? "-" : `${formatter.format(item.sellPrice)}원`;
+  article.querySelector(".position-price").textContent = `매수 ${formatter.format(item.buyPrice)}원 → 매도 ${sellPrice}`;
+  article.querySelector(".position-return").textContent = returnPct == null ? "수익률 -" : `${returnPct >= 0 ? "+" : ""}${formatter.format(returnPct)}%`;
+  const profit = item.realizedProfitPerShare;
+  article.querySelector(".position-profit").textContent = profit == null ? "주당손익 -" : `주당손익 ${profit >= 0 ? "+" : ""}${formatter.format(profit)}원`;
+  article.querySelector(".position-date").textContent = item.closedAt ? `매도 ${formatDateTime(item.closedAt)}` : "매도일 -";
+  const sellEdit = article.querySelector(".position-sell-edit");
+  sellEdit.textContent = item.sellPrice == null ? "매도가 입력" : "매도가 수정";
+  sellEdit.addEventListener("click", () => openPositionDialog(null, item, "sold"));
+  elements.positionList.append(article);
 }
 
 function filteredCandidates(candidates) {
@@ -202,11 +245,14 @@ function updateConnectionState() {
 function setPositionMode(action) {
   const isBuy = action === "buy";
   document.querySelectorAll(".buy-field").forEach((field) => field.classList.toggle("hidden", !isBuy));
-  elements.positionName.closest("label").classList.toggle("hidden", !isBuy);
+  document.querySelectorAll(".sell-field").forEach((field) => field.classList.toggle("hidden", isBuy));
   elements.positionName.required = isBuy;
+  elements.positionName.readOnly = !isBuy;
   elements.positionBuyPrice.required = isBuy;
+  elements.positionBuyPrice.readOnly = !isBuy;
+  elements.positionSellPrice.required = !isBuy;
   elements.positionSubmitButton.textContent = isBuy ? "등록" : "매도 완료";
-  elements.positionFormSubtitle.textContent = isBuy ? "매수정보와 손절가" : "보유목록에서 종료";
+  elements.positionFormSubtitle.textContent = isBuy ? "매수정보와 손절가" : "매도 체결가와 실현손익 기록";
 }
 
 function openPositionDialog(candidate = null, position = null, action = "buy") {
@@ -214,6 +260,7 @@ function openPositionDialog(candidate = null, position = null, action = "buy") {
   elements.positionCode.value = "";
   elements.positionName.value = "";
   elements.positionBuyPrice.value = "";
+  elements.positionSellPrice.value = "";
   elements.positionStopPrice.value = "";
   elements.positionTargetPct.value = "5";
   elements.githubToken.value = storedGithubToken();
@@ -234,11 +281,12 @@ function openPositionDialog(candidate = null, position = null, action = "buy") {
     elements.positionBuyPrice.value = position.buyPrice || "";
     elements.positionStopPrice.value = position.stopPrice || elements.positionStopPrice.value;
     elements.positionTargetPct.value = position.targetPct || "5";
+    elements.positionSellPrice.value = position.sellPrice || "";
     elements.positionFormSubtitle.textContent = `${position.name} · ${position.code}`;
   }
   updateConnectionState();
   elements.positionDialog.showModal();
-  (action === "buy" && (candidate || position) ? elements.positionBuyPrice : elements.positionCode).focus();
+  (action === "sold" && position ? elements.positionSellPrice : action === "buy" && (candidate || position) ? elements.positionBuyPrice : elements.positionCode).focus();
 }
 
 function closePositionDialog() {
@@ -267,6 +315,7 @@ async function submitPosition(event) {
     code: elements.positionCode.value.trim(),
     name: action === "buy" ? elements.positionName.value.trim() : "",
     buy_price: action === "buy" ? elements.positionBuyPrice.value.trim() : "",
+    sell_price: action === "sold" ? elements.positionSellPrice.value.trim() : "",
     stop_price: action === "buy" ? elements.positionStopPrice.value.trim() : "",
     target_pct: action === "buy" ? elements.positionTargetPct.value.trim() || "5" : "5",
   };

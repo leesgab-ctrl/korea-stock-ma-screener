@@ -26,6 +26,10 @@ on:
         description: 합의한 손절가 (비우면 대량거래 전일 종가, 후보가 없으면 -3%)
         required: false
         type: string
+      sell_price:
+        description: 매도가 (매도 완료 시 입력)
+        required: false
+        type: string
       target_pct:
         description: 목표수익률(%)
         required: false
@@ -65,7 +69,8 @@ jobs:
         if: inputs.action == 'sold'
         env:
           CODE: ${{ inputs.code }}
-        run: python scripts/manage_positions.py --action sold --code "$CODE"
+          SELL_PRICE: ${{ inputs.sell_price }}
+        run: python scripts/manage_positions.py --action sold --code "$CODE" --sell-price "$SELL_PRICE"
       - name: Save position
         run: |
           git config user.name "github-actions[bot]"
