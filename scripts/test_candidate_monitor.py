@@ -11,6 +11,8 @@ from update_candidate_monitor import (
     aggregate_30m,
     depth_rule_context,
     evaluate_ag,
+    apply_inferred_cross,
+    infer_missing_baseline,
     rise_context,
     valid_post_candidate_sequence,
 )
@@ -82,6 +84,26 @@ class CandidateMonitorTests(unittest.TestCase):
         self.assertTrue(valid_post_candidate_sequence(bars, context, signal_day, True))
         self.assertFalse(valid_post_candidate_sequence(bars, context, signal_day, False))
 
+    def test_missing_baseline_can_recover_a_legacy_below_state(self) -> None:
+        signal_day = dt.date(2026, 9, 28)
+        bars = [
+            {
+                "time": dt.datetime(2026, 9, 30, 9, tzinfo=KST) + dt.timedelta(minutes=30 * index),
+                "ma20": value,
+                "ma40": 100.0,
+                "ma60": 95.0,
+            }
+            for index, value in enumerate((99, 97, 94, 93, 94, 95, 96, 97, 98, 99))
+        ]
+        inferred, synthetic_cross = infer_missing_baseline(bars, signal_day)
+        context = apply_inferred_cross(rise_context(bars, 9), synthetic_cross)
+
+        self.assertTrue(inferred)
+        self.assertEqual(synthetic_cross, 0)
+        self.assertTrue(context["priorDeathCross"])
+        self.assertTrue(context["deathCrossInferred"])
+        self.assertTrue(valid_post_candidate_sequence(bars, context, signal_day, inferred))
+
     def test_deep_pullback_waits_for_ma60_recovery(self) -> None:
         bars = [
             {
@@ -106,6 +128,24 @@ class CandidateMonitorTests(unittest.TestCase):
         depth = depth_rule_context(bars, context, 12, 90.0)
         self.assertFalse(depth["recoveredMa60"])
         self.assertFalse(depth["signalReady"])
+
+    def test_ma60_depth_uses_available_comparable_bars(self) -> None:
+        bars = [
+            {
+                "time": dt.datetime(2026, 10, 2, 9, tzinfo=KST) + dt.timedelta(minutes=30 * index),
+                "ma20": value,
+                "ma40": 100.0,
+                "ma60": None if index < 6 else 95.0,
+            }
+            for index, value in enumerate((105, 103, 99, 97, 94, 93, 92, 93, 94, 95, 96, 97))
+        ]
+        context = rise_context(bars, 11)
+        depth = depth_rule_context(bars, context, 11, 90.0)
+
+        self.assertTrue(depth["ma60Ready"])
+        self.assertTrue(depth["breachedMa60"])
+        self.assertTrue(depth["recoveredMa60"])
+        self.assertTrue(depth["signalReady"])
 
     def test_daily_ma10_breach_excludes_signal(self) -> None:
         bars = [
@@ -216,6 +256,35 @@ class CandidateMonitorTests(unittest.TestCase):
             )
 
         self.assertEqual(candidate["status"], "watching")
+
+    def test_crossed_candidate_with_zero_rises_is_buy_setup(self) -> None:
+        candidate = {"code": "014280", "dailySignalDate": "2026-10-01"}
+        payload = {"candidates": [candidate], "notifiedSignals": []}
+        intraday = {
+            "dataStatus": "ok",
+            "baselineMa20AboveMa40": True,
+            "ma20": 4632.0,
+            "ma40": 4719.5,
+            "ma60": 4759.0,
+            "ma60Ready": True,
+            "eligibleReversal": True,
+            "reversalUnderMa40": True,
+            "priorDeathCross": True,
+            "breachedDailyMa10": False,
+            "breachedMa60": False,
+            "riseCount": 0,
+        }
+
+        with mock.patch.object(monitor, "analyze_intraday", return_value=intraday):
+            monitor.enrich(
+                payload,
+                dt.datetime(2026, 10, 4, 16, tzinfo=KST),
+                5000,
+                True,
+            )
+
+        self.assertEqual(candidate["status"], "setup")
+        self.assertEqual(payload["summary"]["setup"], 1)
 
 
 if __name__ == "__main__":

@@ -307,10 +307,15 @@ def depth_rule_context(
             "signalReady": False,
         }
     path = bars[death_cross_index : index + 1]
-    ma60_ready = bool(path and all(bar.get("ma60") is not None for bar in path))
-    breached_ma60 = bool(
-        ma60_ready and any(bar["ma20"] < bar["ma60"] for bar in path)
-    )
+    # Naver's short minute-history window can leave MA60 blank at the start of
+    # a valid post-candidate path. Use every comparable completed bar instead
+    # of discarding the whole path because its earliest MA60 values are blank.
+    ma60_path = [
+        bar for bar in path
+        if bar.get("ma20") is not None and bar.get("ma60") is not None
+    ]
+    ma60_ready = bool(ma60_path)
+    breached_ma60 = bool(any(bar["ma20"] < bar["ma60"] for bar in ma60_path))
     breached_daily_ma10 = any(
         bar.get("ma20") is not None and bar["ma20"] < daily_ma10 for bar in path
     )
@@ -338,6 +343,31 @@ def depth_rule_context(
     }
 
 
+def infer_missing_baseline(
+    bars: list[dict[str, Any]], signal_day: dt.date
+) -> tuple[bool, int | None]:
+    """Recover legacy candidates whose A-G baseline fell outside Naver history."""
+    for index, bar in enumerate(bars):
+        if bar["time"].date() <= signal_day or None in (bar.get("ma20"), bar.get("ma40")):
+            continue
+        return True, index if bar["ma20"] < bar["ma40"] else None
+    return False, None
+
+
+def apply_inferred_cross(context: dict[str, Any], synthetic_cross_index: int | None) -> dict[str, Any]:
+    if (
+        synthetic_cross_index is not None
+        and context.get("reversalUnderMa40")
+        and context.get("deathCrossIndex") is None
+        and context.get("reversalIndex", -1) >= synthetic_cross_index
+    ):
+        context = dict(context)
+        context["priorDeathCross"] = True
+        context["deathCrossIndex"] = synthetic_cross_index
+        context["deathCrossInferred"] = True
+    return context
+
+
 def analyze_intraday(candidate: dict[str, Any], current: dt.datetime, count: int) -> dict[str, Any]:
     rows = fetch_minute_rows(candidate["code"], count)
     bars = aggregate_30m(rows, current)
@@ -359,16 +389,21 @@ def analyze_intraday(candidate: dict[str, Any], current: dt.datetime, count: int
             baseline_above = baseline["ma20"] > baseline["ma40"]
             tracking["baselineMa20AboveMa40"] = baseline_above
             tracking["baselineTime"] = baseline["time"].isoformat(timespec="minutes")
+    baseline_inferred, synthetic_cross_index = (False, None)
+    if baseline_above is None:
+        baseline_inferred, synthetic_cross_index = infer_missing_baseline(bars, signal_day)
     eligible = [index for index, bar in enumerate(bars) if bar["time"].date() > signal_day]
     found_index = None
     for index in eligible:
-        context = rise_context(bars, index)
+        context = apply_inferred_cross(rise_context(bars, index), synthetic_cross_index)
         depth = depth_rule_context(bars, context, index, daily_ma10)
         if (
             depth["signalReady"]
             and context["reversalUnderMa40"]
             and context["priorDeathCross"]
-            and valid_post_candidate_sequence(bars, context, signal_day, baseline_above is True)
+            and valid_post_candidate_sequence(
+                bars, context, signal_day, baseline_above is True or baseline_inferred
+            )
         ):
             found_index = index
             break
@@ -377,7 +412,7 @@ def analyze_intraday(candidate: dict[str, Any], current: dt.datetime, count: int
         return {"dataStatus": "no_data", "barCount": 0}
     latest_index = eligible[-1] if eligible else len(bars) - 1
     latest = bars[latest_index]
-    latest_context = rise_context(bars, latest_index)
+    latest_context = apply_inferred_cross(rise_context(bars, latest_index), synthetic_cross_index)
     latest_depth = depth_rule_context(bars, latest_context, latest_index, daily_ma10)
     observed_daily_ma10_breach = bool(
         daily_ma10 is not None
@@ -388,7 +423,9 @@ def analyze_intraday(candidate: dict[str, Any], current: dt.datetime, count: int
     )
     eligible_reversal = bool(
         eligible
-        and valid_post_candidate_sequence(bars, latest_context, signal_day, baseline_above is True)
+        and valid_post_candidate_sequence(
+            bars, latest_context, signal_day, baseline_above is True or baseline_inferred
+        )
     )
     latest_context["eligibleReversal"] = eligible_reversal
     if observed_daily_ma10_breach:
@@ -419,6 +456,7 @@ def analyze_intraday(candidate: dict[str, Any], current: dt.datetime, count: int
         "lastBarTime": latest["time"].isoformat(timespec="minutes"),
         "lastPrice": latest["close"],
         "baselineMa20AboveMa40": baseline_above,
+        "baselineInferred": baseline_inferred,
         "ma20": round(latest["ma20"], 2) if latest["ma20"] is not None else None,
         "ma40": round(latest["ma40"], 2) if latest["ma40"] is not None else None,
         "ma60": round(latest["ma60"], 2) if latest["ma60"] is not None else None,
@@ -450,7 +488,10 @@ def analyze_intraday(candidate: dict[str, Any], current: dt.datetime, count: int
                 "signalMa40": round(signal_bar["ma40"], 2),
                 "signalMa60": round(signal_bar["ma60"], 2),
                 "signalRule": depth_rule_context(
-                    bars, rise_context(bars, found_index), found_index, daily_ma10
+                    bars,
+                    apply_inferred_cross(rise_context(bars, found_index), synthetic_cross_index),
+                    found_index,
+                    daily_ma10,
                 )["signalRule"],
                 "entryReference": bars[found_index + 1]["open"] if found_index + 1 < len(bars) else None,
             }
@@ -515,21 +556,38 @@ def enrich(payload: dict[str, Any], current: dt.datetime, count: int, no_notify:
                     new_alerts += 1
         elif intraday.get("breachedDailyMa10"):
             candidate["status"] = "excluded"
-        elif intraday.get("baselineMa20AboveMa40") is None:
+        elif (
+            intraday.get("baselineMa20AboveMa40") is None
+            and not intraday.get("baselineInferred")
+        ):
             candidate["status"] = "insufficient"
         elif intraday.get("baselineMa20AboveMa40") is False:
             candidate["status"] = "ineligible"
-        elif intraday.get("breachedMa60") and not intraday.get("recoveredMa60"):
+        elif (
+            intraday.get("breachedMa60")
+            and not intraday.get("recoveredMa60")
+            and intraday.get("riseCount", 0) >= 5
+        ):
             candidate["status"] = "waiting60"
         elif intraday.get("ma60") is None:
             candidate["status"] = "insufficient"
         elif (
-            intraday.get("riseCount", 0) > 0
+            0 < intraday.get("riseCount", 0) < 5
             and intraday.get("reversalUnderMa40")
             and intraday.get("priorDeathCross")
             and intraday.get("eligibleReversal")
         ):
             candidate["status"] = "rising"
+        elif (
+            intraday.get("eligibleReversal")
+            and intraday.get("priorDeathCross")
+            and intraday.get("ma20") is not None
+            and intraday.get("ma40") is not None
+            and intraday["ma20"] < intraday["ma40"]
+        ):
+            candidate["status"] = "setup"
+        elif intraday.get("breachedMa60") and not intraday.get("recoveredMa60"):
+            candidate["status"] = "waiting60"
         else:
             candidate["status"] = "watching"
 
@@ -542,6 +600,7 @@ def enrich(payload: dict[str, Any], current: dt.datetime, count: int, no_notify:
         "active": len(payload.get("candidates", [])),
         "signals": status_counts["signal"],
         "signalHistory": status_counts["signaled"],
+        "setup": status_counts["setup"],
         "rising": status_counts["rising"],
         "watching": status_counts["watching"],
         "insufficient": status_counts["insufficient"],

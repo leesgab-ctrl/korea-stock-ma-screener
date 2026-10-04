@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#176b58">
     <title>A-G 30분봉 신호 감시</title>
-    <link rel="stylesheet" href="monitor.css?v=20261004-4">
+    <link rel="stylesheet" href="monitor.css?v=20261004-5">
   </head>
   <body>
     <header class="topbar">
@@ -26,8 +26,10 @@
     <main>
       <section class="summary" aria-label="감시 요약">
         <div><strong id="activeCount">-</strong><span>활성 후보</span></div>
-        <div><strong id="signalCount">-</strong><span>매수 검토</span></div>
+        <div><strong id="setupCount">-</strong><span>매수 준비</span></div>
         <div><strong id="risingCount">-</strong><span>상승 진행</span></div>
+        <div><strong id="signalCount">-</strong><span>매수 검토</span></div>
+        <div><strong id="signaledCount">-</strong><span>매수포착 완료</span></div>
         <div><strong id="positionCount">-</strong><span>보유 관리</span></div>
         <div><strong id="asOf">-</strong><span>일봉 기준일</span></div>
       </section>
@@ -52,8 +54,10 @@
         <div class="tabs" role="tablist">
           <button class="tab active" data-filter="all" type="button">전체</button>
           <button class="tab" data-filter="signal" type="button">매수 검토</button>
-          <button class="tab" data-filter="signaled" type="button">신호 이력</button>
+          <button class="tab" data-filter="signaled" type="button">포착 완료</button>
+          <button class="tab" data-filter="setup" type="button">매수 준비</button>
           <button class="tab" data-filter="rising" type="button">상승 진행</button>
+          <button class="tab" data-filter="waiting60" type="button">MA60 대기</button>
           <button class="tab" data-filter="watching" type="button">관찰 중</button>
         </div>
         <label class="search-field">
@@ -107,7 +111,7 @@
         <button class="candidate-select" type="button">
           <span class="candidate-top"><strong class="candidate-name"></strong><span class="candidate-status"></span></span>
           <span class="candidate-code"></span>
-          <span class="candidate-progress"><i></i></span>
+          <span class="candidate-progress-row"><span class="candidate-progress"><i></i></span><strong class="candidate-rise"></strong></span>
           <span class="candidate-bottom"><span class="candidate-days"></span><span class="candidate-price"></span></span>
         </button>
         <div class="candidate-actions">
@@ -216,6 +220,6 @@
       </form>
     </dialog>
 
-    <script src="monitor.js?v=20261004-7"></script>
+    <script src="monitor.js?v=20261004-8"></script>
   </body>
 </html>

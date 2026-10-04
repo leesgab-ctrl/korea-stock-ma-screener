@@ -5,7 +5,9 @@ const MAX_STOP_PCT = 5;
 
 const elements = {
   activeCount: document.querySelector("#activeCount"),
+  setupCount: document.querySelector("#setupCount"),
   signalCount: document.querySelector("#signalCount"),
+  signaledCount: document.querySelector("#signaledCount"),
   risingCount: document.querySelector("#risingCount"),
   positionCount: document.querySelector("#positionCount"),
   asOf: document.querySelector("#asOf"),
@@ -62,14 +64,16 @@ const elements = {
 
 const statusLabels = {
   signal: "매수 검토",
-  signaled: "신호 이력",
+  signaled: "매수포착 완료",
+  setup: "매수 준비",
   rising: "상승 진행",
   watching: "관찰 중",
   insufficient: "기준자료 부족",
   ineligible: "초기조건 제외",
   excluded: "일봉 MA10 이탈",
-  waiting60: "MA60 회복 대기",
+  waiting60: "MA60 돌파 대기",
 };
+const statusPriority = { signal: 0, rising: 1, waiting60: 2, setup: 3, signaled: 4, watching: 5, insufficient: 6, ineligible: 7, excluded: 8 };
 const formatter = new Intl.NumberFormat("ko-KR", { maximumFractionDigits: 2 });
 
 async function loadData() {
@@ -100,7 +104,9 @@ async function loadData() {
 function render() {
   const { summary = {}, candidates = [], asOf, generatedAt } = state.payload;
   elements.activeCount.textContent = summary.active ?? candidates.length;
+  elements.setupCount.textContent = (summary.setup ?? 0) + (summary.waiting60 ?? 0);
   elements.signalCount.textContent = summary.signals ?? 0;
+  elements.signaledCount.textContent = summary.signalHistory ?? 0;
   elements.risingCount.textContent = summary.rising ?? 0;
   const openPositions = (state.positions?.positions || []).filter((item) => item.status === "open");
   elements.positionCount.textContent = openPositions.length;
@@ -217,7 +223,10 @@ function filteredCandidates(candidates) {
 }
 
 function renderCandidates(candidates) {
-  const visible = filteredCandidates(candidates);
+  const visible = filteredCandidates(candidates).sort((a, b) =>
+    (statusPriority[a.status] ?? 99) - (statusPriority[b.status] ?? 99)
+    || a.name.localeCompare(b.name, "ko")
+  );
   elements.candidateMeta.textContent = `${visible.length}개 표시 / ${candidates.length}개 관리`;
   elements.candidateList.innerHTML = "";
   if (!visible.length) {
@@ -234,6 +243,7 @@ function renderCandidates(candidates) {
     node.querySelector(".candidate-status").textContent = statusLabels[item.status] || "확인 필요";
     node.querySelector(".candidate-code").textContent = `${item.code} · ${item.market}`;
     node.querySelector(".candidate-progress i").style.width = `${(rise / 5) * 100}%`;
+    node.querySelector(".candidate-rise").textContent = `${rise} / 5`;
     node.querySelector(".candidate-days").textContent = `A-G ${item.dailySignalDate} · ${item.tradingDaysRemaining}일 남음`;
     node.querySelector(".candidate-price").textContent = intraday.lastPrice ? `${formatter.format(intraday.lastPrice)}원` : "분봉 대기";
     const technicalStop = item.daily?.preSpikeClose;
@@ -431,14 +441,16 @@ function renderDetail(item) {
 function signalCopy(item, intraday) {
   if (item.status === "signal" || item.status === "signaled") {
     const lead = item.status === "signal" ? "조건이 방금 확정됐습니다." : "과거 감시 중 조건이 확정된 이력입니다.";
-    return `${formatDateTime(intraday.signalTime)} 완성봉에서 ${lead} 신호 직후 다음 30분봉부터 HTS 현재가와 거래량을 확인하는 조건입니다.`;
+    const estimate = intraday.baselineInferred ? " 초기 하향교차 시점은 네이버 과거 데이터 범위로 추정했습니다." : "";
+    return `${formatDateTime(intraday.signalTime)} 완성봉에서 ${lead} 신호 직후 다음 30분봉부터 HTS 현재가와 거래량을 확인하는 조건입니다.${estimate}`;
   }
   if (item.status === "rising") {
     return `MA20이 MA40 아래에서 반등해 ${intraday.riseCount || 0}회 연속 상승 중입니다. 5회가 완성될 때까지 관찰합니다.`;
   }
+  if (item.status === "setup") return "A-G 확정 후 MA20이 MA40 아래로 내려왔습니다. 반등이 시작되어 1/5가 되는지 관찰하는 매수 준비 단계입니다.";
   if (item.status === "waiting60") return "MA20이 MA60 아래까지 내려갔습니다. MA20이 MA60을 다시 돌파한 완성봉까지 기다립니다.";
   if (item.status === "excluded") return "MA20이 직전 완료 일봉 MA10 가격선 아래로 내려가 이번 A-G 후보에서 제외했습니다.";
-  if (item.status === "insufficient") return "A-G 발생일의 30분봉 MA20·MA40 기준값이 네이버 제공 범위에서 벗어났습니다. 신규 후보부터 기준값을 자동 저장합니다.";
+  if (item.status === "insufficient") return "A-G 발생일의 30분봉 MA20·MA40 기준값과 후속 교차를 현재 네이버 제공 범위에서 확인할 수 없습니다. 신규 후보부터 기준값을 자동 저장합니다.";
   if (item.status === "ineligible") return "A-G 발생일 마감 시 MA20이 MA40 위에 있지 않아 30분봉 후속 감시에서 제외했습니다.";
   if (intraday.dataStatus === "error") return "네이버 분봉을 가져오지 못했습니다. 다음 예약 실행에서 다시 시도합니다.";
   return "MA20의 5회 상승을 관찰합니다. MA60 아래까지 조정되면 MA60 재돌파를 기다리고, 일봉 MA10 아래면 제외합니다.";

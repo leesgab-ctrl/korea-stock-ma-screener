@@ -49,7 +49,7 @@ h2 { font-size: 17px; }
 .topbar .criteria-button { background: #fff; color: var(--green); }
 
 main { max-width: 1480px; margin: 0 auto; padding: 18px; display: grid; gap: 14px; }
-.summary { display: grid; grid-template-columns: repeat(5, 1fr); background: var(--panel); border: 1px solid var(--line); border-radius: 7px; overflow: hidden; }
+.summary { display: grid; grid-template-columns: repeat(7, 1fr); background: var(--panel); border: 1px solid var(--line); border-radius: 7px; overflow: hidden; }
 .summary div { min-height: 78px; padding: 15px 18px; display: grid; align-content: center; gap: 3px; border-right: 1px solid var(--line); }
 .summary div:last-child { border-right: 0; }
 .summary strong { font-size: 23px; }
@@ -59,6 +59,7 @@ main { max-width: 1480px; margin: 0 auto; padding: 18px; display: grid; gap: 14p
 .status-chip { display: inline-flex; align-items: center; min-height: 28px; padding: 5px 9px; border-radius: 999px; background: var(--green-soft); color: var(--green); font-size: 12px; font-weight: 800; white-space: nowrap; }
 .status-chip.signal { background: var(--red-soft); color: var(--red); }
 .status-chip.signaled { background: #e8f0fb; color: var(--blue); }
+.status-chip.setup { background: #fff8dc; color: #8a6815; }
 .status-chip.rising { background: var(--amber-soft); color: var(--amber); }
 .status-chip.waiting60 { background: var(--amber-soft); color: var(--amber); }
 .status-chip.excluded { background: #ecefed; color: var(--muted); }
@@ -157,16 +158,24 @@ main { max-width: 1480px; margin: 0 auto; padding: 18px; display: grid; gap: 14p
 .candidate-status { color: var(--green); font-size: 12px; font-weight: 800; }
 .candidate[data-status="signal"] .candidate-status { color: var(--red); }
 .candidate[data-status="signaled"] .candidate-status { color: var(--blue); }
+.candidate[data-status="setup"] { border-color: #dbc36c; box-shadow: inset 4px 0 #d3aa20; background: #fffdf3; }
+.candidate[data-status="setup"] .candidate-status { color: #8a6815; }
+.candidate[data-status="rising"] { border-color: #e1a25e; box-shadow: inset 4px 0 #d76b16; background: #fff8ef; }
 .candidate[data-status="rising"] .candidate-status { color: var(--amber); }
+.candidate[data-status="waiting60"] { border-color: #e1a25e; box-shadow: inset 4px 0 #d76b16; background: #fff8ef; }
 .candidate[data-status="waiting60"] .candidate-status { color: var(--amber); }
 .candidate[data-status="insufficient"] .candidate-status,
 .candidate[data-status="ineligible"] .candidate-status,
 .candidate[data-status="excluded"] .candidate-status { color: var(--muted); }
 .candidate-progress { height: 5px; overflow: hidden; background: #e9efec; border-radius: 2px; }
+.candidate-progress-row { display: grid; grid-template-columns: minmax(0, 1fr) 38px; align-items: center; gap: 9px; }
+.candidate-rise { color: var(--muted); font-size: 11px; text-align: right; }
 .candidate-progress i { display: block; height: 100%; background: var(--green); }
 .candidate[data-status="signal"] .candidate-progress i { background: var(--red); }
 .candidate[data-status="signaled"] .candidate-progress i { background: var(--blue); }
 .candidate[data-status="rising"] .candidate-progress i { background: var(--amber); }
+.candidate[data-status="setup"] .candidate-progress i { background: #d3aa20; }
+.candidate[data-status="waiting60"] .candidate-progress i { background: #d76b16; }
 .candidate-actions { min-height: 38px; padding: 6px 8px 6px 13px; display: flex; align-items: center; justify-content: space-between; gap: 10px; border-top: 1px solid var(--line); background: #fafcfb; }
 .candidate-stop { color: var(--muted); font-size: 11px; }
 .candidate-register { min-height: 28px; padding: 4px 9px; border: 1px solid var(--green); border-radius: 5px; background: #fff; color: var(--green); font-size: 11px; font-weight: 800; cursor: pointer; }
