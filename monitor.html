@@ -42,7 +42,7 @@
       <section class="positions-panel" aria-label="보유종목 관리">
         <div class="section-heading">
           <div><h2>보유종목 관리</h2><p>목표 +5%, 손절가, 30분봉 추세약화 알림</p></div>
-          <a class="external-link" href="https://github.com/leesgab-ctrl/korea-stock-ma-screener/actions/workflows/manage-position.yml">보유 등록·수정</a>
+          <button id="positionManagerButton" class="external-link" type="button">보유 등록·수정</button>
         </div>
         <div id="positionList" class="position-list"><div class="empty-list">보유종목을 불러오는 중입니다.</div></div>
       </section>
@@ -102,13 +102,59 @@
     </main>
 
     <template id="candidateTemplate">
-      <button class="candidate" type="button">
-        <span class="candidate-top"><strong class="candidate-name"></strong><span class="candidate-status"></span></span>
-        <span class="candidate-code"></span>
-        <span class="candidate-progress"><i></i></span>
-        <span class="candidate-bottom"><span class="candidate-days"></span><span class="candidate-price"></span></span>
-      </button>
+      <article class="candidate">
+        <button class="candidate-select" type="button">
+          <span class="candidate-top"><strong class="candidate-name"></strong><span class="candidate-status"></span></span>
+          <span class="candidate-code"></span>
+          <span class="candidate-progress"><i></i></span>
+          <span class="candidate-bottom"><span class="candidate-days"></span><span class="candidate-price"></span></span>
+        </button>
+        <div class="candidate-actions">
+          <span class="candidate-stop"></span>
+          <button class="candidate-register" type="button">보유등록</button>
+        </div>
+      </article>
     </template>
+
+    <dialog id="positionDialog" class="position-dialog">
+      <form id="positionForm" class="position-form">
+        <header>
+          <div>
+            <h2>보유종목 등록</h2>
+            <p id="positionFormSubtitle">매수정보와 손절가</p>
+          </div>
+          <button id="positionDialogClose" class="icon-button" type="button" aria-label="닫기">×</button>
+        </header>
+
+        <div class="form-mode" role="radiogroup" aria-label="처리 구분">
+          <label><input type="radio" name="positionAction" value="buy" checked><span>매수 등록·수정</span></label>
+          <label><input type="radio" name="positionAction" value="sold"><span>매도 완료</span></label>
+        </div>
+
+        <div class="form-grid">
+          <label><span>종목코드</span><input id="positionCode" name="code" inputmode="numeric" maxlength="6" pattern="[0-9]{6}" placeholder="005720" required></label>
+          <label><span>종목명</span><input id="positionName" name="name" placeholder="넥센"></label>
+          <label class="buy-field"><span>매수가</span><input id="positionBuyPrice" name="buyPrice" inputmode="decimal" placeholder="6480"></label>
+          <label class="buy-field"><span>손절가</span><input id="positionStopPrice" name="stopPrice" inputmode="decimal" placeholder="비우면 자동 계산"></label>
+          <label class="buy-field"><span>목표수익률</span><div class="suffix-input"><input id="positionTargetPct" name="targetPct" inputmode="decimal" value="5"><span>%</span></div></label>
+        </div>
+
+        <details id="githubConnection" class="connection-settings">
+          <summary><span>GitHub 연결</span><strong id="connectionState">연결 필요</strong></summary>
+          <label><span>연결키</span><input id="githubToken" type="password" autocomplete="off" placeholder="github_pat_..."></label>
+          <div class="connection-actions">
+            <a href="https://github.com/settings/personal-access-tokens/new?name=Stock%20Monitor&amp;description=Korea%20stock%20monitor%20position%20registration&amp;target_name=leesgab-ctrl&amp;expires_in=366&amp;actions=write">연결키 만들기</a>
+            <button id="clearGithubToken" type="button">저장키 삭제</button>
+          </div>
+        </details>
+
+        <p id="positionFormStatus" class="form-status" role="status"></p>
+        <footer>
+          <button id="positionCancelButton" class="secondary-button" type="button">취소</button>
+          <button id="positionSubmitButton" class="primary-button" type="submit">등록</button>
+        </footer>
+      </form>
+    </dialog>
 
     <script src="monitor.js"></script>
   </body>

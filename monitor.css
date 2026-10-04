@@ -24,7 +24,7 @@ body {
   overflow-x: hidden;
 }
 
-button, input { font: inherit; }
+button, input, select { font: inherit; }
 
 .topbar {
   min-height: 76px;
@@ -71,6 +71,45 @@ main { max-width: 1480px; margin: 0 auto; padding: 18px; display: grid; gap: 14p
 .position-return.positive { color: var(--red); }
 .position-return.negative { color: var(--blue); }
 .position-warning { min-height: 20px; color: var(--amber); font-size: 12px; font-weight: 700; }
+.position-item-actions { display: flex; justify-content: flex-end; gap: 6px; }
+.position-item-actions button { min-height: 30px; padding: 5px 9px; border: 1px solid var(--line); border-radius: 5px; background: #fff; color: var(--ink); font-size: 11px; font-weight: 800; cursor: pointer; }
+.position-item-actions .position-close { border-color: #e2baba; color: var(--red); }
+
+.position-dialog { width: min(560px, calc(100vw - 24px)); max-height: calc(100vh - 24px); padding: 0; border: 0; border-radius: 8px; box-shadow: 0 18px 60px rgba(18, 34, 28, .24); overflow: auto; }
+.position-dialog::backdrop { background: rgba(15, 25, 21, .52); }
+.position-form { display: grid; gap: 18px; padding: 20px; background: #fff; }
+.position-form header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.position-form header p { margin-top: 4px; color: var(--muted); font-size: 13px; }
+.icon-button { width: 38px; height: 38px; padding: 0; border: 1px solid var(--line); border-radius: 6px; background: #fff; color: var(--ink); font-size: 25px; line-height: 1; cursor: pointer; }
+.form-mode { display: grid; grid-template-columns: 1fr 1fr; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.form-mode label { cursor: pointer; }
+.form-mode input { position: absolute; opacity: 0; pointer-events: none; }
+.form-mode span { min-height: 42px; display: grid; place-items: center; padding: 8px; color: var(--muted); font-weight: 700; }
+.form-mode label + label { border-left: 1px solid var(--line); }
+.form-mode input:checked + span { background: var(--green); color: #fff; }
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 13px; }
+.form-grid label, .connection-settings > label { min-width: 0; display: grid; gap: 6px; color: var(--muted); font-size: 12px; font-weight: 700; }
+.form-grid input, .connection-settings input { width: 100%; min-height: 42px; padding: 9px 11px; border: 1px solid var(--line); border-radius: 6px; background: #fff; color: var(--ink); }
+.form-grid input:focus, .connection-settings input:focus { outline: 2px solid rgba(23, 107, 88, .2); border-color: var(--green); }
+.suffix-input { position: relative; }
+.suffix-input input { padding-right: 34px; }
+.suffix-input span { position: absolute; top: 50%; right: 12px; transform: translateY(-50%); color: var(--muted); }
+.connection-settings { padding: 12px; border: 1px solid var(--line); border-radius: 6px; }
+.connection-settings summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; cursor: pointer; font-size: 13px; font-weight: 800; }
+.connection-settings summary strong { color: var(--amber); font-size: 12px; }
+.connection-settings summary strong.connected { color: var(--green); }
+.connection-settings[open] summary { margin-bottom: 12px; }
+.connection-actions { margin-top: 9px; display: flex; justify-content: space-between; gap: 10px; }
+.connection-actions a, .connection-actions button { padding: 5px 0; border: 0; background: transparent; color: var(--green); font-size: 12px; font-weight: 700; text-decoration: none; cursor: pointer; }
+.connection-actions button { color: var(--muted); }
+.form-status { min-height: 22px; color: var(--muted); font-size: 13px; line-height: 1.5; }
+.form-status.error { color: var(--red); font-weight: 700; }
+.form-status.success { color: var(--green); font-weight: 700; }
+.position-form footer { display: flex; justify-content: flex-end; gap: 8px; }
+.primary-button, .secondary-button { min-height: 42px; padding: 9px 17px; border-radius: 6px; cursor: pointer; font-weight: 800; }
+.primary-button { border: 1px solid var(--green); background: var(--green); color: #fff; }
+.secondary-button { border: 1px solid var(--line); background: #fff; color: var(--ink); }
+.primary-button:disabled { opacity: .6; cursor: wait; }
 
 .toolbar { display: flex; align-items: end; justify-content: space-between; gap: 16px; }
 .tabs { display: flex; gap: 5px; min-width: 0; max-width: 100%; overflow-x: auto; }
@@ -83,7 +122,8 @@ main { max-width: 1480px; margin: 0 auto; padding: 18px; display: grid; gap: 14p
 .candidate-panel, .detail-panel { min-width: 0; background: var(--panel); border: 1px solid var(--line); border-radius: 7px; overflow: hidden; }
 .section-heading { min-height: 67px; padding: 15px 17px; display: flex; align-items: center; justify-content: space-between; gap: 12px; border-bottom: 1px solid var(--line); }
 .candidate-list { max-height: calc(100vh - 300px); min-height: 450px; padding: 10px; overflow-y: auto; display: grid; align-content: start; gap: 7px; }
-.candidate { width: 100%; padding: 13px; display: grid; gap: 6px; border: 1px solid var(--line); border-radius: 7px; background: #fff; color: var(--ink); text-align: left; cursor: pointer; }
+.candidate { width: 100%; display: grid; border: 1px solid var(--line); border-radius: 7px; background: #fff; color: var(--ink); overflow: hidden; }
+.candidate-select { width: 100%; padding: 13px; display: grid; gap: 6px; border: 0; background: transparent; color: var(--ink); text-align: left; cursor: pointer; }
 .candidate:hover, .candidate.selected { border-color: var(--green); background: #f8fcfa; }
 .candidate-top, .candidate-bottom { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .candidate-name { font-size: 15px; }
@@ -101,6 +141,10 @@ main { max-width: 1480px; margin: 0 auto; padding: 18px; display: grid; gap: 14p
 .candidate[data-status="signal"] .candidate-progress i { background: var(--red); }
 .candidate[data-status="signaled"] .candidate-progress i { background: var(--blue); }
 .candidate[data-status="rising"] .candidate-progress i { background: var(--amber); }
+.candidate-actions { min-height: 38px; padding: 6px 8px 6px 13px; display: flex; align-items: center; justify-content: space-between; gap: 10px; border-top: 1px solid var(--line); background: #fafcfb; }
+.candidate-stop { color: var(--muted); font-size: 11px; }
+.candidate-register { min-height: 28px; padding: 4px 9px; border: 1px solid var(--green); border-radius: 5px; background: #fff; color: var(--green); font-size: 11px; font-weight: 800; cursor: pointer; }
+.candidate-register:hover { background: var(--green); color: #fff; }
 
 .detail-heading { min-height: 70px; }
 .external-link { min-height: 34px; padding: 7px 10px; font-size: 12px; }
@@ -151,4 +195,8 @@ main { max-width: 1480px; margin: 0 auto; padding: 18px; display: grid; gap: 14p
   .metrics div:nth-child(2n) { border-right: 0; }
   .metrics div:nth-last-child(-n+2) { border-bottom: 0; }
   #maChart { height: 260px; }
+  .position-dialog { width: calc(100vw - 16px); max-height: calc(100vh - 16px); }
+  .position-form { padding: 16px; gap: 15px; }
+  .form-grid { grid-template-columns: 1fr; }
+  .position-form footer { display: grid; grid-template-columns: 1fr 1fr; }
 }

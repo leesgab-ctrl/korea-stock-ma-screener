@@ -1,4 +1,6 @@
 const state = { payload: null, positions: null, filter: "all", keyword: "", selectedCode: null };
+const GITHUB_TOKEN_KEY = "koreaStockMonitor.githubToken";
+const WORKFLOW_DISPATCH_URL = "https://api.github.com/repos/leesgab-ctrl/korea-stock-ma-screener/actions/workflows/manage-position.yml/dispatches";
 
 const elements = {
   activeCount: document.querySelector("#activeCount"),
@@ -32,6 +34,23 @@ const elements = {
   remainingDays: document.querySelector("#remainingDays"),
   signalMessage: document.querySelector("#signalMessage"),
   chart: document.querySelector("#maChart"),
+  positionManagerButton: document.querySelector("#positionManagerButton"),
+  positionDialog: document.querySelector("#positionDialog"),
+  positionDialogClose: document.querySelector("#positionDialogClose"),
+  positionCancelButton: document.querySelector("#positionCancelButton"),
+  positionForm: document.querySelector("#positionForm"),
+  positionFormSubtitle: document.querySelector("#positionFormSubtitle"),
+  positionCode: document.querySelector("#positionCode"),
+  positionName: document.querySelector("#positionName"),
+  positionBuyPrice: document.querySelector("#positionBuyPrice"),
+  positionStopPrice: document.querySelector("#positionStopPrice"),
+  positionTargetPct: document.querySelector("#positionTargetPct"),
+  githubConnection: document.querySelector("#githubConnection"),
+  githubToken: document.querySelector("#githubToken"),
+  clearGithubToken: document.querySelector("#clearGithubToken"),
+  connectionState: document.querySelector("#connectionState"),
+  positionFormStatus: document.querySelector("#positionFormStatus"),
+  positionSubmitButton: document.querySelector("#positionSubmitButton"),
 };
 
 const statusLabels = {
@@ -106,7 +125,8 @@ function renderPositions(positions) {
       <header><strong></strong><span></span></header>
       <div class="position-values"><span class="position-price"></span><span class="position-return ${returnClass}"></span></div>
       <div class="position-values"><span class="position-stop"></span><span class="position-target"></span></div>
-      <div class="position-warning"></div>`;
+      <div class="position-warning"></div>
+      <div class="position-item-actions"><button class="position-edit" type="button">수정</button><button class="position-close" type="button">매도완료</button></div>`;
     article.querySelector("strong").textContent = item.name;
     article.querySelector("header span").textContent = item.code;
     article.querySelector(".position-price").textContent = `매수 ${formatter.format(item.buyPrice)}원 · 현재 ${item.lastPrice ? formatter.format(item.lastPrice) : "-"}원`;
@@ -115,6 +135,14 @@ function renderPositions(positions) {
     article.querySelector(".position-stop").textContent = `${stopLabel} ${formatter.format(item.stopPrice)}원`;
     article.querySelector(".position-target").textContent = `목표 ${formatter.format(item.targetPrice)}원`;
     article.querySelector(".position-warning").textContent = warning;
+    article.querySelector(".position-edit").addEventListener("click", () => {
+      const candidate = state.payload?.candidates?.find((entry) => entry.code === item.code) || null;
+      openPositionDialog(candidate, item, "buy");
+    });
+    article.querySelector(".position-close").addEventListener("click", () => {
+      const candidate = state.payload?.candidates?.find((entry) => entry.code === item.code) || null;
+      openPositionDialog(candidate, item, "sold");
+    });
     elements.positionList.append(article);
   }
 }
@@ -148,8 +176,119 @@ function renderCandidates(candidates) {
     node.querySelector(".candidate-progress i").style.width = `${(rise / 5) * 100}%`;
     node.querySelector(".candidate-days").textContent = `A-G ${item.dailySignalDate} · ${item.tradingDaysRemaining}일 남음`;
     node.querySelector(".candidate-price").textContent = intraday.lastPrice ? `${formatter.format(intraday.lastPrice)}원` : "분봉 대기";
-    node.addEventListener("click", () => { state.selectedCode = item.code; render(); });
+    const stopPrice = item.daily?.preSpikeClose;
+    node.querySelector(".candidate-stop").textContent = stopPrice ? `기본 손절 ${formatter.format(stopPrice)}원` : "손절가 확인 필요";
+    node.querySelector(".candidate-select").addEventListener("click", () => { state.selectedCode = item.code; render(); });
+    node.querySelector(".candidate-register").addEventListener("click", () => {
+      const position = state.positions?.positions?.find((entry) => entry.code === item.code && entry.status === "open") || null;
+      openPositionDialog(item, position, "buy");
+    });
     elements.candidateList.append(node);
+  }
+}
+
+function storedGithubToken() {
+  try { return localStorage.getItem(GITHUB_TOKEN_KEY) || ""; }
+  catch { return ""; }
+}
+
+function updateConnectionState() {
+  const connected = Boolean(elements.githubToken.value.trim());
+  elements.connectionState.textContent = connected ? "연결키 저장됨" : "연결 필요";
+  elements.connectionState.classList.toggle("connected", connected);
+  if (!connected) elements.githubConnection.open = true;
+}
+
+function setPositionMode(action) {
+  const isBuy = action === "buy";
+  document.querySelectorAll(".buy-field").forEach((field) => field.classList.toggle("hidden", !isBuy));
+  elements.positionName.closest("label").classList.toggle("hidden", !isBuy);
+  elements.positionName.required = isBuy;
+  elements.positionBuyPrice.required = isBuy;
+  elements.positionSubmitButton.textContent = isBuy ? "등록" : "매도 완료";
+  elements.positionFormSubtitle.textContent = isBuy ? "매수정보와 손절가" : "보유목록에서 종료";
+}
+
+function openPositionDialog(candidate = null, position = null, action = "buy") {
+  elements.positionForm.reset();
+  elements.positionTargetPct.value = "5";
+  elements.githubToken.value = storedGithubToken();
+  elements.positionFormStatus.textContent = "";
+  elements.positionFormStatus.className = "form-status";
+  const actionRadio = elements.positionForm.querySelector(`input[name="positionAction"][value="${action}"]`);
+  actionRadio.checked = true;
+  setPositionMode(action);
+  if (candidate) {
+    elements.positionCode.value = candidate.code || "";
+    elements.positionName.value = candidate.name || "";
+    elements.positionStopPrice.value = candidate.daily?.preSpikeClose || "";
+    elements.positionFormSubtitle.textContent = `${candidate.name} · ${candidate.code}`;
+  }
+  if (position) {
+    elements.positionCode.value = position.code || elements.positionCode.value;
+    elements.positionName.value = position.name || elements.positionName.value;
+    elements.positionBuyPrice.value = position.buyPrice || "";
+    elements.positionStopPrice.value = position.stopPrice || elements.positionStopPrice.value;
+    elements.positionTargetPct.value = position.targetPct || "5";
+    elements.positionFormSubtitle.textContent = `${position.name} · ${position.code}`;
+  }
+  updateConnectionState();
+  elements.positionDialog.showModal();
+  (action === "buy" && (candidate || position) ? elements.positionBuyPrice : elements.positionCode).focus();
+}
+
+function closePositionDialog() {
+  if (elements.positionDialog.open) elements.positionDialog.close();
+}
+
+async function submitPosition(event) {
+  event.preventDefault();
+  const action = new FormData(elements.positionForm).get("positionAction");
+  const token = elements.githubToken.value.trim();
+  if (!token) {
+    elements.githubConnection.open = true;
+    elements.positionFormStatus.textContent = "GitHub 연결키를 입력해 주세요.";
+    elements.positionFormStatus.className = "form-status error";
+    elements.githubToken.focus();
+    return;
+  }
+  try { localStorage.setItem(GITHUB_TOKEN_KEY, token); }
+  catch { /* The request can still proceed for this session. */ }
+  updateConnectionState();
+  elements.positionSubmitButton.disabled = true;
+  elements.positionFormStatus.textContent = "등록 요청 중...";
+  elements.positionFormStatus.className = "form-status";
+  const inputs = {
+    action,
+    code: elements.positionCode.value.trim(),
+    name: action === "buy" ? elements.positionName.value.trim() : "",
+    buy_price: action === "buy" ? elements.positionBuyPrice.value.trim() : "",
+    stop_price: action === "buy" ? elements.positionStopPrice.value.trim() : "",
+    target_pct: action === "buy" ? elements.positionTargetPct.value.trim() || "5" : "5",
+  };
+  try {
+    const response = await fetch(WORKFLOW_DISPATCH_URL, {
+      method: "POST",
+      headers: {
+        Accept: "application/vnd.github+json",
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+        "X-GitHub-Api-Version": "2022-11-28",
+      },
+      body: JSON.stringify({ ref: "main", inputs }),
+    });
+    if (!response.ok) {
+      if (response.status === 401 || response.status === 403) throw new Error("연결키 권한을 확인해 주세요.");
+      throw new Error(`등록 요청 실패 (${response.status})`);
+    }
+    elements.positionFormStatus.textContent = "등록 요청이 완료되었습니다. 잠시 후 현황에 반영됩니다.";
+    elements.positionFormStatus.className = "form-status success";
+    setTimeout(() => { closePositionDialog(); loadData(); }, 1800);
+  } catch (error) {
+    elements.positionFormStatus.textContent = error.message || String(error);
+    elements.positionFormStatus.className = "form-status error";
+  } finally {
+    elements.positionSubmitButton.disabled = false;
   }
 }
 
@@ -280,6 +419,22 @@ document.querySelectorAll(".tab").forEach((button) => {
 });
 elements.keyword.addEventListener("input", (event) => { state.keyword = event.target.value; render(); });
 elements.refreshButton.addEventListener("click", loadData);
+elements.positionManagerButton.addEventListener("click", () => openPositionDialog());
+elements.positionDialogClose.addEventListener("click", closePositionDialog);
+elements.positionCancelButton.addEventListener("click", closePositionDialog);
+elements.positionForm.addEventListener("submit", submitPosition);
+elements.positionForm.querySelectorAll('input[name="positionAction"]').forEach((radio) => {
+  radio.addEventListener("change", () => setPositionMode(radio.value));
+});
+elements.githubToken.addEventListener("input", updateConnectionState);
+elements.clearGithubToken.addEventListener("click", () => {
+  try { localStorage.removeItem(GITHUB_TOKEN_KEY); } catch { /* Nothing else to clear. */ }
+  elements.githubToken.value = "";
+  updateConnectionState();
+});
+elements.positionDialog.addEventListener("click", (event) => {
+  if (event.target === elements.positionDialog) closePositionDialog();
+});
 window.addEventListener("resize", () => {
   if (!state.payload) return;
   renderDetail(state.payload.candidates.find((item) => item.code === state.selectedCode));
