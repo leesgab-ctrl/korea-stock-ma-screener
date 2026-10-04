@@ -15,6 +15,7 @@ from zoneinfo import ZoneInfo
 ROOT = Path(__file__).resolve().parents[1]
 KST = ZoneInfo("Asia/Seoul")
 USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124 Safari/537.36"
+TRACKING_RULE_VERSION = 2
 STRATEGY = {
     "candidateWindowTradingDays": 10,
     "minuteTimeframe": "30분봉",
@@ -342,6 +343,10 @@ def analyze_intraday(candidate: dict[str, Any], current: dt.datetime, count: int
     bars = aggregate_30m(rows, current)
     signal_day = dt.date.fromisoformat(candidate["dailySignalDate"])
     tracking = candidate.setdefault("tracking", {})
+    if tracking.get("ruleVersion") != TRACKING_RULE_VERSION:
+        tracking.pop("breachedDailyMa10", None)
+        tracking.pop("breachedMa60", None)
+        tracking["ruleVersion"] = TRACKING_RULE_VERSION
     daily_ma10 = candidate.get("dailyReference", {}).get("ma10")
     baseline_above = tracking.get("baselineMa20AboveMa40")
     if baseline_above is None:

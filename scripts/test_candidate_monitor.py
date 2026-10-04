@@ -142,7 +142,7 @@ class CandidateMonitorTests(unittest.TestCase):
             "code": "041830",
             "dailySignalDate": "2026-09-17",
             "dailyReference": {"ma10": 100.0},
-            "tracking": {},
+            "tracking": {"breachedDailyMa10": True},
         }
 
         with mock.patch.object(monitor, "fetch_minute_rows", return_value=[]), mock.patch.object(
@@ -174,7 +174,7 @@ class CandidateMonitorTests(unittest.TestCase):
             "code": "005720",
             "dailySignalDate": "2026-10-02",
             "dailyReference": {"ma10": 100.0},
-            "tracking": {},
+            "tracking": {"breachedDailyMa10": True},
         }
 
         with mock.patch.object(monitor, "fetch_minute_rows", return_value=[]), mock.patch.object(
@@ -189,6 +189,7 @@ class CandidateMonitorTests(unittest.TestCase):
         self.assertEqual(result["riseCount"], 0)
         self.assertFalse(result["breachedDailyMa10"])
         self.assertNotIn("breachedDailyMa10", candidate["tracking"])
+        self.assertEqual(candidate["tracking"]["ruleVersion"], monitor.TRACKING_RULE_VERSION)
 
     def test_candidate_with_ma_values_waits_for_post_signal_sequence(self) -> None:
         candidate = {"code": "036200", "dailySignalDate": "2026-10-01"}
