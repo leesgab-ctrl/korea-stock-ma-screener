@@ -1,23 +1,25 @@
 {
   "version": 1,
-  "generatedAt": "2026-10-04T20:19:54+09:00",
+  "generatedAt": "2026-10-04T21:16:40+09:00",
   "asOf": "2026-10-02",
   "source": "네이버 증권 일봉 및 분봉",
   "strategy": {
     "candidateWindowTradingDays": 10,
     "minuteTimeframe": "30분봉",
-    "maRule": "MA20 5회 상승, MA60 침범 시 MA60 재돌파, 일봉 MA10 하회 시 제외",
+    "maRule": "MA20 5회 상승, MA60 침범 시 MA60 재돌파, 직전 완료 일봉 MA10 하회 중 신호 보류",
     "entry": "신호봉 완성 후 다음 30분봉부터 HTS 현재가 확인"
   },
   "summary": {
     "active": 26,
     "signals": 0,
-    "signalHistory": 0,
+    "signalHistory": 8,
+    "setup": 1,
     "rising": 0,
-    "watching": 6,
-    "insufficient": 4,
+    "watching": 13,
+    "insufficient": 0,
     "ineligible": 0,
-    "excluded": 16,
+    "excluded": 0,
+    "waiting10": 4,
     "waiting60": 0,
     "dataErrors": 0,
     "newAlerts": 0,
@@ -57,14 +59,36 @@
       "dailyReference": {
         "close": 6490,
         "ma10": 5720.0,
-        "date": "2026-10-02"
+        "date": "2026-10-02",
+        "ma10PreviousByDate": {
+          "2026-09-03": 6151.0,
+          "2026-09-04": 6146.0,
+          "2026-09-07": 6138.0,
+          "2026-09-08": 6109.0,
+          "2026-09-09": 6066.0,
+          "2026-09-10": 6024.0,
+          "2026-09-11": 5994.0,
+          "2026-09-14": 5938.0,
+          "2026-09-15": 5890.0,
+          "2026-09-16": 5833.0,
+          "2026-09-17": 5783.0,
+          "2026-09-18": 5742.0,
+          "2026-09-21": 5698.0,
+          "2026-09-22": 5663.0,
+          "2026-09-23": 5642.0,
+          "2026-09-28": 5615.0,
+          "2026-09-29": 5583.0,
+          "2026-09-30": 5559.0,
+          "2026-10-01": 5594.0,
+          "2026-10-02": 5631.0
+        }
       },
       "status": "watching",
       "naverUrl": "https://stock.naver.com/domestic/stock/005720/price",
       "tracking": {
         "baselineMa20AboveMa40": true,
         "baselineTime": "2026-10-02T15:00+09:00",
-        "ruleVersion": 2
+        "ruleVersion": 4
       },
       "intraday": {
         "dataStatus": "ok",
@@ -72,6 +96,7 @@
         "lastBarTime": "2026-10-02T15:00+09:00",
         "lastPrice": 6480,
         "baselineMa20AboveMa40": true,
+        "baselineInferred": false,
         "ma20": 6239.0,
         "ma40": 5964.5,
         "ma60": 5776.67,
@@ -83,12 +108,12 @@
         "deathCrossIndex": 45,
         "eligibleReversal": false,
         "rawRiseCount": 32,
-        "ma60Ready": false,
+        "ma60Ready": true,
         "breachedMa60": false,
-        "recoveredMa60": false,
+        "recoveredMa60": true,
         "breachedDailyMa10": false,
         "signalRule": "five_rises",
-        "signalReady": false,
+        "signalReady": true,
         "series": [
           {
             "t": "2026-09-28T11:30+09:00",
@@ -785,14 +810,36 @@
       "dailyReference": {
         "close": 2975,
         "ma10": 2687.5,
-        "date": "2026-10-02"
+        "date": "2026-10-02",
+        "ma10PreviousByDate": {
+          "2026-09-03": 2661.0,
+          "2026-09-04": 2661.0,
+          "2026-09-07": 2667.0,
+          "2026-09-08": 2673.0,
+          "2026-09-09": 2667.5,
+          "2026-09-10": 2659.5,
+          "2026-09-11": 2655.5,
+          "2026-09-14": 2650.5,
+          "2026-09-15": 2647.0,
+          "2026-09-16": 2637.0,
+          "2026-09-17": 2636.0,
+          "2026-09-18": 2631.5,
+          "2026-09-21": 2622.5,
+          "2026-09-22": 2613.5,
+          "2026-09-23": 2606.0,
+          "2026-09-28": 2597.0,
+          "2026-09-29": 2597.0,
+          "2026-09-30": 2598.0,
+          "2026-10-01": 2625.5,
+          "2026-10-02": 2649.5
+        }
       },
       "status": "watching",
       "naverUrl": "https://stock.naver.com/domestic/stock/001250/price",
       "tracking": {
         "baselineMa20AboveMa40": true,
         "baselineTime": "2026-10-02T15:00+09:00",
-        "ruleVersion": 2
+        "ruleVersion": 4
       },
       "intraday": {
         "dataStatus": "ok",
@@ -800,6 +847,7 @@
         "lastBarTime": "2026-10-02T15:00+09:00",
         "lastPrice": 2990,
         "baselineMa20AboveMa40": true,
+        "baselineInferred": false,
         "ma20": 2925.25,
         "ma40": 2875.62,
         "ma60": 2800.83,
@@ -1513,14 +1561,36 @@
       "dailyReference": {
         "close": 10900,
         "ma10": 9833.0,
-        "date": "2026-10-02"
+        "date": "2026-10-02",
+        "ma10PreviousByDate": {
+          "2026-09-03": 9055.0,
+          "2026-09-04": 9000.0,
+          "2026-09-07": 8989.0,
+          "2026-09-08": 9008.0,
+          "2026-09-09": 8960.0,
+          "2026-09-10": 8928.0,
+          "2026-09-11": 8939.0,
+          "2026-09-14": 8953.0,
+          "2026-09-15": 8923.0,
+          "2026-09-16": 8930.0,
+          "2026-09-17": 8958.0,
+          "2026-09-18": 8995.0,
+          "2026-09-21": 9015.0,
+          "2026-09-22": 9058.0,
+          "2026-09-23": 9102.0,
+          "2026-09-28": 9167.0,
+          "2026-09-29": 9177.0,
+          "2026-09-30": 9322.0,
+          "2026-10-01": 9478.0,
+          "2026-10-02": 9653.0
+        }
       },
       "status": "watching",
       "naverUrl": "https://stock.naver.com/domestic/stock/036200/price",
       "tracking": {
         "baselineMa20AboveMa40": true,
         "baselineTime": "2026-10-01T15:00+09:00",
-        "ruleVersion": 2
+        "ruleVersion": 4
       },
       "intraday": {
         "dataStatus": "ok",
@@ -1528,6 +1598,7 @@
         "lastBarTime": "2026-10-02T15:00+09:00",
         "lastPrice": 10840,
         "baselineMa20AboveMa40": true,
+        "baselineInferred": false,
         "ma20": 10794.5,
         "ma40": 10554.25,
         "ma60": 10275.83,
@@ -2241,14 +2312,36 @@
       "dailyReference": {
         "close": 36100,
         "ma10": 31220.0,
-        "date": "2026-10-02"
+        "date": "2026-10-02",
+        "ma10PreviousByDate": {
+          "2026-09-03": 32905.0,
+          "2026-09-04": 32375.0,
+          "2026-09-07": 32175.0,
+          "2026-09-08": 31925.0,
+          "2026-09-09": 31605.0,
+          "2026-09-10": 31395.0,
+          "2026-09-11": 31080.0,
+          "2026-09-14": 30685.0,
+          "2026-09-15": 30170.0,
+          "2026-09-16": 29735.0,
+          "2026-09-17": 29570.0,
+          "2026-09-18": 29445.0,
+          "2026-09-21": 29305.0,
+          "2026-09-22": 29120.0,
+          "2026-09-23": 28965.0,
+          "2026-09-28": 28825.0,
+          "2026-09-29": 29225.0,
+          "2026-09-30": 29495.0,
+          "2026-10-01": 29935.0,
+          "2026-10-02": 30475.0
+        }
       },
       "status": "watching",
       "naverUrl": "https://stock.naver.com/domestic/stock/009830/price",
       "tracking": {
         "baselineMa20AboveMa40": true,
         "baselineTime": "2026-09-30T15:00+09:00",
-        "ruleVersion": 2
+        "ruleVersion": 4
       },
       "intraday": {
         "dataStatus": "ok",
@@ -2256,6 +2349,7 @@
         "lastBarTime": "2026-10-02T15:00+09:00",
         "lastPrice": 36100,
         "baselineMa20AboveMa40": true,
+        "baselineInferred": false,
         "ma20": 35115.0,
         "ma40": 34475.0,
         "ma60": 33811.67,
@@ -2969,14 +3063,36 @@
       "dailyReference": {
         "close": 4840,
         "ma10": 4247.0,
-        "date": "2026-10-02"
+        "date": "2026-10-02",
+        "ma10PreviousByDate": {
+          "2026-09-03": 3854.0,
+          "2026-09-04": 3847.0,
+          "2026-09-07": 3854.0,
+          "2026-09-08": 3861.5,
+          "2026-09-09": 3861.5,
+          "2026-09-10": 3865.0,
+          "2026-09-11": 3859.5,
+          "2026-09-14": 3848.5,
+          "2026-09-15": 3837.0,
+          "2026-09-16": 3821.0,
+          "2026-09-17": 3812.5,
+          "2026-09-18": 3813.5,
+          "2026-09-21": 3822.0,
+          "2026-09-22": 3838.0,
+          "2026-09-23": 3844.0,
+          "2026-09-28": 3851.0,
+          "2026-09-29": 3909.5,
+          "2026-09-30": 3968.0,
+          "2026-10-01": 4043.0,
+          "2026-10-02": 4140.0
+        }
       },
       "status": "watching",
       "naverUrl": "https://stock.naver.com/domestic/stock/220260/price",
       "tracking": {
         "baselineMa20AboveMa40": true,
         "baselineTime": "2026-09-30T15:00+09:00",
-        "ruleVersion": 2
+        "ruleVersion": 4
       },
       "intraday": {
         "dataStatus": "ok",
@@ -2984,6 +3100,7 @@
         "lastBarTime": "2026-10-02T15:00+09:00",
         "lastPrice": 4830,
         "baselineMa20AboveMa40": true,
+        "baselineInferred": false,
         "ma20": 4786.75,
         "ma40": 4654.5,
         "ma60": 4557.0,
@@ -3697,15 +3814,37 @@
       "dailyReference": {
         "close": 4560,
         "ma10": 4585.0,
-        "date": "2026-10-02"
+        "date": "2026-10-02",
+        "ma10PreviousByDate": {
+          "2026-09-03": 4356.0,
+          "2026-09-04": 4342.0,
+          "2026-09-07": 4333.0,
+          "2026-09-08": 4325.5,
+          "2026-09-09": 4317.5,
+          "2026-09-10": 4348.5,
+          "2026-09-11": 4390.0,
+          "2026-09-14": 4403.5,
+          "2026-09-15": 4420.0,
+          "2026-09-16": 4439.5,
+          "2026-09-17": 4451.0,
+          "2026-09-18": 4465.0,
+          "2026-09-21": 4488.0,
+          "2026-09-22": 4504.0,
+          "2026-09-23": 4514.5,
+          "2026-09-28": 4480.5,
+          "2026-09-29": 4489.0,
+          "2026-09-30": 4510.5,
+          "2026-10-01": 4550.5,
+          "2026-10-02": 4569.5
+        }
       },
-      "status": "watching",
+      "status": "setup",
       "naverUrl": "https://stock.naver.com/domestic/stock/014280/price",
       "tracking": {
         "baselineMa20AboveMa40": true,
         "baselineTime": "2026-09-30T15:00+09:00",
-        "ruleVersion": 2,
-        "breachedMa60": false
+        "ruleVersion": 4,
+        "breachedMa60": true
       },
       "intraday": {
         "dataStatus": "ok",
@@ -3713,6 +3852,7 @@
         "lastBarTime": "2026-10-02T15:00+09:00",
         "lastPrice": 4630,
         "baselineMa20AboveMa40": true,
+        "baselineInferred": false,
         "ma20": 4632.0,
         "ma40": 4719.5,
         "ma60": 4759.0,
@@ -3723,11 +3863,11 @@
         "priorDeathCross": true,
         "deathCrossIndex": 52,
         "eligibleReversal": true,
-        "ma60Ready": false,
-        "breachedMa60": false,
+        "ma60Ready": true,
+        "breachedMa60": true,
         "recoveredMa60": false,
         "breachedDailyMa10": false,
-        "signalRule": "five_rises",
+        "signalRule": "ma60_recovery",
         "signalReady": false,
         "series": [
           {
@@ -4425,13 +4565,35 @@
       "dailyReference": {
         "close": 2070,
         "ma10": 2081.3,
-        "date": "2026-10-02"
+        "date": "2026-10-02",
+        "ma10PreviousByDate": {
+          "2026-09-03": 1999.4,
+          "2026-09-04": 2005.4,
+          "2026-09-07": 2004.3,
+          "2026-09-08": 2010.2,
+          "2026-09-09": 2019.2,
+          "2026-09-10": 2033.2,
+          "2026-09-11": 2050.2,
+          "2026-09-14": 2061.9,
+          "2026-09-15": 2071.4,
+          "2026-09-16": 2075.4,
+          "2026-09-17": 2082.4,
+          "2026-09-18": 2083.4,
+          "2026-09-21": 2087.0,
+          "2026-09-22": 2084.5,
+          "2026-09-23": 2075.8,
+          "2026-09-28": 2082.8,
+          "2026-09-29": 2077.3,
+          "2026-09-30": 2081.3,
+          "2026-10-01": 2076.3,
+          "2026-10-02": 2083.8
+        }
       },
-      "status": "excluded",
+      "status": "waiting10",
       "naverUrl": "https://stock.naver.com/domestic/stock/188260/price",
       "tracking": {
-        "ruleVersion": 2,
-        "breachedDailyMa10": true
+        "ruleVersion": 4,
+        "breachedMa60": false
       },
       "intraday": {
         "dataStatus": "ok",
@@ -4439,6 +4601,7 @@
         "lastBarTime": "2026-10-02T15:00+09:00",
         "lastPrice": 2070,
         "baselineMa20AboveMa40": null,
+        "baselineInferred": true,
         "ma20": 2081.5,
         "ma40": 2086.75,
         "ma60": null,
@@ -4446,15 +4609,15 @@
         "riseCount": 0,
         "reversalIndex": 58,
         "reversalUnderMa40": true,
-        "priorDeathCross": false,
-        "deathCrossIndex": null,
-        "eligibleReversal": false,
-        "rawRiseCount": 0,
+        "priorDeathCross": true,
+        "deathCrossIndex": 39,
+        "deathCrossInferred": true,
+        "eligibleReversal": true,
         "ma60Ready": false,
         "breachedMa60": false,
         "recoveredMa60": false,
         "breachedDailyMa10": true,
-        "signalRule": null,
+        "signalRule": "five_rises",
         "signalReady": false,
         "series": [
           {
@@ -5141,12 +5304,34 @@
       "dailyReference": {
         "close": 82900,
         "ma10": 67060.0,
-        "date": "2026-10-02"
+        "date": "2026-10-02",
+        "ma10PreviousByDate": {
+          "2026-09-03": 58640.0,
+          "2026-09-04": 57620.0,
+          "2026-09-07": 57260.0,
+          "2026-09-08": 56950.0,
+          "2026-09-09": 56290.0,
+          "2026-09-10": 55700.0,
+          "2026-09-11": 54870.0,
+          "2026-09-14": 53970.0,
+          "2026-09-15": 52685.0,
+          "2026-09-16": 51755.0,
+          "2026-09-17": 51085.0,
+          "2026-09-18": 51175.0,
+          "2026-09-21": 51295.0,
+          "2026-09-22": 51365.0,
+          "2026-09-23": 52905.0,
+          "2026-09-28": 54175.0,
+          "2026-09-29": 55875.0,
+          "2026-09-30": 58345.0,
+          "2026-10-01": 60950.0,
+          "2026-10-02": 63830.0
+        }
       },
-      "status": "insufficient",
+      "status": "watching",
       "naverUrl": "https://stock.naver.com/domestic/stock/007810/price",
       "tracking": {
-        "ruleVersion": 2
+        "ruleVersion": 4
       },
       "intraday": {
         "dataStatus": "ok",
@@ -5154,6 +5339,7 @@
         "lastBarTime": "2026-10-02T15:00+09:00",
         "lastPrice": 82400,
         "baselineMa20AboveMa40": null,
+        "baselineInferred": true,
         "ma20": 80415.0,
         "ma40": 77393.75,
         "ma60": 75359.17,
@@ -5867,12 +6053,34 @@
       "dailyReference": {
         "close": 7190,
         "ma10": 6870.0,
-        "date": "2026-10-02"
+        "date": "2026-10-02",
+        "ma10PreviousByDate": {
+          "2026-09-03": 6162.0,
+          "2026-09-04": 6167.0,
+          "2026-09-07": 6228.0,
+          "2026-09-08": 6284.0,
+          "2026-09-09": 6297.0,
+          "2026-09-10": 6302.0,
+          "2026-09-11": 6307.0,
+          "2026-09-14": 6302.0,
+          "2026-09-15": 6297.0,
+          "2026-09-16": 6243.0,
+          "2026-09-17": 6238.0,
+          "2026-09-18": 6241.0,
+          "2026-09-21": 6242.0,
+          "2026-09-22": 6230.0,
+          "2026-09-23": 6323.0,
+          "2026-09-28": 6408.0,
+          "2026-09-29": 6513.0,
+          "2026-09-30": 6600.0,
+          "2026-10-01": 6684.0,
+          "2026-10-02": 6777.0
+        }
       },
-      "status": "insufficient",
+      "status": "signaled",
       "naverUrl": "https://stock.naver.com/domestic/stock/051370/price",
       "tracking": {
-        "ruleVersion": 2
+        "ruleVersion": 4
       },
       "intraday": {
         "dataStatus": "ok",
@@ -5880,6 +6088,7 @@
         "lastBarTime": "2026-10-02T15:00+09:00",
         "lastPrice": 7140,
         "baselineMa20AboveMa40": null,
+        "baselineInferred": true,
         "ma20": 7109.5,
         "ma40": 7013.75,
         "ma60": 7040.42,
@@ -5895,7 +6104,7 @@
         "breachedMa60": false,
         "recoveredMa60": false,
         "breachedDailyMa10": false,
-        "signalRule": null,
+        "signalRule": "ma60_recovery",
         "signalReady": false,
         "series": [
           {
@@ -6558,8 +6767,16 @@
             "m40": 7013.75,
             "m60": 7040.42
           }
-        ]
-      }
+        ],
+        "signalTime": "2026-10-02T11:00+09:00",
+        "signalPrice": 7110,
+        "signalMa20": 7069.0,
+        "signalMa40": 6979.5,
+        "signalMa60": 7058.75,
+        "entryReference": 7120,
+        "signalFresh": false
+      },
+      "signalSignature": "051370|2026-09-28|2026-10-02T11:00+09:00"
     },
     {
       "code": "176750",
@@ -6593,13 +6810,35 @@
       "dailyReference": {
         "close": 7270,
         "ma10": 6542.0,
-        "date": "2026-10-02"
+        "date": "2026-10-02",
+        "ma10PreviousByDate": {
+          "2026-09-03": 6205.0,
+          "2026-09-04": 6172.0,
+          "2026-09-07": 6176.0,
+          "2026-09-08": 6176.0,
+          "2026-09-09": 6170.0,
+          "2026-09-10": 6171.0,
+          "2026-09-11": 6177.0,
+          "2026-09-14": 6187.0,
+          "2026-09-15": 6163.0,
+          "2026-09-16": 6135.0,
+          "2026-09-17": 6091.0,
+          "2026-09-18": 6083.0,
+          "2026-09-21": 6054.0,
+          "2026-09-22": 6024.0,
+          "2026-09-23": 6047.0,
+          "2026-09-28": 6056.0,
+          "2026-09-29": 6087.0,
+          "2026-09-30": 6192.0,
+          "2026-10-01": 6291.0,
+          "2026-10-02": 6392.0
+        }
       },
-      "status": "excluded",
+      "status": "signaled",
       "naverUrl": "https://stock.naver.com/domestic/stock/176750/price",
       "tracking": {
-        "ruleVersion": 2,
-        "breachedDailyMa10": true
+        "ruleVersion": 4,
+        "breachedMa60": false
       },
       "intraday": {
         "dataStatus": "ok",
@@ -6607,23 +6846,23 @@
         "lastBarTime": "2026-10-02T15:00+09:00",
         "lastPrice": 7290,
         "baselineMa20AboveMa40": null,
+        "baselineInferred": true,
         "ma20": 7161.5,
         "ma40": 7007.0,
         "ma60": 6949.5,
         "dailyMa10": 6542.0,
-        "riseCount": 0,
+        "riseCount": 19,
         "reversalIndex": 58,
         "reversalUnderMa40": true,
         "priorDeathCross": true,
         "deathCrossIndex": 58,
-        "eligibleReversal": false,
-        "rawRiseCount": 19,
-        "ma60Ready": false,
+        "eligibleReversal": true,
+        "ma60Ready": true,
         "breachedMa60": false,
-        "recoveredMa60": false,
-        "breachedDailyMa10": true,
+        "recoveredMa60": true,
+        "breachedDailyMa10": false,
         "signalRule": "five_rises",
-        "signalReady": false,
+        "signalReady": true,
         "series": [
           {
             "t": "2026-09-28T11:30+09:00",
@@ -7285,8 +7524,16 @@
             "m40": 7007.0,
             "m60": 6949.5
           }
-        ]
-      }
+        ],
+        "signalTime": "2026-10-01T14:30+09:00",
+        "signalPrice": 6930,
+        "signalMa20": 6845.5,
+        "signalMa40": 6909.75,
+        "signalMa60": 6728.67,
+        "entryReference": 6960,
+        "signalFresh": false
+      },
+      "signalSignature": "176750|2026-09-28|2026-10-01T14:30+09:00"
     },
     {
       "code": "085670",
@@ -7320,12 +7567,35 @@
       "dailyReference": {
         "close": 3745,
         "ma10": 3262.0,
-        "date": "2026-10-02"
+        "date": "2026-10-02",
+        "ma10PreviousByDate": {
+          "2026-09-03": 2944.5,
+          "2026-09-04": 2942.5,
+          "2026-09-07": 2963.5,
+          "2026-09-08": 2980.5,
+          "2026-09-09": 2984.0,
+          "2026-09-10": 2986.0,
+          "2026-09-11": 2990.5,
+          "2026-09-14": 2986.5,
+          "2026-09-15": 2979.0,
+          "2026-09-16": 2969.5,
+          "2026-09-17": 2961.5,
+          "2026-09-18": 2960.5,
+          "2026-09-21": 2953.0,
+          "2026-09-22": 2946.0,
+          "2026-09-23": 2965.0,
+          "2026-09-28": 2981.5,
+          "2026-09-29": 3024.0,
+          "2026-09-30": 3078.0,
+          "2026-10-01": 3122.5,
+          "2026-10-02": 3176.5
+        }
       },
-      "status": "insufficient",
+      "status": "signaled",
       "naverUrl": "https://stock.naver.com/domestic/stock/085670/price",
       "tracking": {
-        "ruleVersion": 2
+        "ruleVersion": 4,
+        "breachedMa60": false
       },
       "intraday": {
         "dataStatus": "ok",
@@ -7333,23 +7603,23 @@
         "lastBarTime": "2026-10-02T15:00+09:00",
         "lastPrice": 3705,
         "baselineMa20AboveMa40": null,
+        "baselineInferred": true,
         "ma20": 3612.75,
         "ma40": 3513.88,
         "ma60": 3493.25,
         "dailyMa10": 3262.0,
-        "riseCount": 0,
+        "riseCount": 13,
         "reversalIndex": 64,
         "reversalUnderMa40": true,
         "priorDeathCross": true,
         "deathCrossIndex": 51,
-        "eligibleReversal": false,
-        "rawRiseCount": 13,
-        "ma60Ready": false,
+        "eligibleReversal": true,
+        "ma60Ready": true,
         "breachedMa60": false,
-        "recoveredMa60": false,
+        "recoveredMa60": true,
         "breachedDailyMa10": false,
         "signalRule": "five_rises",
-        "signalReady": false,
+        "signalReady": true,
         "series": [
           {
             "t": "2026-09-28T11:30+09:00",
@@ -8011,8 +8281,16 @@
             "m40": 3513.88,
             "m60": 3493.25
           }
-        ]
-      }
+        ],
+        "signalTime": "2026-10-02T11:00+09:00",
+        "signalPrice": 3710,
+        "signalMa20": 3495.0,
+        "signalMa40": 3463.88,
+        "signalMa60": 3443.83,
+        "entryReference": 3710,
+        "signalFresh": false
+      },
+      "signalSignature": "085670|2026-09-28|2026-10-02T11:00+09:00"
     },
     {
       "code": "254490",
@@ -8046,13 +8324,34 @@
       "dailyReference": {
         "close": 18880,
         "ma10": 16886.0,
-        "date": "2026-10-02"
+        "date": "2026-10-02",
+        "ma10PreviousByDate": {
+          "2026-09-03": 15659.0,
+          "2026-09-04": 15509.0,
+          "2026-09-07": 15506.0,
+          "2026-09-08": 15534.0,
+          "2026-09-09": 15477.0,
+          "2026-09-10": 15431.0,
+          "2026-09-11": 15380.0,
+          "2026-09-14": 15321.0,
+          "2026-09-15": 15196.0,
+          "2026-09-16": 15115.0,
+          "2026-09-17": 15078.0,
+          "2026-09-18": 15136.0,
+          "2026-09-21": 15161.0,
+          "2026-09-22": 15255.0,
+          "2026-09-23": 15367.0,
+          "2026-09-28": 15518.0,
+          "2026-09-29": 15621.0,
+          "2026-09-30": 15848.0,
+          "2026-10-01": 16116.0,
+          "2026-10-02": 16486.0
+        }
       },
-      "status": "excluded",
+      "status": "watching",
       "naverUrl": "https://stock.naver.com/domestic/stock/254490/price",
       "tracking": {
-        "ruleVersion": 2,
-        "breachedDailyMa10": true
+        "ruleVersion": 4
       },
       "intraday": {
         "dataStatus": "ok",
@@ -8060,6 +8359,7 @@
         "lastBarTime": "2026-10-02T15:00+09:00",
         "lastPrice": 18760,
         "baselineMa20AboveMa40": null,
+        "baselineInferred": true,
         "ma20": 18663.5,
         "ma40": 18115.0,
         "ma60": 17692.5,
@@ -8074,7 +8374,7 @@
         "ma60Ready": false,
         "breachedMa60": false,
         "recoveredMa60": false,
-        "breachedDailyMa10": true,
+        "breachedDailyMa10": false,
         "signalRule": null,
         "signalReady": false,
         "series": [
@@ -8773,12 +9073,34 @@
       "dailyReference": {
         "close": 86000,
         "ma10": 79630.0,
-        "date": "2026-10-02"
+        "date": "2026-10-02",
+        "ma10PreviousByDate": {
+          "2026-09-03": 69470.0,
+          "2026-09-04": 69230.0,
+          "2026-09-07": 69500.0,
+          "2026-09-08": 69950.0,
+          "2026-09-09": 70120.0,
+          "2026-09-10": 70460.0,
+          "2026-09-11": 70020.0,
+          "2026-09-14": 69860.0,
+          "2026-09-15": 69640.0,
+          "2026-09-16": 69440.0,
+          "2026-09-17": 69720.0,
+          "2026-09-18": 70050.0,
+          "2026-09-21": 70810.0,
+          "2026-09-22": 71140.0,
+          "2026-09-23": 72080.0,
+          "2026-09-28": 73000.0,
+          "2026-09-29": 74150.0,
+          "2026-09-30": 75280.0,
+          "2026-10-01": 76640.0,
+          "2026-10-02": 78060.0
+        }
       },
-      "status": "insufficient",
+      "status": "watching",
       "naverUrl": "https://stock.naver.com/domestic/stock/103590/price",
       "tracking": {
-        "ruleVersion": 2
+        "ruleVersion": 4
       },
       "intraday": {
         "dataStatus": "ok",
@@ -8786,6 +9108,7 @@
         "lastBarTime": "2026-10-02T15:00+09:00",
         "lastPrice": 86200,
         "baselineMa20AboveMa40": null,
+        "baselineInferred": true,
         "ma20": 84715.0,
         "ma40": 83430.0,
         "ma60": 82675.0,
@@ -9499,13 +9822,35 @@
       "dailyReference": {
         "close": 31500,
         "ma10": 30580.0,
-        "date": "2026-10-02"
+        "date": "2026-10-02",
+        "ma10PreviousByDate": {
+          "2026-09-03": 28250.0,
+          "2026-09-04": 28110.0,
+          "2026-09-07": 28185.0,
+          "2026-09-08": 28380.0,
+          "2026-09-09": 28505.0,
+          "2026-09-10": 28795.0,
+          "2026-09-11": 28785.0,
+          "2026-09-14": 28765.0,
+          "2026-09-15": 28635.0,
+          "2026-09-16": 28595.0,
+          "2026-09-17": 28650.0,
+          "2026-09-18": 28825.0,
+          "2026-09-21": 29250.0,
+          "2026-09-22": 29410.0,
+          "2026-09-23": 29725.0,
+          "2026-09-28": 29750.0,
+          "2026-09-29": 29765.0,
+          "2026-09-30": 29850.0,
+          "2026-10-01": 30025.0,
+          "2026-10-02": 30240.0
+        }
       },
-      "status": "excluded",
+      "status": "signaled",
       "naverUrl": "https://stock.naver.com/domestic/stock/001440/price",
       "tracking": {
-        "ruleVersion": 2,
-        "breachedDailyMa10": true
+        "ruleVersion": 4,
+        "breachedMa60": true
       },
       "intraday": {
         "dataStatus": "ok",
@@ -9513,23 +9858,23 @@
         "lastBarTime": "2026-10-02T15:00+09:00",
         "lastPrice": 31500,
         "baselineMa20AboveMa40": null,
+        "baselineInferred": true,
         "ma20": 30717.5,
         "ma40": 30224.38,
         "ma60": 30027.5,
         "dailyMa10": 30580.0,
-        "riseCount": 0,
+        "riseCount": 15,
         "reversalIndex": 62,
         "reversalUnderMa40": true,
         "priorDeathCross": true,
         "deathCrossIndex": 61,
-        "eligibleReversal": false,
-        "rawRiseCount": 15,
+        "eligibleReversal": true,
         "ma60Ready": true,
-        "breachedMa60": false,
+        "breachedMa60": true,
         "recoveredMa60": true,
-        "breachedDailyMa10": true,
+        "breachedDailyMa10": false,
         "signalRule": "ma60_recovery",
-        "signalReady": false,
+        "signalReady": true,
         "series": [
           {
             "t": "2026-09-28T11:30+09:00",
@@ -10191,8 +10536,16 @@
             "m40": 30224.38,
             "m60": 30027.5
           }
-        ]
-      }
+        ],
+        "signalTime": "2026-10-02T13:00+09:00",
+        "signalPrice": 31250,
+        "signalMa20": 30303.75,
+        "signalMa40": 30011.25,
+        "signalMa60": 29963.33,
+        "entryReference": 31350,
+        "signalFresh": false
+      },
+      "signalSignature": "001440|2026-09-22|2026-10-02T13:00+09:00"
     },
     {
       "code": "330860",
@@ -10226,13 +10579,34 @@
       "dailyReference": {
         "close": 32750,
         "ma10": 29355.0,
-        "date": "2026-10-02"
+        "date": "2026-10-02",
+        "ma10PreviousByDate": {
+          "2026-09-03": 25820.0,
+          "2026-09-04": 25460.0,
+          "2026-09-07": 25325.0,
+          "2026-09-08": 25270.0,
+          "2026-09-09": 25075.0,
+          "2026-09-10": 24775.0,
+          "2026-09-11": 24500.0,
+          "2026-09-14": 24205.0,
+          "2026-09-15": 23890.0,
+          "2026-09-16": 23730.0,
+          "2026-09-17": 23660.0,
+          "2026-09-18": 23935.0,
+          "2026-09-21": 24210.0,
+          "2026-09-22": 24595.0,
+          "2026-09-23": 25035.0,
+          "2026-09-28": 25555.0,
+          "2026-09-29": 25875.0,
+          "2026-09-30": 26710.0,
+          "2026-10-01": 27545.0,
+          "2026-10-02": 28440.0
+        }
       },
-      "status": "excluded",
+      "status": "watching",
       "naverUrl": "https://stock.naver.com/domestic/stock/330860/price",
       "tracking": {
-        "ruleVersion": 2,
-        "breachedDailyMa10": true
+        "ruleVersion": 4
       },
       "intraday": {
         "dataStatus": "ok",
@@ -10240,6 +10614,7 @@
         "lastBarTime": "2026-10-02T15:00+09:00",
         "lastPrice": 32250,
         "baselineMa20AboveMa40": null,
+        "baselineInferred": true,
         "ma20": 32347.5,
         "ma40": 31761.25,
         "ma60": 30793.33,
@@ -10254,7 +10629,7 @@
         "ma60Ready": false,
         "breachedMa60": false,
         "recoveredMa60": false,
-        "breachedDailyMa10": true,
+        "breachedDailyMa10": false,
         "signalRule": null,
         "signalReady": false,
         "series": [
@@ -10953,13 +11328,35 @@
       "dailyReference": {
         "close": 1735,
         "ma10": 1860.4,
-        "date": "2026-10-02"
+        "date": "2026-10-02",
+        "ma10PreviousByDate": {
+          "2026-09-03": 1832.1,
+          "2026-09-04": 1820.1,
+          "2026-09-07": 1816.4,
+          "2026-09-08": 1822.4,
+          "2026-09-09": 1813.2,
+          "2026-09-10": 1810.3,
+          "2026-09-11": 1806.0,
+          "2026-09-14": 1801.8,
+          "2026-09-15": 1786.9,
+          "2026-09-16": 1786.7,
+          "2026-09-17": 1788.6,
+          "2026-09-18": 1805.6,
+          "2026-09-21": 1817.2,
+          "2026-09-22": 1830.8,
+          "2026-09-23": 1843.2,
+          "2026-09-28": 1850.8,
+          "2026-09-29": 1856.6,
+          "2026-09-30": 1857.3,
+          "2026-10-01": 1865.4,
+          "2026-10-02": 1864.2
+        }
       },
-      "status": "excluded",
+      "status": "waiting10",
       "naverUrl": "https://stock.naver.com/domestic/stock/357880/price",
       "tracking": {
-        "ruleVersion": 2,
-        "breachedDailyMa10": true
+        "ruleVersion": 4,
+        "breachedMa60": true
       },
       "intraday": {
         "dataStatus": "ok",
@@ -10967,6 +11364,7 @@
         "lastBarTime": "2026-10-02T15:00+09:00",
         "lastPrice": 1727,
         "baselineMa20AboveMa40": null,
+        "baselineInferred": true,
         "ma20": 1765.95,
         "ma40": 1790.3,
         "ma60": 1812.6,
@@ -10974,15 +11372,15 @@
         "riseCount": 0,
         "reversalIndex": 77,
         "reversalUnderMa40": true,
-        "priorDeathCross": false,
-        "deathCrossIndex": null,
-        "eligibleReversal": false,
-        "rawRiseCount": 0,
-        "ma60Ready": false,
-        "breachedMa60": false,
+        "priorDeathCross": true,
+        "deathCrossIndex": 39,
+        "deathCrossInferred": true,
+        "eligibleReversal": true,
+        "ma60Ready": true,
+        "breachedMa60": true,
         "recoveredMa60": false,
         "breachedDailyMa10": true,
-        "signalRule": null,
+        "signalRule": "ma60_recovery",
         "signalReady": false,
         "series": [
           {
@@ -11680,13 +12078,34 @@
       "dailyReference": {
         "close": 65500,
         "ma10": 60680.0,
-        "date": "2026-10-02"
+        "date": "2026-10-02",
+        "ma10PreviousByDate": {
+          "2026-09-03": 53740.0,
+          "2026-09-04": 53100.0,
+          "2026-09-07": 52880.0,
+          "2026-09-08": 52690.0,
+          "2026-09-09": 52270.0,
+          "2026-09-10": 51950.0,
+          "2026-09-11": 51510.0,
+          "2026-09-14": 51120.0,
+          "2026-09-15": 50585.0,
+          "2026-09-16": 50070.0,
+          "2026-09-17": 50540.0,
+          "2026-09-18": 51100.0,
+          "2026-09-21": 51770.0,
+          "2026-09-22": 52380.0,
+          "2026-09-23": 53420.0,
+          "2026-09-28": 54470.0,
+          "2026-09-29": 55310.0,
+          "2026-09-30": 56640.0,
+          "2026-10-01": 58005.0,
+          "2026-10-02": 59740.0
+        }
       },
-      "status": "excluded",
+      "status": "watching",
       "naverUrl": "https://stock.naver.com/domestic/stock/195870/price",
       "tracking": {
-        "ruleVersion": 2,
-        "breachedDailyMa10": true
+        "ruleVersion": 4
       },
       "intraday": {
         "dataStatus": "ok",
@@ -11694,6 +12113,7 @@
         "lastBarTime": "2026-10-02T15:00+09:00",
         "lastPrice": 65300,
         "baselineMa20AboveMa40": null,
+        "baselineInferred": true,
         "ma20": 65720.0,
         "ma40": 64185.0,
         "ma60": 63013.33,
@@ -11708,7 +12128,7 @@
         "ma60Ready": false,
         "breachedMa60": false,
         "recoveredMa60": false,
-        "breachedDailyMa10": true,
+        "breachedDailyMa10": false,
         "signalRule": null,
         "signalReady": false,
         "series": [
@@ -12407,13 +12827,35 @@
       "dailyReference": {
         "close": 663,
         "ma10": 689.9,
-        "date": "2026-10-02"
+        "date": "2026-10-02",
+        "ma10PreviousByDate": {
+          "2026-09-03": 660.5,
+          "2026-09-04": 652.8,
+          "2026-09-07": 649.3,
+          "2026-09-08": 649.4,
+          "2026-09-09": 651.7,
+          "2026-09-10": 657.4,
+          "2026-09-11": 657.0,
+          "2026-09-14": 652.6,
+          "2026-09-15": 653.6,
+          "2026-09-16": 653.3,
+          "2026-09-17": 659.9,
+          "2026-09-18": 667.9,
+          "2026-09-21": 683.9,
+          "2026-09-22": 691.0,
+          "2026-09-23": 693.7,
+          "2026-09-28": 694.4,
+          "2026-09-29": 697.4,
+          "2026-09-30": 699.6,
+          "2026-10-01": 696.9,
+          "2026-10-02": 695.2
+        }
       },
-      "status": "excluded",
+      "status": "waiting10",
       "naverUrl": "https://stock.naver.com/domestic/stock/215790/price",
       "tracking": {
-        "ruleVersion": 2,
-        "breachedDailyMa10": true
+        "ruleVersion": 4,
+        "breachedMa60": true
       },
       "intraday": {
         "dataStatus": "ok",
@@ -12421,22 +12863,23 @@
         "lastBarTime": "2026-10-02T15:00+09:00",
         "lastPrice": 663,
         "baselineMa20AboveMa40": null,
+        "baselineInferred": true,
         "ma20": 654.6,
         "ma40": 654.17,
         "ma60": 657.83,
         "dailyMa10": 689.9,
-        "riseCount": 0,
+        "riseCount": 13,
         "reversalIndex": 64,
         "reversalUnderMa40": true,
-        "priorDeathCross": false,
-        "deathCrossIndex": null,
-        "eligibleReversal": false,
-        "rawRiseCount": 13,
-        "ma60Ready": false,
-        "breachedMa60": false,
+        "priorDeathCross": true,
+        "deathCrossIndex": 39,
+        "deathCrossInferred": true,
+        "eligibleReversal": true,
+        "ma60Ready": true,
+        "breachedMa60": true,
         "recoveredMa60": false,
         "breachedDailyMa10": true,
-        "signalRule": null,
+        "signalRule": "ma60_recovery",
         "signalReady": false,
         "series": [
           {
@@ -13134,13 +13577,34 @@
       "dailyReference": {
         "close": 2895,
         "ma10": 2840.5,
-        "date": "2026-10-02"
+        "date": "2026-10-02",
+        "ma10PreviousByDate": {
+          "2026-09-03": 2709.0,
+          "2026-09-04": 2711.0,
+          "2026-09-07": 2714.5,
+          "2026-09-08": 2711.0,
+          "2026-09-09": 2700.0,
+          "2026-09-10": 2691.0,
+          "2026-09-11": 2688.0,
+          "2026-09-14": 2679.0,
+          "2026-09-15": 2674.0,
+          "2026-09-16": 2672.0,
+          "2026-09-17": 2692.0,
+          "2026-09-18": 2711.5,
+          "2026-09-21": 2732.0,
+          "2026-09-22": 2754.0,
+          "2026-09-23": 2771.5,
+          "2026-09-28": 2781.5,
+          "2026-09-29": 2795.5,
+          "2026-09-30": 2810.0,
+          "2026-10-01": 2824.0,
+          "2026-10-02": 2837.5
+        }
       },
-      "status": "excluded",
+      "status": "watching",
       "naverUrl": "https://stock.naver.com/domestic/stock/038460/price",
       "tracking": {
-        "ruleVersion": 2,
-        "breachedDailyMa10": true
+        "ruleVersion": 4
       },
       "intraday": {
         "dataStatus": "ok",
@@ -13148,6 +13612,7 @@
         "lastBarTime": "2026-10-02T15:00+09:00",
         "lastPrice": 2885,
         "baselineMa20AboveMa40": null,
+        "baselineInferred": true,
         "ma20": 2857.25,
         "ma40": 2827.5,
         "ma60": 2808.5,
@@ -13162,7 +13627,7 @@
         "ma60Ready": false,
         "breachedMa60": false,
         "recoveredMa60": false,
-        "breachedDailyMa10": true,
+        "breachedDailyMa10": false,
         "signalRule": null,
         "signalReady": false,
         "series": [
@@ -13861,13 +14326,34 @@
       "dailyReference": {
         "close": 2140,
         "ma10": 2148.0,
-        "date": "2026-10-02"
+        "date": "2026-10-02",
+        "ma10PreviousByDate": {
+          "2026-09-03": 1837.7,
+          "2026-09-04": 1838.9,
+          "2026-09-07": 1845.9,
+          "2026-09-08": 1848.1,
+          "2026-09-09": 1849.8,
+          "2026-09-10": 1854.1,
+          "2026-09-11": 1857.4,
+          "2026-09-14": 1861.2,
+          "2026-09-15": 1866.2,
+          "2026-09-16": 1886.0,
+          "2026-09-17": 1902.5,
+          "2026-09-18": 1934.5,
+          "2026-09-21": 1974.6,
+          "2026-09-22": 2002.1,
+          "2026-09-23": 2022.6,
+          "2026-09-28": 2046.6,
+          "2026-09-29": 2075.2,
+          "2026-09-30": 2095.9,
+          "2026-10-01": 2122.7,
+          "2026-10-02": 2133.2
+        }
       },
-      "status": "excluded",
+      "status": "signaled",
       "naverUrl": "https://stock.naver.com/domestic/stock/372910/price",
       "tracking": {
-        "ruleVersion": 2,
-        "breachedDailyMa10": true
+        "ruleVersion": 4
       },
       "intraday": {
         "dataStatus": "ok",
@@ -13875,6 +14361,7 @@
         "lastBarTime": "2026-10-02T15:00+09:00",
         "lastPrice": 2140,
         "baselineMa20AboveMa40": null,
+        "baselineInferred": true,
         "ma20": 2148.5,
         "ma40": 2137.0,
         "ma60": 2136.25,
@@ -13889,8 +14376,8 @@
         "ma60Ready": false,
         "breachedMa60": false,
         "recoveredMa60": false,
-        "breachedDailyMa10": true,
-        "signalRule": null,
+        "breachedDailyMa10": false,
+        "signalRule": "five_rises",
         "signalReady": false,
         "series": [
           {
@@ -14553,8 +15040,16 @@
             "m40": 2137.0,
             "m60": 2136.25
           }
-        ]
-      }
+        ],
+        "signalTime": "2026-10-01T12:30+09:00",
+        "signalPrice": 2135,
+        "signalMa20": 2127.75,
+        "signalMa40": 2129.62,
+        "signalMa60": 2127.0,
+        "entryReference": 2140,
+        "signalFresh": false
+      },
+      "signalSignature": "372910|2026-09-17|2026-10-01T12:30+09:00"
     },
     {
       "code": "432470",
@@ -14588,13 +15083,34 @@
       "dailyReference": {
         "close": 10430,
         "ma10": 10317.0,
-        "date": "2026-10-02"
+        "date": "2026-10-02",
+        "ma10PreviousByDate": {
+          "2026-09-03": 9503.0,
+          "2026-09-04": 9649.0,
+          "2026-09-07": 9703.0,
+          "2026-09-08": 9773.0,
+          "2026-09-09": 9818.0,
+          "2026-09-10": 9944.0,
+          "2026-09-11": 9903.0,
+          "2026-09-14": 9876.0,
+          "2026-09-15": 9807.0,
+          "2026-09-16": 9733.0,
+          "2026-09-17": 9716.0,
+          "2026-09-18": 9800.0,
+          "2026-09-21": 9866.0,
+          "2026-09-22": 9940.0,
+          "2026-09-23": 10024.0,
+          "2026-09-28": 10035.0,
+          "2026-09-29": 10056.0,
+          "2026-09-30": 10109.0,
+          "2026-10-01": 10213.0,
+          "2026-10-02": 10249.0
+        }
       },
-      "status": "excluded",
+      "status": "signaled",
       "naverUrl": "https://stock.naver.com/domestic/stock/432470/price",
       "tracking": {
-        "ruleVersion": 2,
-        "breachedDailyMa10": true
+        "ruleVersion": 4
       },
       "intraday": {
         "dataStatus": "ok",
@@ -14602,6 +15118,7 @@
         "lastBarTime": "2026-10-02T15:00+09:00",
         "lastPrice": 10320,
         "baselineMa20AboveMa40": null,
+        "baselineInferred": true,
         "ma20": 10428.5,
         "ma40": 10355.25,
         "ma60": 10292.0,
@@ -14616,8 +15133,8 @@
         "ma60Ready": false,
         "breachedMa60": false,
         "recoveredMa60": false,
-        "breachedDailyMa10": true,
-        "signalRule": null,
+        "breachedDailyMa10": false,
+        "signalRule": "five_rises",
         "signalReady": false,
         "series": [
           {
@@ -15280,8 +15797,16 @@
             "m40": 10355.25,
             "m60": 10292.0
           }
-        ]
-      }
+        ],
+        "signalTime": "2026-10-01T12:30+09:00",
+        "signalPrice": 10430,
+        "signalMa20": 10313.5,
+        "signalMa40": 10233.25,
+        "signalMa60": 10225.25,
+        "entryReference": 10430,
+        "signalFresh": false
+      },
+      "signalSignature": "432470|2026-09-17|2026-10-01T12:30+09:00"
     },
     {
       "code": "041830",
@@ -15315,13 +15840,35 @@
       "dailyReference": {
         "close": 52100,
         "ma10": 54710.0,
-        "date": "2026-10-02"
+        "date": "2026-10-02",
+        "ma10PreviousByDate": {
+          "2026-09-03": 60690.0,
+          "2026-09-04": 60450.0,
+          "2026-09-07": 60580.0,
+          "2026-09-08": 60290.0,
+          "2026-09-09": 60040.0,
+          "2026-09-10": 59860.0,
+          "2026-09-11": 59640.0,
+          "2026-09-14": 59370.0,
+          "2026-09-15": 59030.0,
+          "2026-09-16": 58850.0,
+          "2026-09-17": 58760.0,
+          "2026-09-18": 58660.0,
+          "2026-09-21": 58280.0,
+          "2026-09-22": 57970.0,
+          "2026-09-23": 57640.0,
+          "2026-09-28": 57150.0,
+          "2026-09-29": 56700.0,
+          "2026-09-30": 56290.0,
+          "2026-10-01": 55860.0,
+          "2026-10-02": 55300.0
+        }
       },
-      "status": "excluded",
+      "status": "waiting10",
       "naverUrl": "https://stock.naver.com/domestic/stock/041830/price",
       "tracking": {
-        "ruleVersion": 2,
-        "breachedDailyMa10": true
+        "ruleVersion": 4,
+        "breachedMa60": true
       },
       "intraday": {
         "dataStatus": "ok",
@@ -15329,6 +15876,7 @@
         "lastBarTime": "2026-10-02T15:00+09:00",
         "lastPrice": 52100,
         "baselineMa20AboveMa40": null,
+        "baselineInferred": true,
         "ma20": 52290.0,
         "ma40": 52507.5,
         "ma60": 52854.17,
@@ -15336,15 +15884,15 @@
         "riseCount": 0,
         "reversalIndex": 77,
         "reversalUnderMa40": true,
-        "priorDeathCross": false,
-        "deathCrossIndex": null,
-        "eligibleReversal": false,
-        "rawRiseCount": 0,
-        "ma60Ready": false,
-        "breachedMa60": false,
+        "priorDeathCross": true,
+        "deathCrossIndex": 39,
+        "deathCrossInferred": true,
+        "eligibleReversal": true,
+        "ma60Ready": true,
+        "breachedMa60": true,
         "recoveredMa60": false,
         "breachedDailyMa10": true,
-        "signalRule": null,
+        "signalRule": "ma60_recovery",
         "signalReady": false,
         "series": [
           {
@@ -16042,13 +16590,34 @@
       "dailyReference": {
         "close": 8510,
         "ma10": 8042.0,
-        "date": "2026-10-02"
+        "date": "2026-10-02",
+        "ma10PreviousByDate": {
+          "2026-09-03": 6612.0,
+          "2026-09-04": 6581.0,
+          "2026-09-07": 6630.0,
+          "2026-09-08": 6682.0,
+          "2026-09-09": 6719.0,
+          "2026-09-10": 6722.0,
+          "2026-09-11": 6759.0,
+          "2026-09-14": 6786.0,
+          "2026-09-15": 6824.0,
+          "2026-09-16": 6907.0,
+          "2026-09-17": 6995.0,
+          "2026-09-18": 7137.0,
+          "2026-09-21": 7232.0,
+          "2026-09-22": 7315.0,
+          "2026-09-23": 7431.0,
+          "2026-09-28": 7558.0,
+          "2026-09-29": 7658.0,
+          "2026-09-30": 7764.0,
+          "2026-10-01": 7863.0,
+          "2026-10-02": 7927.0
+        }
       },
-      "status": "excluded",
+      "status": "watching",
       "naverUrl": "https://stock.naver.com/domestic/stock/289930/price",
       "tracking": {
-        "ruleVersion": 2,
-        "breachedDailyMa10": true
+        "ruleVersion": 4
       },
       "intraday": {
         "dataStatus": "ok",
@@ -16056,6 +16625,7 @@
         "lastBarTime": "2026-10-02T15:00+09:00",
         "lastPrice": 8440,
         "baselineMa20AboveMa40": null,
+        "baselineInferred": true,
         "ma20": 8282.5,
         "ma40": 8170.5,
         "ma60": 8110.0,
@@ -16070,7 +16640,7 @@
         "ma60Ready": false,
         "breachedMa60": false,
         "recoveredMa60": false,
-        "breachedDailyMa10": true,
+        "breachedDailyMa10": false,
         "signalRule": null,
         "signalReady": false,
         "series": [
@@ -16769,13 +17339,34 @@
       "dailyReference": {
         "close": 3845,
         "ma10": 3777.5,
-        "date": "2026-10-02"
+        "date": "2026-10-02",
+        "ma10PreviousByDate": {
+          "2026-09-03": 3358.0,
+          "2026-09-04": 3380.0,
+          "2026-09-07": 3417.5,
+          "2026-09-08": 3456.0,
+          "2026-09-09": 3484.0,
+          "2026-09-10": 3497.5,
+          "2026-09-11": 3519.0,
+          "2026-09-14": 3542.5,
+          "2026-09-15": 3557.5,
+          "2026-09-16": 3597.0,
+          "2026-09-17": 3630.5,
+          "2026-09-18": 3668.0,
+          "2026-09-21": 3702.5,
+          "2026-09-22": 3721.5,
+          "2026-09-23": 3736.0,
+          "2026-09-28": 3752.0,
+          "2026-09-29": 3758.5,
+          "2026-09-30": 3761.0,
+          "2026-10-01": 3783.0,
+          "2026-10-02": 3773.0
+        }
       },
-      "status": "excluded",
+      "status": "watching",
       "naverUrl": "https://stock.naver.com/domestic/stock/163280/price",
       "tracking": {
-        "ruleVersion": 2,
-        "breachedDailyMa10": true
+        "ruleVersion": 4
       },
       "intraday": {
         "dataStatus": "ok",
@@ -16783,6 +17374,7 @@
         "lastBarTime": "2026-10-02T15:00+09:00",
         "lastPrice": 3840,
         "baselineMa20AboveMa40": null,
+        "baselineInferred": true,
         "ma20": 3867.25,
         "ma40": 3856.5,
         "ma60": 3817.25,
@@ -16797,7 +17389,7 @@
         "ma60Ready": false,
         "breachedMa60": false,
         "recoveredMa60": false,
-        "breachedDailyMa10": true,
+        "breachedDailyMa10": false,
         "signalRule": null,
         "signalReady": false,
         "series": [
@@ -17496,13 +18088,34 @@
       "dailyReference": {
         "close": 3540,
         "ma10": 3351.5,
-        "date": "2026-10-02"
+        "date": "2026-10-02",
+        "ma10PreviousByDate": {
+          "2026-09-03": 3447.5,
+          "2026-09-04": 3437.5,
+          "2026-09-07": 3451.0,
+          "2026-09-08": 3432.5,
+          "2026-09-09": 3404.0,
+          "2026-09-10": 3379.0,
+          "2026-09-11": 3347.5,
+          "2026-09-14": 3306.0,
+          "2026-09-15": 3260.5,
+          "2026-09-16": 3225.5,
+          "2026-09-17": 3194.5,
+          "2026-09-18": 3194.5,
+          "2026-09-21": 3187.0,
+          "2026-09-22": 3214.0,
+          "2026-09-23": 3244.0,
+          "2026-09-28": 3261.5,
+          "2026-09-29": 3265.5,
+          "2026-09-30": 3275.5,
+          "2026-10-01": 3290.0,
+          "2026-10-02": 3318.5
+        }
       },
-      "status": "excluded",
+      "status": "signaled",
       "naverUrl": "https://stock.naver.com/domestic/stock/429270/price",
       "tracking": {
-        "ruleVersion": 2,
-        "breachedDailyMa10": true
+        "ruleVersion": 4
       },
       "intraday": {
         "dataStatus": "ok",
@@ -17510,6 +18123,7 @@
         "lastBarTime": "2026-10-02T15:00+09:00",
         "lastPrice": 3595,
         "baselineMa20AboveMa40": null,
+        "baselineInferred": true,
         "ma20": 3547.5,
         "ma40": 3445.88,
         "ma60": 3365.0,
@@ -17524,8 +18138,8 @@
         "ma60Ready": false,
         "breachedMa60": false,
         "recoveredMa60": false,
-        "breachedDailyMa10": true,
-        "signalRule": null,
+        "breachedDailyMa10": false,
+        "signalRule": "five_rises",
         "signalReady": false,
         "series": [
           {
@@ -18188,8 +18802,16 @@
             "m40": 3445.88,
             "m60": 3365.0
           }
-        ]
-      }
+        ],
+        "signalTime": "2026-10-01T12:30+09:00",
+        "signalPrice": 3620,
+        "signalMa20": 3382.0,
+        "signalMa40": 3294.38,
+        "signalMa60": 3271.17,
+        "entryReference": 3605,
+        "signalFresh": false
+      },
+      "signalSignature": "429270|2026-09-17|2026-10-01T12:30+09:00"
     },
     {
       "code": "004440",
@@ -18223,13 +18845,34 @@
       "dailyReference": {
         "close": 5440,
         "ma10": 5339.0,
-        "date": "2026-10-02"
+        "date": "2026-10-02",
+        "ma10PreviousByDate": {
+          "2026-09-03": 5175.0,
+          "2026-09-04": 5207.0,
+          "2026-09-07": 5258.0,
+          "2026-09-08": 5306.0,
+          "2026-09-09": 5324.0,
+          "2026-09-10": 5324.0,
+          "2026-09-11": 5307.0,
+          "2026-09-14": 5286.0,
+          "2026-09-15": 5248.0,
+          "2026-09-16": 5226.0,
+          "2026-09-17": 5208.0,
+          "2026-09-18": 5195.0,
+          "2026-09-21": 5183.0,
+          "2026-09-22": 5173.0,
+          "2026-09-23": 5152.0,
+          "2026-09-28": 5166.0,
+          "2026-09-29": 5194.0,
+          "2026-09-30": 5218.0,
+          "2026-10-01": 5262.0,
+          "2026-10-02": 5290.0
+        }
       },
-      "status": "excluded",
+      "status": "signaled",
       "naverUrl": "https://stock.naver.com/domestic/stock/004440/price",
       "tracking": {
-        "ruleVersion": 2,
-        "breachedDailyMa10": true
+        "ruleVersion": 4
       },
       "intraday": {
         "dataStatus": "ok",
@@ -18237,6 +18880,7 @@
         "lastBarTime": "2026-10-02T15:00+09:00",
         "lastPrice": 5440,
         "baselineMa20AboveMa40": null,
+        "baselineInferred": true,
         "ma20": 5449.5,
         "ma40": 5444.0,
         "ma60": 5437.83,
@@ -18251,8 +18895,8 @@
         "ma60Ready": false,
         "breachedMa60": false,
         "recoveredMa60": false,
-        "breachedDailyMa10": true,
-        "signalRule": null,
+        "breachedDailyMa10": false,
+        "signalRule": "five_rises",
         "signalReady": false,
         "series": [
           {
@@ -18915,8 +19559,16 @@
             "m40": 5444.0,
             "m60": 5437.83
           }
-        ]
-      }
+        ],
+        "signalTime": "2026-10-02T10:30+09:00",
+        "signalPrice": 5450,
+        "signalMa20": 5441.5,
+        "signalMa40": 5435.75,
+        "signalMa60": 5410.0,
+        "entryReference": 5450,
+        "signalFresh": false
+      },
+      "signalSignature": "004440|2026-09-17|2026-10-02T10:30+09:00"
     }
   ],
   "notifiedSignals": []
