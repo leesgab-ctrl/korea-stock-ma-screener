@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#176b58">
     <title>A-G 30분봉 신호 감시</title>
-    <link rel="stylesheet" href="monitor.css?v=20261004-3">
+    <link rel="stylesheet" href="monitor.css?v=20261004-4">
   </head>
   <body>
     <header class="topbar">
@@ -19,6 +19,7 @@
       <nav aria-label="화면 이동">
         <a href="index.html">이동평균 검색</a>
         <button id="refreshButton" type="button">새로고침</button>
+        <button id="criteriaButton" class="criteria-button" type="button">운영기준</button>
       </nav>
     </header>
 
@@ -116,6 +117,62 @@
       </article>
     </template>
 
+    <dialog id="criteriaDialog" class="criteria-dialog">
+      <article class="criteria-content">
+        <header>
+          <div>
+            <h2>운영기준</h2>
+            <p>현재 자동 감시에 적용되는 확정 기준</p>
+          </div>
+          <button id="criteriaDialogClose" class="icon-button" type="button" aria-label="닫기">×</button>
+        </header>
+
+        <section>
+          <div class="criteria-section-heading"><strong>대상종목 선정기준</strong><span>일봉 A-G</span></div>
+          <div class="criteria-table-wrap">
+            <table class="criteria-table">
+              <tbody>
+                <tr><th>A</th><td>2거래일 전 거래량이 해당 시점 20일 거래량 평균보다 200% 이상 증가</td></tr>
+                <tr><th>B</th><td>2거래일 전 종가가 전일 종가보다 3% 이상 상승</td></tr>
+                <tr><th>C</th><td>1거래일 전 종가가 2거래일 전 종가 대비 -10% 이상 0% 이하</td></tr>
+                <tr><th>D</th><td>1거래일 전 거래량이 2거래일 전 거래량보다 감소</td></tr>
+                <tr><th>E</th><td>A-G 발생일 종가가 1거래일 전 종가보다 1% 이상 상승</td></tr>
+                <tr><th>F</th><td>A-G 발생일 거래량이 1거래일 전 거래량보다 증가</td></tr>
+                <tr><th>G</th><td>3거래일 전 종가가 해당 시점 일봉 MA20 대비 -10% 이상 +5% 이하</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="criteria-note">A-G를 모두 만족한 종목을 발생일부터 10거래일 동안 관리합니다.</p>
+        </section>
+
+        <section>
+          <div class="criteria-section-heading"><strong>매수시점 확정기준</strong><span>30분봉 완성봉</span></div>
+          <ol class="criteria-steps">
+            <li>A-G 발생일 마감 기준으로 30분봉 MA20이 MA40 위에 있어야 합니다.</li>
+            <li>A-G 확정 다음 거래일부터 MA20이 MA40 아래로 하향 교차한 뒤 반등을 기다립니다.</li>
+            <li>MA40 아래에서 하락을 끝낸 MA20이 5개 완성봉 연속 상승하면 기본 매수 검토 신호입니다.</li>
+            <li>조정 중 MA20이 MA60 아래까지 내려갔다면, 5회 상승과 함께 MA60 재돌파까지 확인합니다.</li>
+            <li>신호봉 완성 후 알림을 보내며 다음 30분봉부터 HTS 현재가와 거래량을 확인합니다.</li>
+          </ol>
+        </section>
+
+        <section class="criteria-grid">
+          <div>
+            <div class="criteria-section-heading"><strong>제외기준</strong></div>
+            <p>확정 이후 MA20이 직전 완료 일봉 MA10 가격선 아래로 내려가면 해당 A-G 후보에서 제외합니다.</p>
+          </div>
+          <div>
+            <div class="criteria-section-heading"><strong>손절·목표기준</strong></div>
+            <p>기술적 손절가는 대량거래 전일 종가입니다. 매수가 대비 -5%보다 멀면 -5%로 제한하고, 손절 알림은 당일 15:00 이후 가격으로 확정합니다. 기본 목표수익률은 +5%입니다.</p>
+          </div>
+          <div>
+            <div class="criteria-section-heading"><strong>감시주기</strong></div>
+            <p>평일 장중 09:00부터 15:59까지 10분마다 검사합니다. 매수 판정은 완료된 30분봉만 사용합니다.</p>
+          </div>
+        </section>
+      </article>
+    </dialog>
+
     <dialog id="positionDialog" class="position-dialog">
       <form id="positionForm" class="position-form" autocomplete="off">
         <header>
@@ -159,6 +216,6 @@
       </form>
     </dialog>
 
-    <script src="monitor.js?v=20261004-6"></script>
+    <script src="monitor.js?v=20261004-7"></script>
   </body>
 </html>

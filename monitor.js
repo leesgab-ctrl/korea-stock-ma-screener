@@ -18,6 +18,9 @@ const elements = {
   template: document.querySelector("#candidateTemplate"),
   keyword: document.querySelector("#keyword"),
   refreshButton: document.querySelector("#refreshButton"),
+  criteriaButton: document.querySelector("#criteriaButton"),
+  criteriaDialog: document.querySelector("#criteriaDialog"),
+  criteriaDialogClose: document.querySelector("#criteriaDialogClose"),
   detailName: document.querySelector("#detailName"),
   detailMeta: document.querySelector("#detailMeta"),
   naverLink: document.querySelector("#naverLink"),
@@ -565,6 +568,11 @@ document.querySelectorAll(".tab").forEach((button) => {
 });
 elements.keyword.addEventListener("input", (event) => { state.keyword = event.target.value; render(); });
 elements.refreshButton.addEventListener("click", loadData);
+elements.criteriaButton.addEventListener("click", () => elements.criteriaDialog.showModal());
+elements.criteriaDialogClose.addEventListener("click", () => elements.criteriaDialog.close());
+elements.criteriaDialog.addEventListener("click", (event) => {
+  if (event.target === elements.criteriaDialog) elements.criteriaDialog.close();
+});
 elements.positionManagerButton.addEventListener("click", () => openPositionDialog());
 elements.positionDialogClose.addEventListener("click", closePositionDialog);
 elements.positionCancelButton.addEventListener("click", closePositionDialog);
