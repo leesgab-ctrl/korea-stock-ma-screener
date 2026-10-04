@@ -362,14 +362,14 @@ def notify_ntfy(topic: str, candidate: dict[str, Any]) -> None:
     message = (
         f"{candidate['name']}({candidate['code']})\n"
         f"확정봉 {intraday['signalTime']}\n"
-        f"신호봉 종가 {intraday['signalPrice']:,}원\n"
+        f"매수 포착가격: {intraday['signalPrice']:,}원\n"
         f"MA20 {intraday['signalMa20']:,.2f} / MA40 {intraday['signalMa40']:,.2f}\n"
         "다음 30분봉부터 HTS 현재가와 거래량을 확인하세요."
     )
     body = json.dumps(
         {
             "topic": topic,
-            "title": "30분봉 매수 검토 신호",
+            "title": f"🔴 {candidate['name']} 매수시점 포착",
             "message": message,
             "priority": 4,
             "tags": ["chart_with_upwards_trend"],
