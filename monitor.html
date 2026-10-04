@@ -58,6 +58,7 @@
           <button class="tab" data-filter="setup" type="button">매수 준비</button>
           <button class="tab" data-filter="rising" type="button">상승 진행</button>
           <button class="tab" data-filter="waiting60" type="button">MA60 대기</button>
+          <button class="tab" data-filter="waiting10" type="button">MA10 대기</button>
           <button class="tab" data-filter="watching" type="button">관찰 중</button>
         </div>
         <label class="search-field">
@@ -163,7 +164,7 @@
         <section class="criteria-grid">
           <div>
             <div class="criteria-section-heading"><strong>제외기준</strong></div>
-            <p>확정 이후 MA20이 직전 완료 일봉 MA10 가격선 아래로 내려가면 해당 A-G 후보에서 제외합니다.</p>
+            <p>각 30분봉의 MA20이 해당 날짜 직전 거래일까지 확정된 일봉 MA10 아래에 있는 동안은 매수신호를 보류합니다. MA10 위로 회복하면 감시를 자동 재개하며, 현재 일봉 MA10을 과거 분봉에 소급 적용하지 않습니다.</p>
           </div>
           <div>
             <div class="criteria-section-heading"><strong>손절·목표기준</strong></div>
@@ -220,6 +221,6 @@
       </form>
     </dialog>
 
-    <script src="monitor.js?v=20261004-8"></script>
+    <script src="monitor.js?v=20261004-9"></script>
   </body>
 </html>

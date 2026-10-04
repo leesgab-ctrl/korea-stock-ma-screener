@@ -10,6 +10,7 @@ from update_candidate_monitor import (
     KST,
     aggregate_30m,
     depth_rule_context,
+    daily_ma10_for_bar,
     evaluate_ag,
     apply_inferred_cross,
     infer_missing_baseline,
@@ -125,7 +126,7 @@ class CandidateMonitorTests(unittest.TestCase):
         self.assertTrue(depth["signalReady"])
         bars[12]["ma20"] = 94.5
         context = rise_context(bars, 12)
-        depth = depth_rule_context(bars, context, 12, 90.0)
+        depth = depth_rule_context(bars, context, 12, 100.0)
         self.assertFalse(depth["recoveredMa60"])
         self.assertFalse(depth["signalReady"])
 
@@ -162,9 +163,43 @@ class CandidateMonitorTests(unittest.TestCase):
         for index, value in enumerate((91, 89, 90, 92, 94, 96, 98), start=6):
             bars[index]["ma20"] = value
         context = rise_context(bars, 12)
-        depth = depth_rule_context(bars, context, 12, 90.0)
+        depth = depth_rule_context(bars, context, 12, 100.0)
         self.assertTrue(depth["breachedDailyMa10"])
         self.assertFalse(depth["signalReady"])
+
+    def test_daily_ma10_recovery_allows_a_later_signal(self) -> None:
+        bars = [
+            {
+                "time": dt.datetime(2026, 10, 2, 9, tzinfo=KST) + dt.timedelta(minutes=30 * index),
+                "ma20": value,
+                "ma40": 100.0,
+                "ma60": 95.0,
+            }
+            for index, value in enumerate((105, 101, 99, 94, 93, 94, 95, 96, 97, 98))
+        ]
+        context = rise_context(bars, 9)
+
+        self.assertTrue(depth_rule_context(bars, context, 4, 96.0)["breachedDailyMa10"])
+        recovered = depth_rule_context(bars, context, 9, 96.0)
+        self.assertFalse(recovered["breachedDailyMa10"])
+        self.assertTrue(recovered["signalReady"])
+
+    def test_daily_ma10_uses_the_previous_completed_daily_value_for_each_date(self) -> None:
+        reference = {
+            "date": "2026-10-02",
+            "ma10": 105.0,
+            "ma10PreviousByDate": {
+                "2026-10-01": 90.0,
+                "2026-10-02": 95.0,
+            },
+        }
+        bar_october_1 = {"time": dt.datetime(2026, 10, 1, 15, tzinfo=KST)}
+        bar_october_2 = {"time": dt.datetime(2026, 10, 2, 15, tzinfo=KST)}
+        next_session = {"time": dt.datetime(2026, 10, 5, 9, tzinfo=KST)}
+
+        self.assertEqual(daily_ma10_for_bar(reference, bar_october_1), 90.0)
+        self.assertEqual(daily_ma10_for_bar(reference, bar_october_2), 95.0)
+        self.assertEqual(daily_ma10_for_bar(reference, next_session), 105.0)
 
     def test_daily_ma10_breach_is_detected_without_baseline_history(self) -> None:
         bars = [
@@ -196,7 +231,7 @@ class CandidateMonitorTests(unittest.TestCase):
 
         self.assertIsNone(result["baselineMa20AboveMa40"])
         self.assertTrue(result["breachedDailyMa10"])
-        self.assertTrue(candidate["tracking"]["breachedDailyMa10"])
+        self.assertNotIn("breachedDailyMa10", candidate["tracking"])
 
     def test_pre_signal_daily_ma10_breach_does_not_exclude_candidate(self) -> None:
         bars = [

@@ -62,6 +62,7 @@ main { max-width: 1480px; margin: 0 auto; padding: 18px; display: grid; gap: 14p
 .status-chip.setup { background: #fff8dc; color: #8a6815; }
 .status-chip.rising { background: var(--amber-soft); color: var(--amber); }
 .status-chip.waiting60 { background: var(--amber-soft); color: var(--amber); }
+.status-chip.waiting10 { background: #f0f2f1; color: var(--muted); }
 .status-chip.excluded { background: #ecefed; color: var(--muted); }
 
 .positions-panel { background: var(--panel); border: 1px solid var(--line); border-radius: 7px; overflow: hidden; }
@@ -164,6 +165,7 @@ main { max-width: 1480px; margin: 0 auto; padding: 18px; display: grid; gap: 14p
 .candidate[data-status="rising"] .candidate-status { color: var(--amber); }
 .candidate[data-status="waiting60"] { border-color: #e1a25e; box-shadow: inset 4px 0 #d76b16; background: #fff8ef; }
 .candidate[data-status="waiting60"] .candidate-status { color: var(--amber); }
+.candidate[data-status="waiting10"] .candidate-status { color: var(--muted); }
 .candidate[data-status="insufficient"] .candidate-status,
 .candidate[data-status="ineligible"] .candidate-status,
 .candidate[data-status="excluded"] .candidate-status { color: var(--muted); }
