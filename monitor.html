@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#176b58">
     <title>A-G 30분봉 신호 감시</title>
-    <link rel="stylesheet" href="monitor.css?v=20261004-5">
+    <link rel="stylesheet" href="monitor.css?v=20261004-6">
   </head>
   <body>
     <header class="topbar">
@@ -111,7 +111,7 @@
       <article class="candidate">
         <button class="candidate-select" type="button">
           <span class="candidate-top"><strong class="candidate-name"></strong><span class="candidate-status"></span></span>
-          <span class="candidate-code"></span>
+          <span class="candidate-identity"><span class="candidate-code"></span><span class="candidate-tier"></span></span>
           <span class="candidate-progress-row"><span class="candidate-progress"><i></i></span><strong class="candidate-rise"></strong></span>
           <span class="candidate-bottom"><span class="candidate-days"></span><span class="candidate-price"></span></span>
         </button>
@@ -148,6 +148,11 @@
             </table>
           </div>
           <p class="criteria-note">A-G를 모두 만족한 종목을 발생일부터 10거래일 동안 관리합니다.</p>
+          <div class="criteria-tier-note">
+            <strong>후보등급</strong>
+            <span><b class="tier-swatch core"></b>핵심 A-G: 위 기준 그대로 적용</span>
+            <span><b class="tier-swatch expanded"></b>확대 A-G: A만 150% 이상, E만 0.5% 이상으로 완화하고 B·C·D·F·G는 동일 적용</span>
+          </div>
         </section>
 
         <section>
@@ -221,6 +226,6 @@
       </form>
     </dialog>
 
-    <script src="monitor.js?v=20261004-10"></script>
+    <script src="monitor.js?v=20261004-11"></script>
   </body>
 </html>

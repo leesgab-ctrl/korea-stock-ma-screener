@@ -33,6 +33,24 @@ class CandidateMonitorTests(unittest.TestCase):
         result = evaluate_ag(rows, 22)
         self.assertIsNotNone(result)
         self.assertTrue(all(result["checks"].values()))
+        self.assertEqual(result["candidateTier"], "core")
+
+    def test_ag_expanded_tier_only_relaxes_volume_and_signal_gain(self) -> None:
+        rows = [
+            {"date": f"2026-01-{index + 1:02d}", "close": 100, "volume": 100}
+            for index in range(23)
+        ]
+        rows[20].update(close=104, volume=300)
+        rows[21].update(close=100, volume=200)
+        rows[22].update(close=100.6, volume=300)
+
+        result = evaluate_ag(rows, 22)
+
+        self.assertIsNotNone(result)
+        self.assertEqual(result["candidateTier"], "expanded")
+        self.assertFalse(result["coreChecks"]["A"])
+        self.assertFalse(result["coreChecks"]["E"])
+        self.assertTrue(all(result["checks"].values()))
 
     def test_30m_aggregation_excludes_unfinished_bar(self) -> None:
         rows = [

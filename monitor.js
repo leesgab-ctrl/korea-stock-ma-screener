@@ -75,6 +75,7 @@ const statusLabels = {
   waiting60: "MA60 돌파 대기",
 };
 const statusPriority = { signal: 0, rising: 1, waiting60: 2, setup: 3, signaled: 4, watching: 5, waiting10: 6, insufficient: 7, ineligible: 8, excluded: 9 };
+const tierLabels = { core: "핵심 A-G", expanded: "확대 A-G" };
 const formatter = new Intl.NumberFormat("ko-KR", { maximumFractionDigits: 2 });
 
 async function loadData() {
@@ -229,7 +230,9 @@ function renderCandidates(candidates) {
     (statusPriority[a.status] ?? 99) - (statusPriority[b.status] ?? 99)
     || a.name.localeCompare(b.name, "ko")
   );
-  elements.candidateMeta.textContent = `${visible.length}개 표시 / ${candidates.length}개 관리`;
+  const coreCount = candidates.filter((item) => (item.candidateTier || "core") === "core").length;
+  const expandedCount = candidates.filter((item) => item.candidateTier === "expanded").length;
+  elements.candidateMeta.textContent = `${visible.length}개 표시 · 핵심 ${coreCount} · 확대 ${expandedCount}`;
   elements.candidateList.innerHTML = "";
   if (!visible.length) {
     elements.candidateList.innerHTML = '<div class="empty-list">현재 조건에 해당하는 후보가 없습니다.</div>';
@@ -240,10 +243,12 @@ function renderCandidates(candidates) {
     const intraday = item.intraday || {};
     const rise = Math.min(intraday.riseCount || 0, 5);
     node.dataset.status = item.status;
+    node.dataset.tier = item.candidateTier || "core";
     node.classList.toggle("selected", item.code === state.selectedCode);
     node.querySelector(".candidate-name").textContent = item.name;
     node.querySelector(".candidate-status").textContent = statusLabels[item.status] || "확인 필요";
     node.querySelector(".candidate-code").textContent = `${item.code} · ${item.market}`;
+    node.querySelector(".candidate-tier").textContent = tierLabels[item.candidateTier || "core"];
     node.querySelector(".candidate-progress i").style.width = `${(rise / 5) * 100}%`;
     node.querySelector(".candidate-rise").textContent = `${rise} / 5`;
     node.querySelector(".candidate-days").textContent = `A-G ${item.dailySignalDate} · ${item.tradingDaysRemaining}일 남음`;
@@ -423,7 +428,7 @@ function renderDetail(item) {
   elements.naverLink.classList.remove("hidden");
   elements.naverLink.href = item.naverUrl;
   elements.detailName.textContent = item.name;
-  elements.detailMeta.textContent = `${item.code} · ${item.market} · ${statusLabels[item.status] || "확인 필요"}`;
+  elements.detailMeta.textContent = `${item.code} · ${item.market} · ${tierLabels[item.candidateTier || "core"]} · ${statusLabels[item.status] || "확인 필요"}`;
   elements.detailBadge.textContent = statusLabels[item.status] || "확인 필요";
   elements.detailBadge.className = `status-chip ${item.status}`;
   elements.detailProgress.textContent = `${Math.min(intraday.riseCount || 0, 5)} / 5`;

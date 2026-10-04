@@ -16,8 +16,14 @@ ROOT = Path(__file__).resolve().parents[1]
 KST = ZoneInfo("Asia/Seoul")
 USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124 Safari/537.36"
 TRACKING_RULE_VERSION = 4
+CORE_TIER = "core"
+EXPANDED_TIER = "expanded"
 STRATEGY = {
     "candidateWindowTradingDays": 10,
+    "candidateTiers": {
+        CORE_TIER: "기존 A-G(A 거래량 +200%, E 종가 +1%)",
+        EXPANDED_TIER: "확대 A-G(A 거래량 +150%, E 종가 +0.5%)",
+    },
     "minuteTimeframe": "30분봉",
     "maRule": "MA20 5회 상승, MA60 침범 시 MA60 재돌파, 직전 완료 일봉 MA10 하회 중 신호 보류",
     "entry": "신호봉 완성 후 다음 30분봉부터 HTS 현재가 확인",
@@ -75,7 +81,7 @@ def evaluate_ag(rows: list[dict[str, Any]], index: int) -> dict[str, Any] | None
         "signalClosePct": 100 * (rows[index]["close"] / rows[pullback]["close"] - 1),
         "preSpikeVsMa20Pct": 100 * (rows[pre_spike]["close"] / close_ma20 - 1),
     }
-    checks = {
+    core_checks = {
         "A": values["volumeSpikePct"] >= 200,
         "B": values["spikeClosePct"] >= 3,
         "C": -10 <= values["pullbackClosePct"] <= 0,
@@ -84,14 +90,27 @@ def evaluate_ag(rows: list[dict[str, Any]], index: int) -> dict[str, Any] | None
         "F": rows[index]["volume"] > rows[pullback]["volume"],
         "G": -10 <= values["preSpikeVsMa20Pct"] <= 5,
     }
-    if not all(checks.values()):
+    expanded_checks = {
+        **core_checks,
+        "A": values["volumeSpikePct"] >= 150,
+        "E": values["signalClosePct"] >= 0.5,
+    }
+    if all(core_checks.values()):
+        candidate_tier = CORE_TIER
+        checks = core_checks
+    elif all(expanded_checks.values()):
+        candidate_tier = EXPANDED_TIER
+        checks = expanded_checks
+    else:
         return None
     return {
+        "candidateTier": candidate_tier,
         "close": rows[index]["close"],
         "spikeDate": rows[spike]["date"],
         "preSpikeDate": rows[pre_spike]["date"],
         "preSpikeClose": rows[pre_spike]["close"],
         "checks": checks,
+        "coreChecks": core_checks,
         "values": {key: round(value, 2) for key, value in values.items()},
     }
 
@@ -150,6 +169,7 @@ def build_daily_candidates(stock_data: Path, previous: dict[str, Any]) -> dict[s
                 "code": stock["c"],
                 "name": stock["n"],
                 "market": stock["m"],
+                "candidateTier": result["candidateTier"],
                 "dailySignalDate": signal_date,
                 "tradingDayAge": age,
                 "tradingDaysRemaining": 10 - age,
@@ -547,8 +567,10 @@ def analyze_intraday(candidate: dict[str, Any], current: dt.datetime, count: int
 
 def notify_ntfy(topic: str, candidate: dict[str, Any]) -> None:
     intraday = candidate["intraday"]
+    tier_label = "핵심 후보" if candidate.get("candidateTier") == CORE_TIER else "확대 후보"
     message = (
         f"{candidate['name']}({candidate['code']})\n"
+        f"후보등급: {tier_label}\n"
         f"확정봉 {intraday['signalTime']}\n"
         f"매수 포착가격: {intraday['signalPrice']:,}원\n"
         f"MA20 {intraday['signalMa20']:,.2f} / MA40 {intraday['signalMa40']:,.2f} / MA60 {intraday['signalMa60']:,.2f}\n"
@@ -557,7 +579,7 @@ def notify_ntfy(topic: str, candidate: dict[str, Any]) -> None:
     body = json.dumps(
         {
             "topic": topic,
-            "title": f"🔴 {candidate['name']} 매수시점 포착",
+            "title": f"🔴 [{tier_label}] {candidate['name']} 매수시점 포착",
             "message": message,
             "priority": 4,
             "tags": ["chart_with_upwards_trend"],
@@ -641,8 +663,11 @@ def enrich(payload: dict[str, Any], current: dt.datetime, count: int, no_notify:
 
     payload["notifiedSignals"] = sorted(notified)[-200:]
     status_counts = defaultdict(int)
+    tier_counts = defaultdict(int)
     for candidate in payload.get("candidates", []):
         status_counts[candidate["status"]] += 1
+        if candidate["status"] not in ("excluded", "ineligible"):
+            tier_counts[candidate.get("candidateTier", CORE_TIER)] += 1
     payload["generatedAt"] = current.isoformat(timespec="seconds")
     payload["summary"] = {
         "active": sum(
@@ -650,6 +675,8 @@ def enrich(payload: dict[str, Any], current: dt.datetime, count: int, no_notify:
             for candidate in payload.get("candidates", [])
         ),
         "total": len(payload.get("candidates", [])),
+        "coreCandidates": tier_counts[CORE_TIER],
+        "expandedCandidates": tier_counts[EXPANDED_TIER],
         "signals": status_counts["signal"],
         "signalHistory": status_counts["signaled"],
         "setup": status_counts["setup"],
