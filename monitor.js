@@ -1,6 +1,7 @@
 const state = { payload: null, positions: null, filter: "all", keyword: "", selectedCode: null };
 const GITHUB_TOKEN_KEY = "koreaStockMonitor.githubToken";
 const WORKFLOW_DISPATCH_URL = "https://api.github.com/repos/leesgab-ctrl/korea-stock-ma-screener/actions/workflows/manage-position.yml/dispatches";
+const MAX_STOP_PCT = 5;
 
 const elements = {
   activeCount: document.querySelector("#activeCount"),
@@ -46,6 +47,7 @@ const elements = {
   positionQuantity: document.querySelector("#positionQuantity"),
   positionSellPrice: document.querySelector("#positionSellPrice"),
   positionStopPrice: document.querySelector("#positionStopPrice"),
+  stopPolicyNote: document.querySelector("#stopPolicyNote"),
   positionTargetPct: document.querySelector("#positionTargetPct"),
   githubConnection: document.querySelector("#githubConnection"),
   githubToken: document.querySelector("#githubToken"),
@@ -142,7 +144,9 @@ function renderPositions(positions, closedPositions = []) {
     article.querySelector(".position-value").textContent = currentValue == null
       ? `매수금액 ${investedAmount == null ? "-" : `${formatter.format(investedAmount)}원`}`
       : `평가금액 ${formatter.format(currentValue)}원`;
-    const stopLabel = item.stopSource === "large_volume_previous_close" ? "대량거래 전일종가" : "손절";
+    const stopLabel = item.stopSource === "large_volume_previous_close"
+      ? "대량거래 전일종가"
+      : item.stopSource === "max_loss_pct" ? "최대 -5% 손절" : "손절";
     article.querySelector(".position-stop").textContent = `${stopLabel} ${formatter.format(item.stopPrice)}원`;
     article.querySelector(".position-target").textContent = `목표 ${formatter.format(item.targetPrice)}원`;
     article.querySelector(".position-warning").textContent = warning;
@@ -229,8 +233,13 @@ function renderCandidates(candidates) {
     node.querySelector(".candidate-progress i").style.width = `${(rise / 5) * 100}%`;
     node.querySelector(".candidate-days").textContent = `A-G ${item.dailySignalDate} · ${item.tradingDaysRemaining}일 남음`;
     node.querySelector(".candidate-price").textContent = intraday.lastPrice ? `${formatter.format(intraday.lastPrice)}원` : "분봉 대기";
-    const stopPrice = item.daily?.preSpikeClose;
-    node.querySelector(".candidate-stop").textContent = stopPrice ? `기본 손절 ${formatter.format(stopPrice)}원` : "손절가 확인 필요";
+    const technicalStop = item.daily?.preSpikeClose;
+    const maximumLossStop = intraday.lastPrice ? Math.round(intraday.lastPrice * 0.95) : null;
+    const stopPrice = technicalStop && maximumLossStop ? Math.max(technicalStop, maximumLossStop) : technicalStop;
+    const capped = technicalStop && maximumLossStop && technicalStop < maximumLossStop;
+    node.querySelector(".candidate-stop").textContent = stopPrice
+      ? `기본 손절 ${formatter.format(stopPrice)}원${capped ? " (-5% 제한)" : ""}`
+      : "손절가 확인 필요";
     node.querySelector(".candidate-select").addEventListener("click", () => { state.selectedCode = item.code; render(); });
     node.querySelector(".candidate-register").addEventListener("click", () => {
       const position = state.positions?.positions?.find((entry) => entry.code === item.code && entry.status === "open") || null;
@@ -266,6 +275,26 @@ function setPositionMode(action) {
   elements.positionFormSubtitle.textContent = isBuy ? "매수정보와 손절가" : "매도 체결가와 실현손익 기록";
 }
 
+function updateStopPolicy() {
+  const buyPrice = Number(elements.positionBuyPrice.value);
+  const technicalStop = Number(elements.positionStopPrice.dataset.technicalStopPrice || elements.positionStopPrice.value);
+  if (!buyPrice) {
+    elements.stopPolicyNote.textContent = "매수가 입력 후 기술적 손절가와 -5% 가격 중 높은 가격을 적용합니다.";
+    return;
+  }
+  const maximumLossStop = Math.round(buyPrice * (1 - MAX_STOP_PCT / 100));
+  if (technicalStop > 0 && technicalStop < buyPrice) {
+    const effectiveStop = Math.max(technicalStop, maximumLossStop);
+    elements.positionStopPrice.value = effectiveStop;
+    elements.stopPolicyNote.textContent = technicalStop < maximumLossStop
+      ? `기술적 손절 ${formatter.format(technicalStop)}원 → 최대 -5% ${formatter.format(effectiveStop)}원 적용 · 15:00 이후 확정`
+      : `기술적 손절 ${formatter.format(effectiveStop)}원 적용 · 15:00 이후 확정`;
+    return;
+  }
+  elements.positionStopPrice.value = maximumLossStop;
+  elements.stopPolicyNote.textContent = `기술적 손절가 없음 → 최대 -5% ${formatter.format(maximumLossStop)}원 적용 · 15:00 이후 확정`;
+}
+
 function openPositionDialog(candidate = null, position = null, action = "buy") {
   elements.positionForm.reset();
   elements.positionCode.value = "";
@@ -274,6 +303,7 @@ function openPositionDialog(candidate = null, position = null, action = "buy") {
   elements.positionQuantity.value = "";
   elements.positionSellPrice.value = "";
   elements.positionStopPrice.value = "";
+  delete elements.positionStopPrice.dataset.technicalStopPrice;
   elements.positionTargetPct.value = "5";
   elements.githubToken.value = storedGithubToken();
   elements.positionFormStatus.textContent = "";
@@ -285,6 +315,7 @@ function openPositionDialog(candidate = null, position = null, action = "buy") {
     elements.positionCode.value = candidate.code || "";
     elements.positionName.value = candidate.name || "";
     elements.positionStopPrice.value = candidate.daily?.preSpikeClose || "";
+    elements.positionStopPrice.dataset.technicalStopPrice = candidate.daily?.preSpikeClose || "";
     elements.positionFormSubtitle.textContent = `${candidate.name} · ${candidate.code}`;
   }
   if (position) {
@@ -293,10 +324,12 @@ function openPositionDialog(candidate = null, position = null, action = "buy") {
     elements.positionBuyPrice.value = position.buyPrice || "";
     elements.positionQuantity.value = position.quantity || "";
     elements.positionStopPrice.value = position.stopPrice || elements.positionStopPrice.value;
+    elements.positionStopPrice.dataset.technicalStopPrice = position.technicalStopPrice || position.stopPrice || "";
     elements.positionTargetPct.value = position.targetPct || "5";
     elements.positionSellPrice.value = position.sellPrice || "";
     elements.positionFormSubtitle.textContent = `${position.name} · ${position.code}`;
   }
+  if (action === "buy") updateStopPolicy();
   updateConnectionState();
   elements.positionDialog.showModal();
   (action === "sold" && position ? elements.positionSellPrice : action === "buy" && (candidate || position) ? elements.positionBuyPrice : elements.positionCode).focus();
@@ -309,6 +342,7 @@ function closePositionDialog() {
 async function submitPosition(event) {
   event.preventDefault();
   const action = new FormData(elements.positionForm).get("positionAction");
+  if (action === "buy") updateStopPolicy();
   const token = elements.githubToken.value.trim();
   if (!token) {
     elements.githubConnection.open = true;
@@ -491,7 +525,15 @@ elements.positionDialogClose.addEventListener("click", closePositionDialog);
 elements.positionCancelButton.addEventListener("click", closePositionDialog);
 elements.positionForm.addEventListener("submit", submitPosition);
 elements.positionForm.querySelectorAll('input[name="positionAction"]').forEach((radio) => {
-  radio.addEventListener("change", () => setPositionMode(radio.value));
+  radio.addEventListener("change", () => {
+    setPositionMode(radio.value);
+    if (radio.value === "buy") updateStopPolicy();
+  });
+});
+elements.positionBuyPrice.addEventListener("change", updateStopPolicy);
+elements.positionStopPrice.addEventListener("change", () => {
+  elements.positionStopPrice.dataset.technicalStopPrice = elements.positionStopPrice.value.trim();
+  updateStopPolicy();
 });
 elements.githubToken.addEventListener("input", updateConnectionState);
 elements.clearGithubToken.addEventListener("click", () => {

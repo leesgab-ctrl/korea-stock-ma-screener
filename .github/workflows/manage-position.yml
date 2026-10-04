@@ -27,7 +27,7 @@ on:
         required: false
         type: string
       stop_price:
-        description: 합의한 손절가 (비우면 대량거래 전일 종가, 후보가 없으면 -3%)
+        description: 기술적 손절가 (매수가 대비 -5%보다 낮으면 자동으로 -5% 적용)
         required: false
         type: string
       sell_price:

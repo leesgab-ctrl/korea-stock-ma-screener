@@ -6,7 +6,14 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from manage_positions import candidate_default_stop, close_position, register_position, trend_is_weak
+from manage_positions import (
+    apply_stop_limit,
+    candidate_default_stop,
+    close_position,
+    register_position,
+    stop_confirmation_ready,
+    trend_is_weak,
+)
 from update_candidate_monitor import KST
 
 
@@ -54,15 +61,37 @@ class PositionManagerTests(unittest.TestCase):
                 3, dt.datetime(2026, 10, 5, 9, tzinfo=KST),
             )
 
-    def test_blank_stop_uses_three_percent_default(self) -> None:
+    def test_blank_stop_uses_five_percent_maximum_loss(self) -> None:
         payload = {"positions": []}
         register_position(
-            payload, "005720", "넥센", 6490, 10, None, 5, 3,
+            payload, "005720", "넥센", 6490, 10, None, 5, 5,
             dt.datetime(2026, 10, 5, 9, tzinfo=KST),
         )
         position = payload["positions"][0]
-        self.assertEqual(position["stopPrice"], 6295)
-        self.assertEqual(position["stopSource"], "default_pct")
+        self.assertEqual(position["stopPrice"], 6166)
+        self.assertEqual(position["stopSource"], "max_loss_pct")
+        self.assertFalse(position["riskWarning"])
+
+    def test_distant_technical_stop_is_capped_at_five_percent(self) -> None:
+        stop, technical, capped = apply_stop_limit(6480, 5430, 5)
+        self.assertEqual(stop, 6156)
+        self.assertEqual(technical, 5430)
+        self.assertTrue(capped)
+
+    def test_near_technical_stop_is_kept(self) -> None:
+        stop, technical, capped = apply_stop_limit(6480, 6300, 5)
+        self.assertEqual(stop, 6300)
+        self.assertEqual(technical, 6300)
+        self.assertFalse(capped)
+
+    def test_stop_is_confirmed_only_after_1500_on_same_trading_day(self) -> None:
+        before_close = dt.datetime(2026, 10, 5, 14, 59, tzinfo=KST)
+        at_close = dt.datetime(2026, 10, 5, 15, 0, tzinfo=KST)
+        self.assertFalse(stop_confirmation_ready(before_close, before_close))
+        self.assertTrue(stop_confirmation_ready(at_close, at_close))
+        self.assertFalse(stop_confirmation_ready(
+            at_close, dt.datetime(2026, 10, 2, 15, 30, tzinfo=KST)
+        ))
 
     def test_candidate_previous_close_is_default_stop(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

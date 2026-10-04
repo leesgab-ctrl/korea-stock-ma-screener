@@ -12,6 +12,8 @@ from update_candidate_monitor import KST, ROOT, USER_AGENT, aggregate_30m, fetch
 
 
 DEFAULT_PATH = ROOT / "data" / "positions.json"
+MAX_STOP_PCT = 5.0
+STOP_CONFIRMATION_TIME = dt.time(15, 0)
 
 
 def load_positions(path: Path) -> dict[str, Any]:
@@ -41,6 +43,17 @@ def candidate_default_stop(code: str, path: Path) -> int | None:
     return None
 
 
+def apply_stop_limit(
+    buy_price: int, stop_price: int | None, stop_pct: float,
+) -> tuple[int, int | None, bool]:
+    """Keep the effective stop no farther than stop_pct below the buy price."""
+    maximum_loss_stop = round(buy_price * (1 - stop_pct / 100))
+    if stop_price is None:
+        return maximum_loss_stop, None, True
+    technical_stop = stop_price
+    return max(stop_price, maximum_loss_stop), technical_stop, stop_price < maximum_loss_stop
+
+
 def register_position(
     payload: dict[str, Any], code: str, name: str, buy_price: int, quantity: int, stop_price: int | None,
     target_pct: float, stop_pct: float, current: dt.datetime, stop_source: str | None = None,
@@ -53,15 +66,16 @@ def register_position(
         raise ValueError("수량은 1주 이상이어야 합니다.")
     if not 0 < stop_pct < 100:
         raise ValueError("기본 손절률은 0% 초과 100% 미만이어야 합니다.")
-    stop_source = stop_source or ("agreed_price" if stop_price is not None else "default_pct")
-    if stop_price is None:
-        stop_price = round(buy_price * (1 - stop_pct / 100))
+    requested_source = stop_source or ("agreed_price" if stop_price is not None else "max_loss_pct")
+    stop_price, technical_stop_price, was_capped = apply_stop_limit(buy_price, stop_price, stop_pct)
+    stop_source = "max_loss_pct" if was_capped else requested_source
     if stop_price <= 0:
         raise ValueError("손절가는 0보다 커야 합니다.")
     if stop_price >= buy_price:
         raise ValueError("손절가는 매수가보다 낮아야 합니다.")
     if not 0 < target_pct <= 100:
         raise ValueError("목표수익률은 0% 초과 100% 이하여야 합니다.")
+    effective_stop_pct = round(100 * (1 - stop_price / buy_price), 2)
     positions = payload.setdefault("positions", [])
     positions[:] = [item for item in positions if not (item.get("code") == code and item.get("status") == "open")]
     positions.append(
@@ -72,9 +86,12 @@ def register_position(
             "quantity": quantity,
             "investedAmount": buy_price * quantity,
             "stopPrice": stop_price,
-            "stopPct": round(100 * (1 - stop_price / buy_price), 2),
+            "stopPct": effective_stop_pct,
             "stopSource": stop_source,
-            "riskWarning": 100 * (1 - stop_price / buy_price) > target_pct,
+            "technicalStopPrice": technical_stop_price,
+            "maxStopPct": stop_pct,
+            "stopConfirmAfter": "15:00",
+            "riskWarning": effective_stop_pct > target_pct,
             "targetPct": target_pct,
             "targetPrice": round(buy_price * (1 + target_pct / 100)),
             "openedAt": current.isoformat(timespec="minutes"),
@@ -122,10 +139,18 @@ def trend_is_weak(bars: list[dict[str, Any]]) -> bool:
     return ma_falling and recent[-1]["close"] < recent[-1]["ma20"]
 
 
+def stop_confirmation_ready(current: dt.datetime, price_time: dt.datetime) -> bool:
+    return (
+        current.date() == price_time.date()
+        and current.time() >= STOP_CONFIRMATION_TIME
+        and price_time.time() >= STOP_CONFIRMATION_TIME
+    )
+
+
 def send_alert(topic: str, position: dict[str, Any], event: str) -> None:
     labels = {
         "target": ("목표수익 도달", "설정한 목표수익률에 도달했습니다."),
-        "stop": ("손절가 도달", "설정한 손절가에 도달했습니다."),
+        "stop": ("손절가 도달", "15:00 이후 확인가격이 설정한 손절가 이하입니다."),
         "weak": ("추세약화 확인", "30분봉 종가가 MA20 아래이고 MA20이 3봉 연속 하락했습니다."),
     }
     title, reason = labels[event]
@@ -176,7 +201,7 @@ def monitor_positions(payload: dict[str, Any], current: dt.datetime, count: int,
         events = []
         if price >= position["targetPrice"]:
             events.append("target")
-        if price <= position["stopPrice"]:
+        if price <= position["stopPrice"] and stop_confirmation_ready(current, price_time):
             events.append("stop")
         if position["trendWeak"]:
             events.append("weak")
@@ -202,7 +227,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--quantity", type=int)
     parser.add_argument("--stop-price", type=int)
     parser.add_argument("--sell-price", type=int)
-    parser.add_argument("--stop-pct", type=float, default=3.0)
+    parser.add_argument("--stop-pct", type=float, default=MAX_STOP_PCT)
     parser.add_argument("--target-pct", type=float, default=5.0)
     parser.add_argument("--data", default=str(DEFAULT_PATH))
     parser.add_argument("--candidate-data", default=str(ROOT / "data" / "candidate-monitor.json"))

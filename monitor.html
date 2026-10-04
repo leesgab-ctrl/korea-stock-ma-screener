@@ -140,6 +140,7 @@
           <label class="buy-field"><span>손절가</span><input id="positionStopPrice" name="stopPrice" inputmode="decimal" placeholder="비우면 자동 계산"></label>
           <label class="buy-field"><span>목표수익률</span><div class="suffix-input"><input id="positionTargetPct" name="targetPct" inputmode="decimal" value="5"><span>%</span></div></label>
         </div>
+        <p id="stopPolicyNote" class="stop-policy buy-field">손절가는 최대 -5%로 제한하며 15:00 이후 가격으로 확정합니다.</p>
 
         <details id="githubConnection" class="connection-settings">
           <summary><span>GitHub 연결</span><strong id="connectionState">연결 필요</strong></summary>
@@ -158,6 +159,6 @@
       </form>
     </dialog>
 
-    <script src="monitor.js?v=20261004-4"></script>
+    <script src="monitor.js?v=20261004-5"></script>
   </body>
 </html>
