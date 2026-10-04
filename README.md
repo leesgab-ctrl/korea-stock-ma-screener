@@ -5,3 +5,12 @@ GitHub Pages용 정적 웹사이트입니다. GitHub Actions가 네이버 금융
 GitHub Pages 배포 후에는 저장소의 Actions 탭에서 `Update stock screener` 워크플로우가 실행되며, 그 과정에서 전체 종목 데이터가 생성됩니다.
 
 로컬 서버로 테스트하려면 `start_stock_site.bat`를 실행한 뒤 `http://127.0.0.1:8787`로 접속합니다.
+
+## A-G 30분봉 신호 감시
+
+`monitor.html`은 최근 10거래일 안에 A-G가 발생한 종목을 관리하고, 네이버 분봉을 30분봉으로 묶어 MA20이 MA40 아래에서 반등한 뒤 5회 연속 상승했는지 표시합니다.
+
+- 일봉 후보 갱신: `.github/workflows/update-pages.yml`
+- 장중 10분 간격 감시: `.github/workflows/monitor-signals.yml`
+- 휴대폰 푸시: 저장소 Secret `NTFY_TOPIC`이 설정된 경우에만 ntfy로 전송
+- 신호는 자동주문이 아니라 다음 30분봉부터 HTS 현재가를 확인하기 위한 매수 검토 알림입니다.

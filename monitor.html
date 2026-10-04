@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#176b58">
+    <title>A-G 30분봉 신호 감시</title>
+    <link rel="stylesheet" href="monitor.css">
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand-lockup">
+        <span class="brand-mark">K</span>
+        <div>
+          <h1>A-G 30분봉 신호 감시</h1>
+          <p>최근 10거래일 후보 자동 관리</p>
+        </div>
+      </div>
+      <nav aria-label="화면 이동">
+        <a href="index.html">이동평균 검색</a>
+        <button id="refreshButton" type="button">새로고침</button>
+      </nav>
+    </header>
+
+    <main>
+      <section class="summary" aria-label="감시 요약">
+        <div><strong id="activeCount">-</strong><span>활성 후보</span></div>
+        <div><strong id="signalCount">-</strong><span>매수 검토</span></div>
+        <div><strong id="risingCount">-</strong><span>상승 진행</span></div>
+        <div><strong id="asOf">-</strong><span>일봉 기준일</span></div>
+      </section>
+
+      <section class="notice" aria-label="운영 상태">
+        <div>
+          <strong id="runStatus">데이터 확인 중</strong>
+          <p id="updatedAt">마지막 갱신 시각을 불러오고 있습니다.</p>
+        </div>
+        <span id="pushState" class="status-chip">푸시 확인 중</span>
+      </section>
+
+      <section class="toolbar" aria-label="후보 필터">
+        <div class="tabs" role="tablist">
+          <button class="tab active" data-filter="all" type="button">전체</button>
+          <button class="tab" data-filter="signal" type="button">매수 검토</button>
+          <button class="tab" data-filter="signaled" type="button">신호 이력</button>
+          <button class="tab" data-filter="rising" type="button">상승 진행</button>
+          <button class="tab" data-filter="watching" type="button">관찰 중</button>
+        </div>
+        <label class="search-field">
+          <span>종목 검색</span>
+          <input id="keyword" type="search" placeholder="종목명 또는 코드">
+        </label>
+      </section>
+
+      <section class="workspace">
+        <section class="candidate-panel" aria-label="활성 후보">
+          <div class="section-heading">
+            <div><h2>활성 후보</h2><p id="candidateMeta">불러오는 중</p></div>
+          </div>
+          <div id="candidateList" class="candidate-list"></div>
+        </section>
+
+        <section class="detail-panel" aria-label="30분봉 상세">
+          <div class="section-heading detail-heading">
+            <div>
+              <h2 id="detailName">종목을 선택하세요</h2>
+              <p id="detailMeta">후보를 누르면 MA20·MA40 흐름을 확인할 수 있습니다.</p>
+            </div>
+            <a id="naverLink" class="external-link hidden" target="_blank" rel="noreferrer">네이버 차트</a>
+          </div>
+          <div id="emptyDetail" class="empty-detail">활성 후보의 30분봉 판정 결과가 여기에 표시됩니다.</div>
+          <div id="detailContent" class="detail-content hidden">
+            <div class="signal-line">
+              <span id="detailBadge" class="status-chip">관찰 중</span>
+              <strong id="detailProgress">0 / 5</strong>
+              <span>MA20 연속 상승</span>
+            </div>
+            <canvas id="maChart" width="900" height="360" aria-label="30분봉 종가와 이동평균선"></canvas>
+            <dl class="metrics">
+              <div><dt>현재가</dt><dd id="lastPrice">-</dd></div>
+              <div><dt>MA20</dt><dd id="ma20">-</dd></div>
+              <div><dt>MA40</dt><dd id="ma40">-</dd></div>
+              <div><dt>완성봉</dt><dd id="lastBar">-</dd></div>
+              <div><dt>A-G 발생</dt><dd id="dailySignal">-</dd></div>
+              <div><dt>남은 기간</dt><dd id="remainingDays">-</dd></div>
+            </dl>
+            <div id="signalMessage" class="signal-message"></div>
+          </div>
+        </section>
+      </section>
+    </main>
+
+    <template id="candidateTemplate">
+      <button class="candidate" type="button">
+        <span class="candidate-top"><strong class="candidate-name"></strong><span class="candidate-status"></span></span>
+        <span class="candidate-code"></span>
+        <span class="candidate-progress"><i></i></span>
+        <span class="candidate-bottom"><span class="candidate-days"></span><span class="candidate-price"></span></span>
+      </button>
+    </template>
+
+    <script src="monitor.js"></script>
+  </body>
+</html>

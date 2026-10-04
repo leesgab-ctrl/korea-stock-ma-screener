@@ -152,7 +152,12 @@ def fetch_stock_list(market: str) -> list[dict]:
     if cached and time.time() - cached[0] < CACHE_TTL:
         return cached[1]
 
-    stocks: list[dict] = []
+    stocks = fetch_stock_list_json(market)
+    if stocks:
+        LIST_CACHE[market] = (time.time(), stocks)
+        return stocks
+
+    stocks = []
     seen: set[str] = set()
 
     for market_name, sosok in market_pages(market):
@@ -174,6 +179,45 @@ def fetch_stock_list(market: str) -> list[dict]:
             page += 1
 
     LIST_CACHE[market] = (time.time(), stocks)
+    return stocks
+
+
+def fetch_stock_list_json(market: str) -> list[dict]:
+    stocks: list[dict] = []
+    seen: set[str] = set()
+    for market_name, _sosok in market_pages(market):
+        page = 1
+        total = 1
+        while len([item for item in stocks if item["market"] == market_name]) < total:
+            url = (
+                "https://m.stock.naver.com/api/stocks/marketValue/"
+                f"{market_name}?page={page}&pageSize=100"
+            )
+            try:
+                request = urllib.request.Request(url, headers=HEADERS)
+                with urllib.request.urlopen(request, timeout=12) as response:
+                    payload = json.loads(response.read().decode("utf-8"))
+            except (json.JSONDecodeError, OSError, TimeoutError, urllib.error.URLError):
+                return []
+            total = int(payload.get("totalCount", 0))
+            page_items = payload.get("stocks", [])
+            if not page_items:
+                break
+            for item in page_items:
+                code = item.get("itemCode", "")
+                name = item.get("stockName", "")
+                is_preferred = bool(re.search(r"(?:\d+우[BC]?|우[BC]?)$", name))
+                if (
+                    not re.fullmatch(r"\d{6}", code)
+                    or not name
+                    or code in seen
+                    or item.get("stockEndType") != "stock"
+                    or is_preferred
+                ):
+                    continue
+                seen.add(code)
+                stocks.append({"code": code, "name": name, "market": market_name})
+            page += 1
     return stocks
 
 

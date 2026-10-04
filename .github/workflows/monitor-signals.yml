@@ -1,10 +1,9 @@
-name: Update stock screener
+name: Monitor 30-minute buy signals
 
 on:
   workflow_dispatch:
   schedule:
-    - cron: "30 23 * * 0-4"
-    - cron: "40 7 * * 1-5"
+    - cron: "*/10 0-6 * * 1-5"
 
 permissions:
   contents: write
@@ -16,25 +15,28 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  build:
+  monitor:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Generate stock data
-        run: python scripts/generate_static_data.py --output data/stock-data.json --workers 32
-      - name: Refresh A-G candidates
+      - name: Keep latest full-market data in Pages bundle
+        continue-on-error: true
+        run: curl --fail --retry 3 --silent --show-error -o data/stock-data.json https://junsooo.github.io/korea-stock-ma-screener/data/stock-data.json
+      - name: Check active candidates
+        id: monitor
         env:
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
-        run: python scripts/update_candidate_monitor.py --mode daily --no-notify
-      - name: Save candidate membership
+        run: python scripts/update_candidate_monitor.py --mode intraday --github-output "$GITHUB_OUTPUT"
+      - name: Save newly notified signals
+        if: steps.monitor.outputs.alerts != '0'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add data/candidate-monitor.json
-          git diff --cached --quiet || git commit -m "Update A-G candidate monitor"
+          git commit -m "Record 30-minute buy signal"
           git push
       - name: Configure Pages
         uses: actions/configure-pages@v5
@@ -43,5 +45,4 @@ jobs:
         with:
           path: .
       - name: Deploy to GitHub Pages
-        id: deployment
         uses: actions/deploy-pages@v4

@@ -40,7 +40,7 @@ def main() -> None:
             if index % 200 == 0:
                 print(f"collected {index}/{len(stocks)} stocks")
 
-    all_dates = sorted({date for item in collected for date, _close in item["prices"]})
+    all_dates = sorted({date for item in collected for date, _close, _volume in item["prices"]})
     date_index = {date: index for index, date in enumerate(all_dates)}
     compact_stocks = [compact_stock(item, date_index) for item in collected]
 
@@ -90,20 +90,22 @@ def fetch_stock_payload(stock: dict, needed_days: int, include_status: bool) -> 
         "code": stock["code"],
         "name": stock["name"],
         "market": stock["market"],
-        "prices": [(point["date"], point["close"]) for point in prices],
+        "prices": [(point["date"], point["close"], point["volume"]) for point in prices],
         "halted": bool(status["excluded"]),
         "statusReasons": status.get("reasons", []),
     }
 
 
 def compact_stock(item: dict, date_index: dict[str, int]) -> dict:
-    indexes = [date_index[date] for date, _close in item["prices"]]
-    closes = [close for _date, close in item["prices"]]
+    indexes = [date_index[date] for date, _close, _volume in item["prices"]]
+    closes = [close for _date, close, _volume in item["prices"]]
+    volumes = [volume for _date, _close, volume in item["prices"]]
     compact = {
         "c": item["code"],
         "n": item["name"],
         "m": item["market"],
         "p": closes,
+        "v": volumes,
         "h": item["halted"],
     }
     if item["statusReasons"]:
