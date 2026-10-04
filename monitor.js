@@ -457,22 +457,57 @@ function drawChart(series, dailyMa10) {
     ctx.fillText("표시할 30분봉 데이터가 부족합니다.", 20, 35);
     return;
   }
-  const values = series.flatMap((row) => [row.c, row.m20, row.m40, row.m60, dailyMa10]).filter((value) => value != null);
+  const values = series.flatMap((row) => [row.h, row.l, row.c, row.m20, row.m40, row.m60, dailyMa10]).filter((value) => value != null);
   const min = Math.min(...values);
   const max = Math.max(...values);
-  const spread = Math.max(max - min, 1);
-  const pad = { left: 54, right: 18, top: 22, bottom: 34 };
-  const x = (index) => pad.left + (index / (series.length - 1)) * (width - pad.left - pad.right);
-  const y = (value) => pad.top + ((max - value) / spread) * (height - pad.top - pad.bottom);
+  const rawSpread = Math.max(max - min, 1);
+  const priceMin = min - rawSpread * 0.04;
+  const priceMax = max + rawSpread * 0.04;
+  const spread = priceMax - priceMin;
+  const pad = { left: 54, right: 12, top: 28, bottom: 28 };
+  const volumeHeight = Math.max(44, Math.round(height * 0.2));
+  const volumeTop = height - pad.bottom - volumeHeight;
+  const priceBottom = volumeTop - 10;
+  const plotWidth = width - pad.left - pad.right;
+  const slot = plotWidth / series.length;
+  const x = (index) => pad.left + slot * (index + 0.5);
+  const y = (value) => pad.top + ((priceMax - value) / spread) * (priceBottom - pad.top);
   ctx.strokeStyle = "#e2e8e4";
   ctx.lineWidth = 1;
   for (let step = 0; step <= 4; step += 1) {
-    const yy = pad.top + (step / 4) * (height - pad.top - pad.bottom);
+    const yy = pad.top + (step / 4) * (priceBottom - pad.top);
     ctx.beginPath(); ctx.moveTo(pad.left, yy); ctx.lineTo(width - pad.right, yy); ctx.stroke();
     ctx.fillStyle = "#64746c"; ctx.font = "11px Segoe UI";
-    ctx.fillText(formatter.format(max - (spread * step) / 4), 3, yy + 4);
+    ctx.fillText(formatter.format(priceMax - (spread * step) / 4), 3, yy + 4);
   }
-  drawLine(ctx, series, "c", "#73827a", 1.4, x, y);
+  const maxVolume = Math.max(...series.map((row) => Number(row.v) || 0), 1);
+  const candleWidth = Math.max(2, Math.min(8, slot * 0.66));
+  series.forEach((row, index) => {
+    const open = Number(row.o);
+    const high = Number(row.h);
+    const low = Number(row.l);
+    const close = Number(row.c);
+    const hasCandle = [open, high, low, close].every(Number.isFinite);
+    const rising = !hasCandle || close >= open;
+    const color = rising ? "#e5484d" : "#316fee";
+    const center = x(index);
+    if (hasCandle) {
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(center, y(high)); ctx.lineTo(center, y(low)); ctx.stroke();
+      const bodyTop = Math.min(y(open), y(close));
+      const bodyHeight = Math.max(Math.abs(y(open) - y(close)), 1.5);
+      ctx.fillStyle = color;
+      ctx.fillRect(center - candleWidth / 2, bodyTop, candleWidth, bodyHeight);
+    }
+    const volume = Number(row.v) || 0;
+    const barHeight = (volume / maxVolume) * (volumeHeight - 5);
+    ctx.fillStyle = rising ? "rgba(229,72,77,.42)" : "rgba(49,111,238,.38)";
+    ctx.fillRect(center - candleWidth / 2, height - pad.bottom - barHeight, candleWidth, barHeight);
+  });
+  if (!series.some((row) => [row.o, row.h, row.l].every((value) => Number.isFinite(Number(value))))) {
+    drawLine(ctx, series, "c", "#73827a", 1.4, x, y);
+  }
   drawLine(ctx, series, "m20", "#ba3f3f", 2.2, x, y);
   drawLine(ctx, series, "m40", "#3167ad", 2.2, x, y);
   drawLine(ctx, series, "m60", "#9a641d", 2.2, x, y);
@@ -480,14 +515,24 @@ function drawChart(series, dailyMa10) {
     ctx.strokeStyle = "#176b58"; ctx.lineWidth = 1.5; ctx.setLineDash([6, 4]);
     ctx.beginPath(); ctx.moveTo(pad.left, y(dailyMa10)); ctx.lineTo(width - pad.right, y(dailyMa10)); ctx.stroke(); ctx.setLineDash([]);
   }
-  ctx.fillStyle = "#ba3f3f"; ctx.fillRect(pad.left, 7, 14, 3); ctx.fillStyle = "#48574f"; ctx.fillText("MA20", pad.left + 19, 13);
-  ctx.fillStyle = "#3167ad"; ctx.fillRect(pad.left + 72, 7, 14, 3); ctx.fillStyle = "#48574f"; ctx.fillText("MA40", pad.left + 91, 13);
-  ctx.fillStyle = "#9a641d"; ctx.fillRect(pad.left + 144, 7, 14, 3); ctx.fillStyle = "#48574f"; ctx.fillText("MA60", pad.left + 163, 13);
-  ctx.fillStyle = "#176b58"; ctx.fillRect(pad.left + 216, 7, 14, 3); ctx.fillStyle = "#48574f"; ctx.fillText("일봉 MA10", pad.left + 235, 13);
+  ctx.font = "11px Segoe UI";
+  ctx.fillStyle = "#ba3f3f"; ctx.fillRect(pad.left, 9, 14, 3); ctx.fillStyle = "#48574f"; ctx.fillText("MA20", pad.left + 19, 15);
+  ctx.fillStyle = "#3167ad"; ctx.fillRect(pad.left + 68, 9, 14, 3); ctx.fillStyle = "#48574f"; ctx.fillText("MA40", pad.left + 87, 15);
+  ctx.fillStyle = "#9a641d"; ctx.fillRect(pad.left + 136, 9, 14, 3); ctx.fillStyle = "#48574f"; ctx.fillText("MA60", pad.left + 155, 15);
+  ctx.fillStyle = "#176b58"; ctx.fillRect(pad.left + 204, 9, 14, 3); ctx.fillStyle = "#48574f"; ctx.fillText("일봉 MA10", pad.left + 223, 15);
   ctx.fillStyle = "#64746c";
-  ctx.fillText(formatShortTime(series[0].t), pad.left, height - 10);
-  const lastLabel = formatShortTime(series.at(-1).t);
-  ctx.fillText(lastLabel, width - pad.right - ctx.measureText(lastLabel).width, height - 10);
+  const dateIndexes = [0];
+  for (let index = 1; index < series.length; index += 1) {
+    if (series[index].t.slice(0, 10) !== series[index - 1].t.slice(0, 10)) dateIndexes.push(index);
+  }
+  dateIndexes.forEach((index) => {
+    const label = series[index].t.slice(5, 10);
+    const center = x(index);
+    ctx.strokeStyle = "rgba(226,232,228,.7)";
+    ctx.beginPath(); ctx.moveTo(center, pad.top); ctx.lineTo(center, height - pad.bottom); ctx.stroke();
+    ctx.fillStyle = "#64746c";
+    ctx.fillText(label, Math.min(center + 3, width - pad.right - ctx.measureText(label).width), height - 8);
+  });
 }
 
 function drawLine(ctx, series, key, color, width, x, y) {

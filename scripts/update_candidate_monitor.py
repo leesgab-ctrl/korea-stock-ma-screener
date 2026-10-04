@@ -423,7 +423,11 @@ def analyze_intraday(candidate: dict[str, Any], current: dt.datetime, count: int
         "series": [
             {
                 "t": bar["time"].isoformat(timespec="minutes"),
+                "o": bar.get("open", bar["close"]),
+                "h": bar.get("high", bar["close"]),
+                "l": bar.get("low", bar["close"]),
                 "c": bar["close"],
+                "v": bar.get("volume", 0),
                 "m20": round(bar["ma20"], 2) if bar["ma20"] is not None else None,
                 "m40": round(bar["ma40"], 2) if bar["ma40"] is not None else None,
                 "m60": round(bar["ma60"], 2) if bar["ma60"] is not None else None,
