@@ -9,6 +9,7 @@ import update_candidate_monitor as monitor
 from update_candidate_monitor import (
     KST,
     aggregate_30m,
+    consecutive_ma20_falls,
     depth_rule_context,
     daily_ma10_for_bar,
     evaluate_ag,
@@ -183,6 +184,35 @@ class CandidateMonitorTests(unittest.TestCase):
         recovered = depth_rule_context(bars, context, 9, 96.0)
         self.assertFalse(recovered["breachedDailyMa10"])
         self.assertTrue(recovered["signalReady"])
+
+    def test_structural_decline_counts_consecutive_ma20_falls(self) -> None:
+        bars = [{"ma20": value} for value in (110.0, 109.0, 108.0, 107.0, 106.0)]
+        self.assertEqual(consecutive_ma20_falls(bars, 4), 4)
+        bars[3]["ma20"] = 106.0
+        self.assertEqual(consecutive_ma20_falls(bars, 4), 0)
+
+    def test_structural_decline_is_excluded_but_simple_ma10_breach_waits(self) -> None:
+        candidates = [
+            {"code": "357880", "dailySignalDate": "2026-09-21"},
+            {"code": "215790", "dailySignalDate": "2026-09-21"},
+        ]
+        payload = {"candidates": candidates, "notifiedSignals": []}
+        structural = {
+            "dataStatus": "ok", "baselineMa20AboveMa40": True,
+            "ma20": 90.0, "ma40": 95.0, "ma60": 100.0,
+            "breachedDailyMa10": True, "structuralExcluded": True,
+        }
+        recoverable = {
+            **structural, "ma20": 96.0, "ma40": 95.0,
+            "structuralExcluded": False,
+        }
+
+        with mock.patch.object(monitor, "analyze_intraday", side_effect=(structural, recoverable)):
+            monitor.enrich(payload, dt.datetime(2026, 10, 4, 16, tzinfo=KST), 5000, True)
+
+        self.assertEqual(candidates[0]["status"], "excluded")
+        self.assertEqual(candidates[1]["status"], "waiting10")
+        self.assertEqual(payload["summary"]["active"], 1)
 
     def test_daily_ma10_uses_the_previous_completed_daily_value_for_each_date(self) -> None:
         reference = {

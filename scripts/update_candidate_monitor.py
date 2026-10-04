@@ -288,6 +288,17 @@ def rise_context(bars: list[dict[str, Any]], index: int) -> dict[str, Any]:
     }
 
 
+def consecutive_ma20_falls(bars: list[dict[str, Any]], index: int) -> int:
+    count = 0
+    for cursor in range(index, 0, -1):
+        current_ma = bars[cursor].get("ma20")
+        previous_ma = bars[cursor - 1].get("ma20")
+        if current_ma is None or previous_ma is None or current_ma >= previous_ma:
+            break
+        count += 1
+    return count
+
+
 def valid_post_candidate_sequence(
     bars: list[dict[str, Any]], context: dict[str, Any], signal_day: dt.date, baseline_above: bool
 ) -> bool:
@@ -443,6 +454,7 @@ def analyze_intraday(candidate: dict[str, Any], current: dt.datetime, count: int
     latest_index = eligible[-1] if eligible else len(bars) - 1
     latest = bars[latest_index]
     latest_context = apply_inferred_cross(rise_context(bars, latest_index), synthetic_cross_index)
+    latest_fall_count = consecutive_ma20_falls(bars, latest_index)
     latest_depth = depth_rule_context(bars, latest_context, latest_index, daily_reference)
     latest_daily_ma10 = daily_ma10_for_bar(daily_reference, latest)
     observed_daily_ma10_breach = bool(
@@ -488,6 +500,13 @@ def analyze_intraday(candidate: dict[str, Any], current: dt.datetime, count: int
         "ma40": round(latest["ma40"], 2) if latest["ma40"] is not None else None,
         "ma60": round(latest["ma60"], 2) if latest["ma60"] is not None else None,
         "dailyMa10": daily_ma10,
+        "fallCount": latest_fall_count,
+        "structuralExcluded": bool(
+            observed_daily_ma10_breach
+            and latest_fall_count >= 3
+            and None not in (latest.get("ma20"), latest.get("ma40"), latest.get("ma60"))
+            and latest["ma20"] < latest["ma40"] < latest["ma60"]
+        ),
         **latest_context,
         **latest_depth,
         "series": [
@@ -581,6 +600,8 @@ def enrich(payload: dict[str, Any], current: dt.datetime, count: int, no_notify:
                     notify_ntfy(topic, candidate)
                     notified.add(signature)
                     new_alerts += 1
+        elif intraday.get("structuralExcluded"):
+            candidate["status"] = "excluded"
         elif intraday.get("breachedDailyMa10"):
             candidate["status"] = "waiting10"
         elif (
@@ -624,7 +645,11 @@ def enrich(payload: dict[str, Any], current: dt.datetime, count: int, no_notify:
         status_counts[candidate["status"]] += 1
     payload["generatedAt"] = current.isoformat(timespec="seconds")
     payload["summary"] = {
-        "active": len(payload.get("candidates", [])),
+        "active": sum(
+            candidate["status"] not in ("excluded", "ineligible")
+            for candidate in payload.get("candidates", [])
+        ),
+        "total": len(payload.get("candidates", [])),
         "signals": status_counts["signal"],
         "signalHistory": status_counts["signaled"],
         "setup": status_counts["setup"],

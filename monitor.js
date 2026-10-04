@@ -88,7 +88,7 @@ async function loadData() {
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     state.payload = await response.json();
     state.positions = positionsResponse.ok ? await positionsResponse.json() : { positions: [] };
-    const candidates = state.payload.candidates || [];
+    const candidates = (state.payload.candidates || []).filter((item) => !["excluded", "ineligible"].includes(item.status));
     if (!state.selectedCode || !candidates.some((item) => item.code === state.selectedCode)) {
       state.selectedCode = candidates[0]?.code || null;
     }
@@ -104,7 +104,8 @@ async function loadData() {
 
 function render() {
   const { summary = {}, candidates = [], asOf, generatedAt } = state.payload;
-  elements.activeCount.textContent = summary.active ?? candidates.length;
+  const activeCandidates = candidates.filter((item) => !["excluded", "ineligible"].includes(item.status));
+  elements.activeCount.textContent = summary.active ?? activeCandidates.length;
   elements.setupCount.textContent = (summary.setup ?? 0) + (summary.waiting60 ?? 0);
   elements.signalCount.textContent = summary.signals ?? 0;
   elements.signaledCount.textContent = summary.signalHistory ?? 0;
@@ -116,10 +117,10 @@ function render() {
   elements.updatedAt.textContent = generatedAt ? `마지막 갱신 ${formatDateTime(generatedAt)}` : "갱신 기록 없음";
   elements.pushState.textContent = summary.pushConfigured ? "휴대폰 푸시 연결" : "푸시 연결 대기";
   elements.pushState.className = `status-chip${summary.pushConfigured ? "" : " rising"}`;
-  renderCandidates(candidates);
+  renderCandidates(activeCandidates);
   const closedPositions = (state.positions?.positions || []).filter((item) => item.status === "closed");
   renderPositions(openPositions, closedPositions);
-  renderDetail(candidates.find((item) => item.code === state.selectedCode));
+  renderDetail(activeCandidates.find((item) => item.code === state.selectedCode));
 }
 
 function renderPositions(positions, closedPositions = []) {
@@ -451,7 +452,7 @@ function signalCopy(item, intraday) {
   if (item.status === "setup") return "A-G 확정 후 MA20이 MA40 아래로 내려왔습니다. 반등이 시작되어 1/5가 되는지 관찰하는 매수 준비 단계입니다.";
   if (item.status === "waiting60") return "MA20이 MA60 아래까지 내려갔습니다. MA20이 MA60을 다시 돌파한 완성봉까지 기다립니다.";
   if (item.status === "waiting10") return "30분봉 MA20이 해당 날짜의 직전 완료 일봉 MA10 아래에 있어 매수신호를 보류합니다. MA10 위로 회복하면 감시를 자동 재개합니다.";
-  if (item.status === "excluded") return "현재 운영기준에서 제외된 후보입니다.";
+  if (item.status === "excluded") return "MA20이 MA40·MA60·일봉 MA10 아래에서 3개 완료봉 이상 연속 하락해 구조적 약세 후보로 제외했습니다.";
   if (item.status === "insufficient") return "A-G 발생일의 30분봉 MA20·MA40 기준값과 후속 교차를 현재 네이버 제공 범위에서 확인할 수 없습니다. 신규 후보부터 기준값을 자동 저장합니다.";
   if (item.status === "ineligible") return "A-G 발생일 마감 시 MA20이 MA40 위에 있지 않아 30분봉 후속 감시에서 제외했습니다.";
   if (intraday.dataStatus === "error") return "네이버 분봉을 가져오지 못했습니다. 다음 예약 실행에서 다시 시도합니다.";
