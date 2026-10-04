@@ -42,13 +42,15 @@ def candidate_default_stop(code: str, path: Path) -> int | None:
 
 
 def register_position(
-    payload: dict[str, Any], code: str, name: str, buy_price: int, stop_price: int | None,
+    payload: dict[str, Any], code: str, name: str, buy_price: int, quantity: int, stop_price: int | None,
     target_pct: float, stop_pct: float, current: dt.datetime, stop_source: str | None = None,
 ) -> None:
     if not code.isdigit() or len(code) != 6:
         raise ValueError("종목코드는 숫자 6자리여야 합니다.")
     if buy_price <= 0:
         raise ValueError("매수가는 0보다 커야 합니다.")
+    if quantity <= 0:
+        raise ValueError("수량은 1주 이상이어야 합니다.")
     if not 0 < stop_pct < 100:
         raise ValueError("기본 손절률은 0% 초과 100% 미만이어야 합니다.")
     stop_source = stop_source or ("agreed_price" if stop_price is not None else "default_pct")
@@ -67,6 +69,8 @@ def register_position(
             "code": code,
             "name": name.strip() or code,
             "buyPrice": buy_price,
+            "quantity": quantity,
+            "investedAmount": buy_price * quantity,
             "stopPrice": stop_price,
             "stopPct": round(100 * (1 - stop_price / buy_price), 2),
             "stopSource": stop_source,
@@ -80,9 +84,11 @@ def register_position(
     )
 
 
-def close_position(payload: dict[str, Any], code: str, sell_price: int, current: dt.datetime) -> None:
+def close_position(payload: dict[str, Any], code: str, sell_price: int, quantity: int, current: dt.datetime) -> None:
     if sell_price <= 0:
         raise ValueError("매도가는 0보다 커야 합니다.")
+    if quantity <= 0:
+        raise ValueError("수량은 1주 이상이어야 합니다.")
     matching = [item for item in payload.get("positions", []) if item.get("code") == code]
     item = next((entry for entry in reversed(matching) if entry.get("status") == "open"), None)
     if item is None:
@@ -90,8 +96,11 @@ def close_position(payload: dict[str, Any], code: str, sell_price: int, current:
     if item is None:
         raise ValueError(f"보유 또는 매도이력 종목 {code}을 찾지 못했습니다.")
     item["status"] = "closed"
+    item["quantity"] = quantity
+    item["investedAmount"] = item["buyPrice"] * quantity
     item["sellPrice"] = sell_price
     item["realizedProfitPerShare"] = sell_price - item["buyPrice"]
+    item["realizedProfitTotal"] = (sell_price - item["buyPrice"]) * quantity
     item["realizedReturnPct"] = round(100 * (sell_price / item["buyPrice"] - 1), 2)
     item.setdefault("closedAt", current.isoformat(timespec="minutes"))
 
@@ -190,6 +199,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--code")
     parser.add_argument("--name", default="")
     parser.add_argument("--buy-price", type=int)
+    parser.add_argument("--quantity", type=int)
     parser.add_argument("--stop-price", type=int)
     parser.add_argument("--sell-price", type=int)
     parser.add_argument("--stop-pct", type=float, default=3.0)
@@ -210,8 +220,8 @@ def main() -> None:
     current = dt.datetime.fromisoformat(args.now).astimezone(KST) if args.now else now_kst()
     alerts = 0
     if args.action == "buy":
-        if args.code is None or args.buy_price is None:
-            raise ValueError("매수 등록에는 종목코드와 매수가가 필요합니다.")
+        if args.code is None or args.buy_price is None or args.quantity is None:
+            raise ValueError("매수 등록에는 종목코드, 매수가, 수량이 필요합니다.")
         stop_source = None
         stop_price = args.stop_price
         if stop_price is None:
@@ -221,13 +231,13 @@ def main() -> None:
             else:
                 stop_price = None
         register_position(
-            payload, args.code, args.name, args.buy_price, stop_price,
+            payload, args.code, args.name, args.buy_price, args.quantity, stop_price,
             args.target_pct, args.stop_pct, current, stop_source,
         )
     elif args.action == "sold":
-        if args.code is None or args.sell_price is None:
-            raise ValueError("매도 완료 처리에는 종목코드와 매도가가 필요합니다.")
-        close_position(payload, args.code, args.sell_price, current)
+        if args.code is None or args.sell_price is None or args.quantity is None:
+            raise ValueError("매도 완료 처리에는 종목코드, 매도가, 수량이 필요합니다.")
+        close_position(payload, args.code, args.sell_price, args.quantity, current)
     else:
         alerts = monitor_positions(payload, current, args.minute_count, args.no_notify)
     save_positions(path, payload, current)

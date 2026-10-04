@@ -14,22 +14,23 @@ class PositionManagerTests(unittest.TestCase):
     def test_register_and_close_position(self) -> None:
         payload = {"positions": []}
         current = dt.datetime(2026, 10, 5, 9, tzinfo=KST)
-        register_position(payload, "005720", "넥센", 6490, 6150, 5, 3, current)
+        register_position(payload, "005720", "넥센", 6490, 10, 6150, 5, 3, current)
         position = payload["positions"][0]
         self.assertEqual(position["targetPrice"], 6814)
         self.assertEqual(position["status"], "open")
-        close_position(payload, "005720", 6800, current)
+        close_position(payload, "005720", 6800, 10, current)
         self.assertEqual(position["status"], "closed")
         self.assertEqual(position["sellPrice"], 6800)
         self.assertEqual(position["realizedProfitPerShare"], 310)
+        self.assertEqual(position["realizedProfitTotal"], 3100)
         self.assertEqual(position["realizedReturnPct"], 4.78)
 
     def test_sell_price_must_be_positive(self) -> None:
         payload = {"positions": []}
         current = dt.datetime(2026, 10, 5, 9, tzinfo=KST)
-        register_position(payload, "005720", "넥센", 6490, 6150, 5, 3, current)
+        register_position(payload, "005720", "넥센", 6490, 10, 6150, 5, 3, current)
         with self.assertRaises(ValueError):
-            close_position(payload, "005720", 0, current)
+            close_position(payload, "005720", 0, 10, current)
 
     def test_sell_price_can_complete_legacy_closed_position(self) -> None:
         payload = {
@@ -39,23 +40,24 @@ class PositionManagerTests(unittest.TestCase):
             }]
         }
         current = dt.datetime(2026, 10, 5, 9, tzinfo=KST)
-        close_position(payload, "005720", 6700, current)
+        close_position(payload, "005720", 6700, 10, current)
         position = payload["positions"][0]
         self.assertEqual(position["sellPrice"], 6700)
         self.assertEqual(position["realizedReturnPct"], 3.4)
+        self.assertEqual(position["realizedProfitTotal"], 2200)
         self.assertEqual(position["closedAt"], "2026-10-04T15:11+09:00")
 
     def test_stop_price_must_be_below_buy_price(self) -> None:
         with self.assertRaises(ValueError):
             register_position(
-                {"positions": []}, "005720", "넥센", 6490, 6500, 5,
+                {"positions": []}, "005720", "넥센", 6490, 10, 6500, 5,
                 3, dt.datetime(2026, 10, 5, 9, tzinfo=KST),
             )
 
     def test_blank_stop_uses_three_percent_default(self) -> None:
         payload = {"positions": []}
         register_position(
-            payload, "005720", "넥센", 6490, None, 5, 3,
+            payload, "005720", "넥센", 6490, 10, None, 5, 3,
             dt.datetime(2026, 10, 5, 9, tzinfo=KST),
         )
         position = payload["positions"][0]

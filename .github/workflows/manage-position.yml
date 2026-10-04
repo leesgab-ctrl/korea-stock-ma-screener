@@ -22,6 +22,10 @@ on:
         description: 매수가 (매수 등록 시 입력)
         required: false
         type: string
+      quantity:
+        description: 매수 또는 매도 수량
+        required: false
+        type: string
       stop_price:
         description: 합의한 손절가 (비우면 대량거래 전일 종가, 후보가 없으면 -3%)
         required: false
@@ -59,10 +63,11 @@ jobs:
           CODE: ${{ inputs.code }}
           NAME: ${{ inputs.name }}
           BUY_PRICE: ${{ inputs.buy_price }}
+          QUANTITY: ${{ inputs.quantity }}
           STOP_PRICE: ${{ inputs.stop_price }}
           TARGET_PCT: ${{ inputs.target_pct }}
         run: |
-          ARGS=(--action buy --code "$CODE" --name "$NAME" --buy-price "$BUY_PRICE" --target-pct "$TARGET_PCT")
+          ARGS=(--action buy --code "$CODE" --name "$NAME" --buy-price "$BUY_PRICE" --quantity "$QUANTITY" --target-pct "$TARGET_PCT")
           if [ -n "$STOP_PRICE" ]; then ARGS+=(--stop-price "$STOP_PRICE"); fi
           python scripts/manage_positions.py "${ARGS[@]}"
       - name: Mark as sold
@@ -70,7 +75,8 @@ jobs:
         env:
           CODE: ${{ inputs.code }}
           SELL_PRICE: ${{ inputs.sell_price }}
-        run: python scripts/manage_positions.py --action sold --code "$CODE" --sell-price "$SELL_PRICE"
+          QUANTITY: ${{ inputs.quantity }}
+        run: python scripts/manage_positions.py --action sold --code "$CODE" --sell-price "$SELL_PRICE" --quantity "$QUANTITY"
       - name: Save position
         run: |
           git config user.name "github-actions[bot]"

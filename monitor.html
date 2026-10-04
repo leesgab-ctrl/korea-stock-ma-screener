@@ -135,6 +135,7 @@
           <label><span>종목코드</span><input id="positionCode" name="code" inputmode="numeric" maxlength="6" pattern="[0-9]{6}" placeholder="005720" required></label>
           <label><span>종목명</span><input id="positionName" name="name" placeholder="넥센"></label>
           <label><span>매수가</span><input id="positionBuyPrice" name="buyPrice" inputmode="decimal" autocomplete="off" placeholder="6480"></label>
+          <label><span>수량</span><input id="positionQuantity" name="quantity" inputmode="numeric" autocomplete="off" placeholder="보유 주식 수" required></label>
           <label class="sell-field hidden"><span>매도가</span><input id="positionSellPrice" name="sellPrice" inputmode="decimal" autocomplete="off" placeholder="매도 체결가"></label>
           <label class="buy-field"><span>손절가</span><input id="positionStopPrice" name="stopPrice" inputmode="decimal" placeholder="비우면 자동 계산"></label>
           <label class="buy-field"><span>목표수익률</span><div class="suffix-input"><input id="positionTargetPct" name="targetPct" inputmode="decimal" value="5"><span>%</span></div></label>
@@ -157,6 +158,6 @@
       </form>
     </dialog>
 
-    <script src="monitor.js?v=20261004-3"></script>
+    <script src="monitor.js?v=20261004-4"></script>
   </body>
 </html>

@@ -43,6 +43,7 @@ const elements = {
   positionCode: document.querySelector("#positionCode"),
   positionName: document.querySelector("#positionName"),
   positionBuyPrice: document.querySelector("#positionBuyPrice"),
+  positionQuantity: document.querySelector("#positionQuantity"),
   positionSellPrice: document.querySelector("#positionSellPrice"),
   positionStopPrice: document.querySelector("#positionStopPrice"),
   positionTargetPct: document.querySelector("#positionTargetPct"),
@@ -127,6 +128,7 @@ function renderPositions(positions, closedPositions = []) {
     article.innerHTML = `
       <header><strong></strong><span></span></header>
       <div class="position-values"><span class="position-price"></span><span class="position-return ${returnClass}"></span></div>
+      <div class="position-values"><span class="position-quantity"></span><span class="position-value"></span></div>
       <div class="position-values"><span class="position-stop"></span><span class="position-target"></span></div>
       <div class="position-warning"></div>
       <div class="position-item-actions"><button class="position-edit" type="button">수정</button><button class="position-close" type="button">매도완료</button></div>`;
@@ -134,6 +136,12 @@ function renderPositions(positions, closedPositions = []) {
     article.querySelector("header span").textContent = item.code;
     article.querySelector(".position-price").textContent = `매수 ${formatter.format(item.buyPrice)}원 · 현재 ${item.lastPrice ? formatter.format(item.lastPrice) : "-"}원`;
     article.querySelector(".position-return").textContent = returnPct == null ? "-" : `${returnPct >= 0 ? "+" : ""}${formatter.format(returnPct)}%`;
+    article.querySelector(".position-quantity").textContent = item.quantity ? `${formatter.format(item.quantity)}주` : "수량 미입력";
+    const investedAmount = item.investedAmount ?? (item.quantity ? item.buyPrice * item.quantity : null);
+    const currentValue = item.quantity && item.lastPrice ? item.quantity * item.lastPrice : null;
+    article.querySelector(".position-value").textContent = currentValue == null
+      ? `매수금액 ${investedAmount == null ? "-" : `${formatter.format(investedAmount)}원`}`
+      : `평가금액 ${formatter.format(currentValue)}원`;
     const stopLabel = item.stopSource === "large_volume_previous_close" ? "대량거래 전일종가" : "손절";
     article.querySelector(".position-stop").textContent = `${stopLabel} ${formatter.format(item.stopPrice)}원`;
     article.querySelector(".position-target").textContent = `목표 ${formatter.format(item.targetPrice)}원`;
@@ -174,15 +182,17 @@ function renderClosedPosition(item) {
   article.innerHTML = `
     <header><strong></strong><span></span></header>
     <div class="position-values"><span class="position-price"></span><span class="position-return ${returnClass}"></span></div>
-    <div class="position-values"><span class="position-profit"></span><span class="position-date"></span></div>
+    <div class="position-values"><span class="position-quantity"></span><span class="position-profit"></span></div>
+    <div class="position-values"><span class="position-cost-note">세금·수수료 전</span><span class="position-date"></span></div>
     <div class="position-item-actions"><button class="position-sell-edit" type="button"></button></div>`;
   article.querySelector("strong").textContent = item.name;
   article.querySelector("header span").textContent = item.code;
   const sellPrice = item.sellPrice == null ? "-" : `${formatter.format(item.sellPrice)}원`;
   article.querySelector(".position-price").textContent = `매수 ${formatter.format(item.buyPrice)}원 → 매도 ${sellPrice}`;
   article.querySelector(".position-return").textContent = returnPct == null ? "수익률 -" : `${returnPct >= 0 ? "+" : ""}${formatter.format(returnPct)}%`;
-  const profit = item.realizedProfitPerShare;
-  article.querySelector(".position-profit").textContent = profit == null ? "주당손익 -" : `주당손익 ${profit >= 0 ? "+" : ""}${formatter.format(profit)}원`;
+  article.querySelector(".position-quantity").textContent = item.quantity ? `${formatter.format(item.quantity)}주` : "수량 미입력";
+  const profit = item.realizedProfitTotal;
+  article.querySelector(".position-profit").textContent = profit == null ? "총손익 -" : `총손익 ${profit >= 0 ? "+" : ""}${formatter.format(profit)}원`;
   article.querySelector(".position-date").textContent = item.closedAt ? `매도 ${formatDateTime(item.closedAt)}` : "매도일 -";
   const sellEdit = article.querySelector(".position-sell-edit");
   sellEdit.textContent = item.sellPrice == null ? "매도가 입력" : "매도가 수정";
@@ -250,6 +260,7 @@ function setPositionMode(action) {
   elements.positionName.readOnly = !isBuy;
   elements.positionBuyPrice.required = isBuy;
   elements.positionBuyPrice.readOnly = !isBuy;
+  elements.positionQuantity.required = true;
   elements.positionSellPrice.required = !isBuy;
   elements.positionSubmitButton.textContent = isBuy ? "등록" : "매도 완료";
   elements.positionFormSubtitle.textContent = isBuy ? "매수정보와 손절가" : "매도 체결가와 실현손익 기록";
@@ -260,6 +271,7 @@ function openPositionDialog(candidate = null, position = null, action = "buy") {
   elements.positionCode.value = "";
   elements.positionName.value = "";
   elements.positionBuyPrice.value = "";
+  elements.positionQuantity.value = "";
   elements.positionSellPrice.value = "";
   elements.positionStopPrice.value = "";
   elements.positionTargetPct.value = "5";
@@ -279,6 +291,7 @@ function openPositionDialog(candidate = null, position = null, action = "buy") {
     elements.positionCode.value = position.code || elements.positionCode.value;
     elements.positionName.value = position.name || elements.positionName.value;
     elements.positionBuyPrice.value = position.buyPrice || "";
+    elements.positionQuantity.value = position.quantity || "";
     elements.positionStopPrice.value = position.stopPrice || elements.positionStopPrice.value;
     elements.positionTargetPct.value = position.targetPct || "5";
     elements.positionSellPrice.value = position.sellPrice || "";
@@ -315,6 +328,7 @@ async function submitPosition(event) {
     code: elements.positionCode.value.trim(),
     name: action === "buy" ? elements.positionName.value.trim() : "",
     buy_price: action === "buy" ? elements.positionBuyPrice.value.trim() : "",
+    quantity: elements.positionQuantity.value.trim(),
     sell_price: action === "sold" ? elements.positionSellPrice.value.trim() : "",
     stop_price: action === "buy" ? elements.positionStopPrice.value.trim() : "",
     target_pct: action === "buy" ? elements.positionTargetPct.value.trim() || "5" : "5",
