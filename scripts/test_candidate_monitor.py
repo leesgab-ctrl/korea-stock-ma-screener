@@ -158,6 +158,64 @@ class CandidateMonitorTests(unittest.TestCase):
         self.assertTrue(result["breachedDailyMa10"])
         self.assertTrue(candidate["tracking"]["breachedDailyMa10"])
 
+    def test_pre_signal_daily_ma10_breach_does_not_exclude_candidate(self) -> None:
+        bars = [
+            {
+                "time": dt.datetime(2026, 10, 1, 9, tzinfo=KST) + dt.timedelta(minutes=30 * index),
+                "open": 99,
+                "close": 99,
+                "ma20": 99.0 if index < 10 else 105.0,
+                "ma40": 100.0,
+                "ma60": 95.0,
+            }
+            for index in range(26)
+        ]
+        candidate = {
+            "code": "005720",
+            "dailySignalDate": "2026-10-02",
+            "dailyReference": {"ma10": 100.0},
+            "tracking": {},
+        }
+
+        with mock.patch.object(monitor, "fetch_minute_rows", return_value=[]), mock.patch.object(
+            monitor, "aggregate_30m", return_value=bars
+        ):
+            result = monitor.analyze_intraday(
+                candidate,
+                dt.datetime(2026, 10, 4, 16, tzinfo=KST),
+                5000,
+            )
+
+        self.assertEqual(result["riseCount"], 0)
+        self.assertFalse(result["breachedDailyMa10"])
+        self.assertNotIn("breachedDailyMa10", candidate["tracking"])
+
+    def test_candidate_with_ma_values_waits_for_post_signal_sequence(self) -> None:
+        candidate = {"code": "036200", "dailySignalDate": "2026-10-01"}
+        payload = {"candidates": [candidate], "notifiedSignals": []}
+        intraday = {
+            "dataStatus": "ok",
+            "baselineMa20AboveMa40": True,
+            "ma20": 10794.5,
+            "ma40": 10554.25,
+            "ma60": 10275.83,
+            "ma60Ready": False,
+            "eligibleReversal": False,
+            "breachedDailyMa10": False,
+            "breachedMa60": False,
+            "riseCount": 0,
+        }
+
+        with mock.patch.object(monitor, "analyze_intraday", return_value=intraday):
+            monitor.enrich(
+                payload,
+                dt.datetime(2026, 10, 4, 16, tzinfo=KST),
+                5000,
+                True,
+            )
+
+        self.assertEqual(candidate["status"], "watching")
+
 
 if __name__ == "__main__":
     unittest.main()

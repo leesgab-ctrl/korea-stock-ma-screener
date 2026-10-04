@@ -392,15 +392,11 @@ def analyze_intraday(candidate: dict[str, Any], current: dt.datetime, count: int
         tracking["breachedMa60"] = bool(
             tracking.get("breachedMa60") or latest_depth["breachedMa60"]
         )
-        tracking["breachedDailyMa10"] = bool(
-            tracking.get("breachedDailyMa10") or latest_depth["breachedDailyMa10"]
-        )
-    latest_depth["breachedMa60"] = bool(
-        tracking.get("breachedMa60") or latest_depth["breachedMa60"]
-    )
-    latest_depth["breachedDailyMa10"] = bool(
-        tracking.get("breachedDailyMa10") or latest_depth["breachedDailyMa10"]
-    )
+    # Only persist events observed after the A-G confirmation day. The depth
+    # context may reach back to an older death cross when no post-signal
+    # sequence exists, which must not exclude a newly confirmed candidate.
+    latest_depth["breachedMa60"] = bool(tracking.get("breachedMa60"))
+    latest_depth["breachedDailyMa10"] = bool(tracking.get("breachedDailyMa10"))
     if latest_depth["breachedMa60"]:
         latest_depth["signalRule"] = "ma60_recovery"
         latest_depth["signalReady"] = bool(
@@ -516,7 +512,7 @@ def enrich(payload: dict[str, Any], current: dt.datetime, count: int, no_notify:
             candidate["status"] = "ineligible"
         elif intraday.get("breachedMa60") and not intraday.get("recoveredMa60"):
             candidate["status"] = "waiting60"
-        elif not intraday.get("ma60Ready"):
+        elif intraday.get("ma60") is None:
             candidate["status"] = "insufficient"
         elif (
             intraday.get("riseCount", 0) > 0
