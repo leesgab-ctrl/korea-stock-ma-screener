@@ -14,3 +14,7 @@ GitHub Pages 배포 후에는 저장소의 Actions 탭에서 `Update stock scree
 - 장중 10분 간격 감시: `.github/workflows/monitor-signals.yml`
 - 휴대폰 푸시: 저장소 Secret `NTFY_TOPIC`이 설정된 경우에만 ntfy로 전송
 - 신호는 자동주문이 아니라 다음 30분봉부터 HTS 현재가를 확인하기 위한 매수 검토 알림입니다.
+- 조정이 얕으면 MA20 5회 연속 상승, MA60 아래까지 내려가면 MA60 재돌파를 기다립니다.
+- 30분봉 MA20이 직전 완료 일봉 MA10 가격선 아래로 내려가면 해당 후보를 제외합니다.
+- `Register or close a purchased stock` 작업에서 종목코드, 매수가, 손절가를 등록할 수 있습니다.
+- 보유종목은 목표수익률 5%, 대량거래 전일 종가를 기본 손절가로 사용하며 `종가 < MA20`이면서 MA20 3봉 연속 하락도 감시합니다.

@@ -24,19 +24,24 @@ jobs:
           python-version: "3.12"
       - name: Keep latest full-market data in Pages bundle
         continue-on-error: true
-        run: curl --fail --retry 3 --silent --show-error -o data/stock-data.json https://junsooo.github.io/korea-stock-ma-screener/data/stock-data.json
+        run: curl --fail --retry 3 --silent --show-error -o data/stock-data.json https://leesgab-ctrl.github.io/korea-stock-ma-screener/data/stock-data.json
       - name: Check active candidates
         id: monitor
         env:
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
         run: python scripts/update_candidate_monitor.py --mode intraday --github-output "$GITHUB_OUTPUT"
+      - name: Check purchased stocks
+        id: positions
+        env:
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+        run: python scripts/manage_positions.py --action monitor --github-output "$GITHUB_OUTPUT"
       - name: Save newly notified signals
-        if: steps.monitor.outputs.alerts != '0'
+        if: steps.monitor.outputs.alerts != '0' || steps.positions.outputs.alerts != '0'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/candidate-monitor.json
-          git commit -m "Record 30-minute buy signal"
+          git add data/candidate-monitor.json data/positions.json
+          git commit -m "Record stock monitoring alert"
           git push
       - name: Configure Pages
         uses: actions/configure-pages@v5

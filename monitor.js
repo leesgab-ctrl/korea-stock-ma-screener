@@ -1,15 +1,17 @@
-const state = { payload: null, filter: "all", keyword: "", selectedCode: null };
+const state = { payload: null, positions: null, filter: "all", keyword: "", selectedCode: null };
 
 const elements = {
   activeCount: document.querySelector("#activeCount"),
   signalCount: document.querySelector("#signalCount"),
   risingCount: document.querySelector("#risingCount"),
+  positionCount: document.querySelector("#positionCount"),
   asOf: document.querySelector("#asOf"),
   runStatus: document.querySelector("#runStatus"),
   updatedAt: document.querySelector("#updatedAt"),
   pushState: document.querySelector("#pushState"),
   candidateMeta: document.querySelector("#candidateMeta"),
   candidateList: document.querySelector("#candidateList"),
+  positionList: document.querySelector("#positionList"),
   template: document.querySelector("#candidateTemplate"),
   keyword: document.querySelector("#keyword"),
   refreshButton: document.querySelector("#refreshButton"),
@@ -23,6 +25,8 @@ const elements = {
   lastPrice: document.querySelector("#lastPrice"),
   ma20: document.querySelector("#ma20"),
   ma40: document.querySelector("#ma40"),
+  ma60: document.querySelector("#ma60"),
+  dailyMa10: document.querySelector("#dailyMa10"),
   lastBar: document.querySelector("#lastBar"),
   dailySignal: document.querySelector("#dailySignal"),
   remainingDays: document.querySelector("#remainingDays"),
@@ -37,15 +41,22 @@ const statusLabels = {
   watching: "관찰 중",
   insufficient: "기준자료 부족",
   ineligible: "초기조건 제외",
+  excluded: "일봉 MA10 이탈",
+  waiting60: "MA60 회복 대기",
 };
 const formatter = new Intl.NumberFormat("ko-KR", { maximumFractionDigits: 2 });
 
 async function loadData() {
   elements.refreshButton.disabled = true;
   try {
-    const response = await fetch(`data/candidate-monitor.json?t=${Date.now()}`, { cache: "no-store" });
+    const stamp = Date.now();
+    const [response, positionsResponse] = await Promise.all([
+      fetch(`data/candidate-monitor.json?t=${stamp}`, { cache: "no-store" }),
+      fetch(`data/positions.json?t=${stamp}`, { cache: "no-store" }),
+    ]);
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     state.payload = await response.json();
+    state.positions = positionsResponse.ok ? await positionsResponse.json() : { positions: [] };
     const candidates = state.payload.candidates || [];
     if (!state.selectedCode || !candidates.some((item) => item.code === state.selectedCode)) {
       state.selectedCode = candidates[0]?.code || null;
@@ -65,13 +76,47 @@ function render() {
   elements.activeCount.textContent = summary.active ?? candidates.length;
   elements.signalCount.textContent = summary.signals ?? 0;
   elements.risingCount.textContent = summary.rising ?? 0;
+  const openPositions = (state.positions?.positions || []).filter((item) => item.status === "open");
+  elements.positionCount.textContent = openPositions.length;
   elements.asOf.textContent = asOf || "-";
   elements.runStatus.textContent = summary.dataErrors ? `분봉 오류 ${summary.dataErrors}건` : "클라우드 감시 정상";
   elements.updatedAt.textContent = generatedAt ? `마지막 갱신 ${formatDateTime(generatedAt)}` : "갱신 기록 없음";
   elements.pushState.textContent = summary.pushConfigured ? "휴대폰 푸시 연결" : "푸시 연결 대기";
   elements.pushState.className = `status-chip${summary.pushConfigured ? "" : " rising"}`;
   renderCandidates(candidates);
+  renderPositions(openPositions);
   renderDetail(candidates.find((item) => item.code === state.selectedCode));
+}
+
+function renderPositions(positions) {
+  elements.positionList.innerHTML = "";
+  if (!positions.length) {
+    elements.positionList.innerHTML = '<div class="empty-list">등록된 보유종목이 없습니다. “보유 등록·수정”에서 추가하세요.</div>';
+    return;
+  }
+  for (const item of positions) {
+    const article = document.createElement("article");
+    const returnPct = item.returnPct;
+    const returnClass = returnPct == null ? "" : returnPct >= 0 ? "positive" : "negative";
+    const warning = item.riskWarning
+      ? "손절폭이 목표수익률보다 큽니다. 매수·비중 재검토"
+      : item.trendWeak ? "30분봉 추세약화 감지" : "목표가·손절가 감시 중";
+    article.className = "position-item";
+    article.innerHTML = `
+      <header><strong></strong><span></span></header>
+      <div class="position-values"><span class="position-price"></span><span class="position-return ${returnClass}"></span></div>
+      <div class="position-values"><span class="position-stop"></span><span class="position-target"></span></div>
+      <div class="position-warning"></div>`;
+    article.querySelector("strong").textContent = item.name;
+    article.querySelector("header span").textContent = item.code;
+    article.querySelector(".position-price").textContent = `매수 ${formatter.format(item.buyPrice)}원 · 현재 ${item.lastPrice ? formatter.format(item.lastPrice) : "-"}원`;
+    article.querySelector(".position-return").textContent = returnPct == null ? "-" : `${returnPct >= 0 ? "+" : ""}${formatter.format(returnPct)}%`;
+    const stopLabel = item.stopSource === "large_volume_previous_close" ? "대량거래 전일종가" : "손절";
+    article.querySelector(".position-stop").textContent = `${stopLabel} ${formatter.format(item.stopPrice)}원`;
+    article.querySelector(".position-target").textContent = `목표 ${formatter.format(item.targetPrice)}원`;
+    article.querySelector(".position-warning").textContent = warning;
+    elements.positionList.append(article);
+  }
 }
 
 function filteredCandidates(candidates) {
@@ -130,12 +175,14 @@ function renderDetail(item) {
   elements.lastPrice.textContent = intraday.lastPrice ? `${formatter.format(intraday.lastPrice)}원` : "-";
   elements.ma20.textContent = intraday.ma20 == null ? "-" : formatter.format(intraday.ma20);
   elements.ma40.textContent = intraday.ma40 == null ? "-" : formatter.format(intraday.ma40);
+  elements.ma60.textContent = intraday.ma60 == null ? "-" : formatter.format(intraday.ma60);
+  elements.dailyMa10.textContent = intraday.dailyMa10 == null ? "-" : formatter.format(intraday.dailyMa10);
   elements.lastBar.textContent = intraday.lastBarTime ? formatDateTime(intraday.lastBarTime) : "-";
   elements.dailySignal.textContent = item.dailySignalDate;
   elements.remainingDays.textContent = `${item.tradingDaysRemaining}거래일`;
   elements.signalMessage.className = `signal-message${item.status === "signal" ? " signal" : ""}`;
   elements.signalMessage.textContent = signalCopy(item, intraday);
-  drawChart(intraday.series || []);
+  drawChart(intraday.series || [], intraday.dailyMa10);
 }
 
 function signalCopy(item, intraday) {
@@ -146,13 +193,15 @@ function signalCopy(item, intraday) {
   if (item.status === "rising") {
     return `MA20이 MA40 아래에서 반등해 ${intraday.riseCount || 0}회 연속 상승 중입니다. 5회가 완성될 때까지 관찰합니다.`;
   }
+  if (item.status === "waiting60") return "MA20이 MA60 아래까지 내려갔습니다. MA20이 MA60을 다시 돌파한 완성봉까지 기다립니다.";
+  if (item.status === "excluded") return "MA20이 직전 완료 일봉 MA10 가격선 아래로 내려가 이번 A-G 후보에서 제외했습니다.";
   if (item.status === "insufficient") return "A-G 발생일의 30분봉 MA20·MA40 기준값이 네이버 제공 범위에서 벗어났습니다. 신규 후보부터 기준값을 자동 저장합니다.";
   if (item.status === "ineligible") return "A-G 발생일 마감 시 MA20이 MA40 위에 있지 않아 30분봉 후속 감시에서 제외했습니다.";
   if (intraday.dataStatus === "error") return "네이버 분봉을 가져오지 못했습니다. 다음 예약 실행에서 다시 시도합니다.";
-  return "MA20이 MA40 아래에서 반등한 뒤 5회 연속 상승하는지 관찰 중입니다.";
+  return "MA20의 5회 상승을 관찰합니다. MA60 아래까지 조정되면 MA60 재돌파를 기다리고, 일봉 MA10 아래면 제외합니다.";
 }
 
-function drawChart(series) {
+function drawChart(series, dailyMa10) {
   const canvas = elements.chart;
   const ratio = window.devicePixelRatio || 1;
   const width = canvas.clientWidth || 800;
@@ -168,7 +217,7 @@ function drawChart(series) {
     ctx.fillText("표시할 30분봉 데이터가 부족합니다.", 20, 35);
     return;
   }
-  const values = series.flatMap((row) => [row.c, row.m20, row.m40]).filter((value) => value != null);
+  const values = series.flatMap((row) => [row.c, row.m20, row.m40, row.m60, dailyMa10]).filter((value) => value != null);
   const min = Math.min(...values);
   const max = Math.max(...values);
   const spread = Math.max(max - min, 1);
@@ -186,8 +235,15 @@ function drawChart(series) {
   drawLine(ctx, series, "c", "#73827a", 1.4, x, y);
   drawLine(ctx, series, "m20", "#ba3f3f", 2.2, x, y);
   drawLine(ctx, series, "m40", "#3167ad", 2.2, x, y);
+  drawLine(ctx, series, "m60", "#9a641d", 2.2, x, y);
+  if (dailyMa10 != null) {
+    ctx.strokeStyle = "#176b58"; ctx.lineWidth = 1.5; ctx.setLineDash([6, 4]);
+    ctx.beginPath(); ctx.moveTo(pad.left, y(dailyMa10)); ctx.lineTo(width - pad.right, y(dailyMa10)); ctx.stroke(); ctx.setLineDash([]);
+  }
   ctx.fillStyle = "#ba3f3f"; ctx.fillRect(pad.left, 7, 14, 3); ctx.fillStyle = "#48574f"; ctx.fillText("MA20", pad.left + 19, 13);
   ctx.fillStyle = "#3167ad"; ctx.fillRect(pad.left + 72, 7, 14, 3); ctx.fillStyle = "#48574f"; ctx.fillText("MA40", pad.left + 91, 13);
+  ctx.fillStyle = "#9a641d"; ctx.fillRect(pad.left + 144, 7, 14, 3); ctx.fillStyle = "#48574f"; ctx.fillText("MA60", pad.left + 163, 13);
+  ctx.fillStyle = "#176b58"; ctx.fillRect(pad.left + 216, 7, 14, 3); ctx.fillStyle = "#48574f"; ctx.fillText("일봉 MA10", pad.left + 235, 13);
   ctx.fillStyle = "#64746c";
   ctx.fillText(formatShortTime(series[0].t), pad.left, height - 10);
   const lastLabel = formatShortTime(series.at(-1).t);

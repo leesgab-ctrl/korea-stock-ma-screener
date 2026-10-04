@@ -2,10 +2,14 @@ from __future__ import annotations
 
 import datetime as dt
 import unittest
+from unittest import mock
+
+import update_candidate_monitor as monitor
 
 from update_candidate_monitor import (
     KST,
     aggregate_30m,
+    depth_rule_context,
     evaluate_ag,
     rise_context,
     valid_post_candidate_sequence,
@@ -77,6 +81,82 @@ class CandidateMonitorTests(unittest.TestCase):
             bar["time"] += dt.timedelta(days=1)
         self.assertTrue(valid_post_candidate_sequence(bars, context, signal_day, True))
         self.assertFalse(valid_post_candidate_sequence(bars, context, signal_day, False))
+
+    def test_deep_pullback_waits_for_ma60_recovery(self) -> None:
+        bars = [
+            {
+                "time": dt.datetime(2026, 10, 2, 9, tzinfo=KST) + dt.timedelta(minutes=30 * index),
+                "ma20": 110.0,
+                "ma40": 100.0,
+                "ma60": 95.0,
+            }
+            for index in range(20)
+        ]
+        bars[4]["ma20"] = 101
+        bars[5]["ma20"] = 99
+        for index, value in enumerate((94, 93, 94, 95, 96, 97, 98), start=6):
+            bars[index]["ma20"] = value
+        context = rise_context(bars, 12)
+        depth = depth_rule_context(bars, context, 12, 90.0)
+        self.assertTrue(depth["breachedMa60"])
+        self.assertTrue(depth["recoveredMa60"])
+        self.assertTrue(depth["signalReady"])
+        bars[12]["ma20"] = 94.5
+        context = rise_context(bars, 12)
+        depth = depth_rule_context(bars, context, 12, 90.0)
+        self.assertFalse(depth["recoveredMa60"])
+        self.assertFalse(depth["signalReady"])
+
+    def test_daily_ma10_breach_excludes_signal(self) -> None:
+        bars = [
+            {
+                "time": dt.datetime(2026, 10, 2, 9, tzinfo=KST) + dt.timedelta(minutes=30 * index),
+                "ma20": 105.0,
+                "ma40": 100.0,
+                "ma60": 95.0,
+            }
+            for index in range(20)
+        ]
+        bars[4]["ma20"] = 101
+        bars[5]["ma20"] = 99
+        for index, value in enumerate((91, 89, 90, 92, 94, 96, 98), start=6):
+            bars[index]["ma20"] = value
+        context = rise_context(bars, 12)
+        depth = depth_rule_context(bars, context, 12, 90.0)
+        self.assertTrue(depth["breachedDailyMa10"])
+        self.assertFalse(depth["signalReady"])
+
+    def test_daily_ma10_breach_is_detected_without_baseline_history(self) -> None:
+        bars = [
+            {
+                "time": dt.datetime(2026, 9, 28, 9, tzinfo=KST) + dt.timedelta(minutes=30 * index),
+                "open": 99,
+                "close": 99,
+                "ma20": 99.0,
+                "ma40": None,
+                "ma60": None,
+            }
+            for index in range(20)
+        ]
+        candidate = {
+            "code": "041830",
+            "dailySignalDate": "2026-09-17",
+            "dailyReference": {"ma10": 100.0},
+            "tracking": {},
+        }
+
+        with mock.patch.object(monitor, "fetch_minute_rows", return_value=[]), mock.patch.object(
+            monitor, "aggregate_30m", return_value=bars
+        ):
+            result = monitor.analyze_intraday(
+                candidate,
+                dt.datetime(2026, 10, 2, 16, tzinfo=KST),
+                5000,
+            )
+
+        self.assertIsNone(result["baselineMa20AboveMa40"])
+        self.assertTrue(result["breachedDailyMa10"])
+        self.assertTrue(candidate["tracking"]["breachedDailyMa10"])
 
 
 if __name__ == "__main__":

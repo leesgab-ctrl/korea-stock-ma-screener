@@ -1,0 +1,85 @@
+name: Register, edit, or close a purchased stock
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: buy는 신규등록 또는 같은 종목의 손절가 수정, sold는 매도완료
+        required: true
+        type: choice
+        options:
+          - buy
+          - sold
+      code:
+        description: 종목코드 6자리
+        required: true
+        type: string
+      name:
+        description: 종목명 (매수 등록 시 입력)
+        required: false
+        type: string
+      buy_price:
+        description: 매수가 (매수 등록 시 입력)
+        required: false
+        type: string
+      stop_price:
+        description: 합의한 손절가 (비우면 대량거래 전일 종가, 후보가 없으면 -3%)
+        required: false
+        type: string
+      target_pct:
+        description: 목표수익률(%)
+        required: false
+        default: "5"
+        type: string
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Register purchase
+        if: inputs.action == 'buy'
+        env:
+          CODE: ${{ inputs.code }}
+          NAME: ${{ inputs.name }}
+          BUY_PRICE: ${{ inputs.buy_price }}
+          STOP_PRICE: ${{ inputs.stop_price }}
+          TARGET_PCT: ${{ inputs.target_pct }}
+        run: |
+          ARGS=(--action buy --code "$CODE" --name "$NAME" --buy-price "$BUY_PRICE" --target-pct "$TARGET_PCT")
+          if [ -n "$STOP_PRICE" ]; then ARGS+=(--stop-price "$STOP_PRICE"); fi
+          python scripts/manage_positions.py "${ARGS[@]}"
+      - name: Mark as sold
+        if: inputs.action == 'sold'
+        env:
+          CODE: ${{ inputs.code }}
+        run: python scripts/manage_positions.py --action sold --code "$CODE"
+      - name: Save position
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/positions.json
+          git commit -m "Update purchased stock ${INPUT_CODE}"
+          git push
+        env:
+          INPUT_CODE: ${{ inputs.code }}
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: .
+      - name: Deploy to GitHub Pages
+        uses: actions/deploy-pages@v4
