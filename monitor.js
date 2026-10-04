@@ -211,6 +211,10 @@ function setPositionMode(action) {
 
 function openPositionDialog(candidate = null, position = null, action = "buy") {
   elements.positionForm.reset();
+  elements.positionCode.value = "";
+  elements.positionName.value = "";
+  elements.positionBuyPrice.value = "";
+  elements.positionStopPrice.value = "";
   elements.positionTargetPct.value = "5";
   elements.githubToken.value = storedGithubToken();
   elements.positionFormStatus.textContent = "";
