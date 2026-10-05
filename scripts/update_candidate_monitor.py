@@ -650,9 +650,11 @@ def analyze_intraday(candidate: dict[str, Any], current: dt.datetime, count: int
         ),
         None,
     )
-    complete_display_bars = [] if first_complete_index is None else [
-        bar for bar in bars[first_complete_index:] if bar["time"].date() >= signal_day
-    ]
+    # The signal search remains constrained to the A-G candidate period, but
+    # the chart may include earlier warmup bars so users can see five sessions.
+    complete_display_bars = (
+        [] if first_complete_index is None else bars[first_complete_index:]
+    )
     display_bars = latest_trading_days(complete_display_bars, 5)
     result: dict[str, Any] = {
         "dataStatus": "ok",
