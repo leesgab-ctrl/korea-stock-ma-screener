@@ -71,7 +71,7 @@ const statusLabels = {
   insufficient: "기준자료 부족",
   ineligible: "초기조건 제외",
   excluded: "구조적 약세",
-  waiting60: "MA60 돌파 대기",
+  waiting60: "MA3 돌파 대기",
 };
 const statusPriority = { signal: 0, rising: 1, waiting60: 2, setup: 3, signaled: 4, watching: 5, insufficient: 6, ineligible: 7, excluded: 8 };
 const tierLabels = { core: "핵심 A-G", expanded: "확대 A-G" };
@@ -81,7 +81,7 @@ const filterLabels = {
   signaled: "포착 완료",
   setup: "매수 준비",
   rising: "상승 진행",
-  waiting60: "MA60 대기",
+  waiting60: "MA3 대기",
   watching: "관찰 중",
 };
 const formatter = new Intl.NumberFormat("ko-KR", { maximumFractionDigits: 2 });
@@ -486,18 +486,18 @@ function signalCopy(item, intraday) {
   if (item.status === "signal" || item.status === "signaled") {
     const lead = item.status === "signal" ? "조건이 방금 확정됐습니다." : "과거 감시 중 조건이 확정된 이력입니다.";
     const estimate = intraday.baselineInferred ? " 초기 하향교차 시점은 네이버 과거 데이터 범위로 추정했습니다." : "";
-    return `${formatDateTime(intraday.signalTime)} 완성봉에서 ${lead} 신호 직후 다음 30분봉부터 HTS 현재가와 거래량을 확인하는 조건입니다.${estimate}`;
+    return `${formatDateTime(intraday.signalTime)} 완성봉에서 MA3가 ${intraday.signalTarget || intraday.entryTarget}를 돌파해 ${lead} 신호 직후 다음 30분봉부터 HTS 현재가와 거래량을 확인하는 조건입니다.${estimate}`;
   }
   if (item.status === "rising") {
     return `MA20이 MA40 아래에서 반등해 ${intraday.riseCount || 0}회 연속 상승 중입니다. 5회가 완성될 때까지 관찰합니다.`;
   }
   if (item.status === "setup") return "A-G 확정 후 MA20이 MA40 아래로 내려왔습니다. 반등이 시작되어 1/5가 되는지 관찰하는 매수 준비 단계입니다.";
-  if (item.status === "waiting60") return "MA20이 MA60 아래까지 내려갔습니다. MA20이 MA60을 다시 돌파한 완성봉까지 기다립니다.";
+  if (item.status === "waiting60") return `MA20 5회 상승이 확인됐습니다. 조정 깊이에 따라 MA3가 ${intraday.entryTarget || "목표 이동평균선"}을 돌파한 완성봉까지 기다립니다.`;
   if (item.status === "excluded") return "MA20이 MA40·MA60 아래에서 3개 완료봉 이상 연속 하락한 구조적 약세 상태입니다. 후보 기간 중 반등 조건이 생기면 다시 판정합니다.";
   if (item.status === "insufficient") return "A-G 발생일의 30분봉 MA20·MA40 기준값과 후속 교차를 현재 네이버 제공 범위에서 확인할 수 없습니다. 신규 후보부터 기준값을 자동 저장합니다.";
   if (item.status === "ineligible") return "A-G 발생일 마감 시 MA20이 MA40 위에 있지 않아 30분봉 후속 감시에서 제외했습니다.";
   if (intraday.dataStatus === "error") return "네이버 분봉을 가져오지 못했습니다. 다음 예약 실행에서 다시 시도합니다.";
-  return "MA20의 5회 상승을 관찰합니다. MA60 아래까지 조정되면 MA60 재돌파를 기다립니다. 일봉 MA10은 참고선으로만 사용합니다.";
+  return "MA20의 5회 상승을 관찰합니다. MA20이 MA40까지만 조정되면 MA3→MA40, MA60 아래까지 조정되면 MA3→MA60 돌파를 기다립니다. 일봉 MA10은 참고선입니다.";
 }
 
 function drawChart(series, dailyMa10) {
@@ -516,14 +516,14 @@ function drawChart(series, dailyMa10) {
     ctx.fillText("표시할 30분봉 데이터가 부족합니다.", 20, 35);
     return;
   }
-  const values = series.flatMap((row) => [row.h, row.l, row.c, row.m20, row.m40, row.m60, dailyMa10]).filter((value) => value != null);
+  const values = series.flatMap((row) => [row.h, row.l, row.c, row.m3, row.m20, row.m40, row.m60, dailyMa10]).filter((value) => value != null);
   const min = Math.min(...values);
   const max = Math.max(...values);
   const rawSpread = Math.max(max - min, 1);
   const priceMin = min - rawSpread * 0.04;
   const priceMax = max + rawSpread * 0.04;
   const spread = priceMax - priceMin;
-  const pad = { left: 54, right: 12, top: 28, bottom: 28 };
+  const pad = { left: 54, right: 12, top: 42, bottom: 28 };
   const volumeHeight = Math.max(44, Math.round(height * 0.2));
   const volumeTop = height - pad.bottom - volumeHeight;
   const priceBottom = volumeTop - 10;
@@ -567,6 +567,7 @@ function drawChart(series, dailyMa10) {
   if (!series.some((row) => [row.o, row.h, row.l].every((value) => Number.isFinite(Number(value))))) {
     drawLine(ctx, series, "c", "#73827a", 1.4, x, y);
   }
+  drawLine(ctx, series, "m3", "#d946a8", 1.8, x, y);
   drawLine(ctx, series, "m20", "#ba3f3f", 2.2, x, y);
   drawLine(ctx, series, "m40", "#3167ad", 2.2, x, y);
   drawLine(ctx, series, "m60", "#9a641d", 2.2, x, y);
@@ -575,10 +576,11 @@ function drawChart(series, dailyMa10) {
     ctx.beginPath(); ctx.moveTo(pad.left, y(dailyMa10)); ctx.lineTo(width - pad.right, y(dailyMa10)); ctx.stroke(); ctx.setLineDash([]);
   }
   ctx.font = "11px Segoe UI";
-  ctx.fillStyle = "#ba3f3f"; ctx.fillRect(pad.left, 9, 14, 3); ctx.fillStyle = "#48574f"; ctx.fillText("MA20", pad.left + 19, 15);
-  ctx.fillStyle = "#3167ad"; ctx.fillRect(pad.left + 68, 9, 14, 3); ctx.fillStyle = "#48574f"; ctx.fillText("MA40", pad.left + 87, 15);
-  ctx.fillStyle = "#9a641d"; ctx.fillRect(pad.left + 136, 9, 14, 3); ctx.fillStyle = "#48574f"; ctx.fillText("MA60", pad.left + 155, 15);
-  ctx.fillStyle = "#176b58"; ctx.fillRect(pad.left + 204, 9, 14, 3); ctx.fillStyle = "#48574f"; ctx.fillText("일봉 MA10", pad.left + 223, 15);
+  ctx.fillStyle = "#d946a8"; ctx.fillRect(pad.left, 9, 14, 3); ctx.fillStyle = "#48574f"; ctx.fillText("MA3", pad.left + 19, 15);
+  ctx.fillStyle = "#ba3f3f"; ctx.fillRect(pad.left + 58, 9, 14, 3); ctx.fillStyle = "#48574f"; ctx.fillText("MA20", pad.left + 77, 15);
+  ctx.fillStyle = "#3167ad"; ctx.fillRect(pad.left + 126, 9, 14, 3); ctx.fillStyle = "#48574f"; ctx.fillText("MA40", pad.left + 145, 15);
+  ctx.fillStyle = "#9a641d"; ctx.fillRect(pad.left + 194, 9, 14, 3); ctx.fillStyle = "#48574f"; ctx.fillText("MA60", pad.left + 213, 15);
+  ctx.fillStyle = "#176b58"; ctx.fillRect(pad.left, 27, 14, 3); ctx.fillStyle = "#48574f"; ctx.fillText("일봉 MA10", pad.left + 19, 33);
   ctx.fillStyle = "#64746c";
   const dateIndexes = [0];
   for (let index = 1; index < series.length; index += 1) {

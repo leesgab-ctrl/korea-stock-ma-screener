@@ -15,7 +15,7 @@ from zoneinfo import ZoneInfo
 ROOT = Path(__file__).resolve().parents[1]
 KST = ZoneInfo("Asia/Seoul")
 USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124 Safari/537.36"
-TRACKING_RULE_VERSION = 4
+TRACKING_RULE_VERSION = 5
 CORE_TIER = "core"
 EXPANDED_TIER = "expanded"
 STRATEGY = {
@@ -25,7 +25,7 @@ STRATEGY = {
         EXPANDED_TIER: "확대 A-G(A 거래량 +150%, E 종가 +0.5%)",
     },
     "minuteTimeframe": "30분봉",
-    "maRule": "A-G 통과 후 MA20 5회 상승, MA60 침범 시 MA60 재돌파(일봉 MA10은 참고선)",
+    "maRule": "MA20 5회 상승 후 MA3가 조정 깊이에 따른 MA40 또는 MA60 돌파",
     "entry": "신호봉 완성 후 다음 30분봉부터 HTS 현재가 확인",
 }
 
@@ -306,10 +306,12 @@ def aggregate_30m(rows: list[dict[str, Any]], current: dt.datetime) -> list[dict
             }
         )
     closes = [bar["close"] for bar in bars]
+    ma3 = rolling_average(closes, 3)
     ma20 = rolling_average(closes, 20)
     ma40 = rolling_average(closes, 40)
     ma60 = rolling_average(closes, 60)
     for index, bar in enumerate(bars):
+        bar["ma3"] = ma3[index]
         bar["ma20"] = ma20[index]
         bar["ma40"] = ma40[index]
         bar["ma60"] = ma60[index]
@@ -344,18 +346,19 @@ def merge_30m_history(
     saved_bars = load_saved_30m(candidate)
     if not saved_bars:
         bars = fresh_bars
+        if bars and any("ma3" not in bar for bar in bars):
+            ma3 = rolling_average([bar["close"] for bar in bars], 3)
+            for index, bar in enumerate(bars):
+                bar["ma3"] = ma3[index]
     else:
         by_time = {bar["time"]: bar for bar in saved_bars}
         by_time.update({bar["time"]: bar for bar in fresh_bars})
         bars = [by_time[key] for key in sorted(by_time)][-limit:]
         closes = [bar["close"] for bar in bars]
-        ma20 = rolling_average(closes, 20)
-        ma40 = rolling_average(closes, 40)
-        ma60 = rolling_average(closes, 60)
+        averages = {window: rolling_average(closes, window) for window in (3, 20, 40, 60)}
         for index, bar in enumerate(bars):
-            bar["ma20"] = ma20[index]
-            bar["ma40"] = ma40[index]
-            bar["ma60"] = ma60[index]
+            for window, values in averages.items():
+                bar[f"ma{window}"] = values[index]
     candidate["intradayHistory"] = {
         "series": [
             {
@@ -470,6 +473,7 @@ def daily_ma10_for_bar(daily_reference: dict[str, Any] | float | None, bar: dict
 def depth_rule_context(
     bars: list[dict[str, Any]], context: dict[str, Any], index: int,
     daily_reference: dict[str, Any] | float | None,
+    breached_ma60_override: bool = False,
 ) -> dict[str, Any]:
     death_cross_index = context.get("deathCrossIndex")
     if death_cross_index is None:
@@ -477,6 +481,8 @@ def depth_rule_context(
             "ma60Ready": False,
             "breachedMa60": False,
             "recoveredMa60": False,
+            "entryTarget": None,
+            "ma3AboveTarget": False,
             "breachedDailyMa10": False,
             "signalRule": None,
             "signalReady": False,
@@ -490,7 +496,9 @@ def depth_rule_context(
         if bar.get("ma20") is not None and bar.get("ma60") is not None
     ]
     ma60_ready = bool(ma60_path)
-    breached_ma60 = bool(any(bar["ma20"] < bar["ma60"] for bar in ma60_path))
+    breached_ma60 = bool(
+        breached_ma60_override or any(bar["ma20"] < bar["ma60"] for bar in ma60_path)
+    )
     latest = bars[index]
     latest_daily_ma10 = daily_ma10_for_bar(daily_reference, latest)
     breached_daily_ma10 = bool(
@@ -504,16 +512,22 @@ def depth_rule_context(
         and latest.get("ma60") is not None
         and latest["ma20"] > latest["ma60"]
     )
-    signal_rule = "ma60_recovery" if breached_ma60 else "five_rises"
+    entry_target = "MA60" if breached_ma60 else "MA40"
+    target_key = "ma60" if breached_ma60 else "ma40"
+    target_ready = latest.get("ma3") is not None and latest.get(target_key) is not None
+    ma3_above_target = bool(target_ready and latest["ma3"] > latest[target_key])
+    signal_rule = "ma3_ma60" if breached_ma60 else "ma3_ma40"
     signal_ready = bool(
         ma60_ready
         and context.get("riseCount", 0) >= 5
-        and (not breached_ma60 or recovered_ma60)
+        and ma3_above_target
     )
     return {
         "ma60Ready": ma60_ready,
         "breachedMa60": breached_ma60,
         "recoveredMa60": recovered_ma60,
+        "entryTarget": entry_target,
+        "ma3AboveTarget": ma3_above_target,
         "breachedDailyMa10": breached_daily_ma10,
         "signalRule": signal_rule,
         "signalReady": signal_ready,
@@ -572,8 +586,6 @@ def analyze_intraday(candidate: dict[str, Any], current: dt.datetime, count: int
         baseline_inferred, synthetic_cross_index = infer_missing_baseline(bars, signal_day)
     eligible = [index for index, bar in enumerate(bars) if bar["time"].date() > signal_day]
     found_index = None
-    found_rule_override = None
-    pending_ma60_confirmation = False
     for index in eligible:
         context = apply_inferred_cross(rise_context(bars, index), synthetic_cross_index)
         depth = depth_rule_context(bars, context, index, daily_reference)
@@ -584,19 +596,6 @@ def analyze_intraday(candidate: dict[str, Any], current: dt.datetime, count: int
                 bars, context, signal_day, baseline_above is True or baseline_inferred
             )
         )
-        if sequence_valid and context.get("riseCount", 0) >= 5 and not depth["ma60Ready"]:
-            pending_ma60_confirmation = True
-        if (
-            pending_ma60_confirmation
-            and bars[index].get("ma20") is not None
-            and bars[index].get("ma40") is not None
-            and bars[index].get("ma60") is not None
-            and bars[index]["ma20"] > bars[index]["ma40"]
-            and bars[index]["ma20"] > bars[index]["ma60"]
-        ):
-            found_index = index
-            found_rule_override = "ma60_recovery_inferred"
-            break
         if (
             depth["signalReady"]
             and sequence_valid
@@ -631,15 +630,14 @@ def analyze_intraday(candidate: dict[str, Any], current: dt.datetime, count: int
     # Only persist events observed after the A-G confirmation day. The depth
     # context may reach back to an older death cross when no post-signal
     # sequence exists, which must not exclude a newly confirmed candidate.
-    latest_depth["breachedMa60"] = bool(tracking.get("breachedMa60"))
+    latest_depth = depth_rule_context(
+        bars,
+        latest_context,
+        latest_index,
+        daily_reference,
+        bool(tracking.get("breachedMa60")),
+    )
     latest_depth["breachedDailyMa10"] = observed_daily_ma10_breach
-    if latest_depth["breachedMa60"]:
-        latest_depth["signalRule"] = "ma60_recovery"
-        latest_depth["signalReady"] = bool(
-            latest_depth["ma60Ready"]
-            and latest_context.get("riseCount", 0) >= 5
-            and latest_depth["recoveredMa60"]
-        )
     if not eligible_reversal:
         latest_context["rawRiseCount"] = latest_context["riseCount"]
         latest_context["riseCount"] = 0
@@ -653,6 +651,7 @@ def analyze_intraday(candidate: dict[str, Any], current: dt.datetime, count: int
         "lastPrice": latest["close"],
         "baselineMa20AboveMa40": baseline_above,
         "baselineInferred": baseline_inferred,
+        "ma3": round(latest["ma3"], 2) if latest["ma3"] is not None else None,
         "ma20": round(latest["ma20"], 2) if latest["ma20"] is not None else None,
         "ma40": round(latest["ma40"], 2) if latest["ma40"] is not None else None,
         "ma60": round(latest["ma60"], 2) if latest["ma60"] is not None else None,
@@ -673,6 +672,7 @@ def analyze_intraday(candidate: dict[str, Any], current: dt.datetime, count: int
                 "l": bar.get("low", bar["close"]),
                 "c": bar["close"],
                 "v": bar.get("volume", 0),
+                "m3": round(bar["ma3"], 2) if bar["ma3"] is not None else None,
                 "m20": round(bar["ma20"], 2) if bar["ma20"] is not None else None,
                 "m40": round(bar["ma40"], 2) if bar["ma40"] is not None else None,
                 "m60": round(bar["ma60"], 2) if bar["ma60"] is not None else None,
@@ -686,15 +686,22 @@ def analyze_intraday(candidate: dict[str, Any], current: dt.datetime, count: int
             {
                 "signalTime": signal_bar["time"].isoformat(timespec="minutes"),
                 "signalPrice": signal_bar["close"],
+                "signalMa3": round(signal_bar["ma3"], 2),
                 "signalMa20": round(signal_bar["ma20"], 2),
                 "signalMa40": round(signal_bar["ma40"], 2),
                 "signalMa60": round(signal_bar["ma60"], 2),
-                "signalRule": found_rule_override or depth_rule_context(
+                "signalRule": depth_rule_context(
                     bars,
                     apply_inferred_cross(rise_context(bars, found_index), synthetic_cross_index),
                     found_index,
                     daily_reference,
                 )["signalRule"],
+                "signalTarget": depth_rule_context(
+                    bars,
+                    apply_inferred_cross(rise_context(bars, found_index), synthetic_cross_index),
+                    found_index,
+                    daily_reference,
+                )["entryTarget"],
                 "entryReference": bars[found_index + 1]["open"] if found_index + 1 < len(bars) else None,
             }
         )
@@ -709,6 +716,7 @@ def notify_ntfy(topic: str, candidate: dict[str, Any]) -> None:
         f"후보등급: {tier_label}\n"
         f"확정봉 {intraday['signalTime']}\n"
         f"매수 포착가격: {intraday['signalPrice']:,}원\n"
+        f"MA3 {intraday['signalMa3']:,.2f} → {intraday['signalTarget']} 돌파\n"
         f"MA20 {intraday['signalMa20']:,.2f} / MA40 {intraday['signalMa40']:,.2f} / MA60 {intraday['signalMa60']:,.2f}\n"
         "다음 30분봉부터 HTS 현재가와 거래량을 확인하세요."
     )
@@ -782,9 +790,8 @@ def enrich(
         elif intraday.get("baselineMa20AboveMa40") is False:
             candidate["status"] = "ineligible"
         elif (
-            intraday.get("breachedMa60")
-            and not intraday.get("recoveredMa60")
-            and intraday.get("riseCount", 0) >= 5
+            intraday.get("riseCount", 0) >= 5
+            and not intraday.get("ma3AboveTarget")
         ):
             candidate["status"] = "waiting60"
         elif intraday.get("ma60") is None:
@@ -804,8 +811,6 @@ def enrich(
             and intraday["ma20"] < intraday["ma40"]
         ):
             candidate["status"] = "setup"
-        elif intraday.get("breachedMa60") and not intraday.get("recoveredMa60"):
-            candidate["status"] = "waiting60"
         else:
             candidate["status"] = "watching"
 

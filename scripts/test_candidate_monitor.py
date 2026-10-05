@@ -207,8 +207,8 @@ class CandidateMonitorTests(unittest.TestCase):
         self.assertTrue(context["deathCrossInferred"])
         self.assertTrue(valid_post_candidate_sequence(bars, context, signal_day, inferred))
 
-    def test_missing_ma60_confirms_legacy_signal_when_first_value_is_recovered(self) -> None:
-        values = (99, 97, 95, 94, 95, 96, 97, 98, 99, 100, 101, 100)
+    def test_shallow_pullback_uses_ma3_ma40_target(self) -> None:
+        values = (99, 97, 95, 94, 95, 96, 97, 98, 99, 100, 101, 102)
         bars = [
             {
                 "time": dt.datetime(2026, 9, 30, 9, tzinfo=KST) + dt.timedelta(minutes=30 * index),
@@ -229,13 +229,15 @@ class CandidateMonitorTests(unittest.TestCase):
             )
 
         self.assertEqual(result["signalTime"], "2026-09-30T14:30+09:00")
-        self.assertEqual(result["signalRule"], "ma60_recovery_inferred")
+        self.assertEqual(result["signalRule"], "ma3_ma40")
+        self.assertEqual(result["signalTarget"], "MA40")
 
     def test_deep_pullback_waits_for_ma60_recovery(self) -> None:
         bars = [
             {
                 "time": dt.datetime(2026, 10, 2, 9, tzinfo=KST) + dt.timedelta(minutes=30 * index),
                 "ma20": 110.0,
+                "ma3": 110.0,
                 "ma40": 100.0,
                 "ma60": 95.0,
             }
@@ -246,14 +248,16 @@ class CandidateMonitorTests(unittest.TestCase):
         for index, value in enumerate((94, 93, 94, 95, 96, 97, 98), start=6):
             bars[index]["ma20"] = value
         context = rise_context(bars, 12)
+        bars[12]["ma3"] = 96.0
         depth = depth_rule_context(bars, context, 12, 90.0)
         self.assertTrue(depth["breachedMa60"])
-        self.assertTrue(depth["recoveredMa60"])
+        self.assertEqual(depth["entryTarget"], "MA60")
+        self.assertTrue(depth["ma3AboveTarget"])
         self.assertTrue(depth["signalReady"])
-        bars[12]["ma20"] = 94.5
+        bars[12]["ma3"] = 94.5
         context = rise_context(bars, 12)
         depth = depth_rule_context(bars, context, 12, 100.0)
-        self.assertFalse(depth["recoveredMa60"])
+        self.assertFalse(depth["ma3AboveTarget"])
         self.assertFalse(depth["signalReady"])
 
     def test_ma60_depth_uses_available_comparable_bars(self) -> None:
@@ -261,6 +265,7 @@ class CandidateMonitorTests(unittest.TestCase):
             {
                 "time": dt.datetime(2026, 10, 2, 9, tzinfo=KST) + dt.timedelta(minutes=30 * index),
                 "ma20": value,
+                "ma3": value,
                 "ma40": 100.0,
                 "ma60": None if index < 6 else 95.0,
             }
@@ -271,7 +276,8 @@ class CandidateMonitorTests(unittest.TestCase):
 
         self.assertTrue(depth["ma60Ready"])
         self.assertTrue(depth["breachedMa60"])
-        self.assertTrue(depth["recoveredMa60"])
+        self.assertEqual(depth["entryTarget"], "MA60")
+        self.assertTrue(depth["ma3AboveTarget"])
         self.assertTrue(depth["signalReady"])
 
     def test_daily_ma10_breach_does_not_block_intraday_signal(self) -> None:
@@ -279,6 +285,7 @@ class CandidateMonitorTests(unittest.TestCase):
             {
                 "time": dt.datetime(2026, 10, 2, 9, tzinfo=KST) + dt.timedelta(minutes=30 * index),
                 "ma20": 105.0,
+                "ma3": 105.0,
                 "ma40": 100.0,
                 "ma60": 95.0,
             }
@@ -298,6 +305,7 @@ class CandidateMonitorTests(unittest.TestCase):
             {
                 "time": dt.datetime(2026, 10, 2, 9, tzinfo=KST) + dt.timedelta(minutes=30 * index),
                 "ma20": value,
+                "ma3": value,
                 "ma40": 100.0,
                 "ma60": 95.0,
             }
@@ -316,7 +324,7 @@ class CandidateMonitorTests(unittest.TestCase):
         intraday = {
             "dataStatus": "ok", "baselineMa20AboveMa40": True,
             "ma20": 654.6, "ma40": 654.17, "ma60": 657.83,
-            "breachedMa60": True, "recoveredMa60": False,
+            "breachedMa60": True, "entryTarget": "MA60", "ma3AboveTarget": False,
             "breachedDailyMa10": True, "structuralExcluded": False,
             "riseCount": 13,
         }
