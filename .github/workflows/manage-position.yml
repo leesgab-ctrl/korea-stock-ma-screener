@@ -57,6 +57,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - name: Keep current candidate data in Pages bundle
+        continue-on-error: true
+        run: |
+          curl --fail --retry 3 --silent --show-error -o /tmp/candidate-monitor.json https://leesgab-ctrl.github.io/korea-stock-ma-screener/data/candidate-monitor.json
+          mv /tmp/candidate-monitor.json data/candidate-monitor.json
       - name: Register purchase
         if: inputs.action == 'buy'
         env:

@@ -16,6 +16,7 @@ from update_candidate_monitor import (
     fetch_daily_chart,
     apply_inferred_cross,
     infer_missing_baseline,
+    merge_30m_history,
     rise_context,
     valid_post_candidate_sequence,
 )
@@ -82,6 +83,38 @@ class CandidateMonitorTests(unittest.TestCase):
         bars = aggregate_30m(rows, current)
         self.assertEqual(len(bars), 1)
         self.assertEqual((bars[0]["open"], bars[0]["close"], bars[0]["volume"]), (100, 129, 300))
+
+    def test_saved_30m_history_is_merged_and_mas_are_recalculated(self) -> None:
+        start = dt.datetime(2026, 9, 21, 9, tzinfo=KST)
+
+        def row(index: int, close: int) -> dict:
+            return {
+                "time": start + dt.timedelta(minutes=30 * index),
+                "open": close, "high": close + 1, "low": close - 1,
+                "close": close, "volume": index + 1,
+            }
+
+        old_bars = [row(index, 100 + index) for index in range(70)]
+        candidate = {
+            "intradayHistory": {
+                "series": [
+                    {
+                        "t": bar["time"].isoformat(timespec="minutes"),
+                        "o": bar["open"], "h": bar["high"], "l": bar["low"],
+                        "c": bar["close"], "v": bar["volume"],
+                    }
+                    for bar in old_bars
+                ]
+            }
+        }
+        fresh = [row(index, 1000 + index) for index in range(65, 83)]
+
+        merged = merge_30m_history(candidate, fresh)
+
+        self.assertEqual(len(merged), 83)
+        self.assertEqual(merged[65]["close"], 1065)
+        self.assertIsNotNone(merged[59]["ma60"])
+        self.assertEqual(len(candidate["intradayHistory"]["series"]), 83)
 
     def test_five_rises_require_reversal_under_ma40_and_prior_cross(self) -> None:
         bars = [

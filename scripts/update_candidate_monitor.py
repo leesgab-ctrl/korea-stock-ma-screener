@@ -186,6 +186,8 @@ def build_daily_candidates(stock_data: Path, previous: dict[str, Any]) -> dict[s
         prior = previous_candidates.get((stock["c"], signal_date), {})
         if prior.get("tracking"):
             candidate["tracking"] = prior["tracking"]
+        if prior.get("intradayHistory"):
+            candidate["intradayHistory"] = prior["intradayHistory"]
         candidates.append(candidate)
 
     candidates.sort(key=lambda item: (item["dailySignalDate"], item["name"]), reverse=True)
@@ -311,6 +313,62 @@ def aggregate_30m(rows: list[dict[str, Any]], current: dt.datetime) -> list[dict
         bar["ma20"] = ma20[index]
         bar["ma40"] = ma40[index]
         bar["ma60"] = ma60[index]
+    return bars
+
+
+def load_saved_30m(candidate: dict[str, Any]) -> list[dict[str, Any]]:
+    saved = candidate.get("intradayHistory", {}).get("series")
+    if not saved:
+        saved = candidate.get("intraday", {}).get("series", [])
+    bars = []
+    for row in saved:
+        try:
+            bars.append(
+                {
+                    "time": dt.datetime.fromisoformat(row["t"]),
+                    "open": int(row["o"]),
+                    "high": int(row["h"]),
+                    "low": int(row["l"]),
+                    "close": int(row["c"]),
+                    "volume": int(row.get("v", 0)),
+                }
+            )
+        except (KeyError, TypeError, ValueError):
+            continue
+    return bars
+
+
+def merge_30m_history(
+    candidate: dict[str, Any], fresh_bars: list[dict[str, Any]], limit: int = 220
+) -> list[dict[str, Any]]:
+    saved_bars = load_saved_30m(candidate)
+    if not saved_bars:
+        bars = fresh_bars
+    else:
+        by_time = {bar["time"]: bar for bar in saved_bars}
+        by_time.update({bar["time"]: bar for bar in fresh_bars})
+        bars = [by_time[key] for key in sorted(by_time)][-limit:]
+        closes = [bar["close"] for bar in bars]
+        ma20 = rolling_average(closes, 20)
+        ma40 = rolling_average(closes, 40)
+        ma60 = rolling_average(closes, 60)
+        for index, bar in enumerate(bars):
+            bar["ma20"] = ma20[index]
+            bar["ma40"] = ma40[index]
+            bar["ma60"] = ma60[index]
+    candidate["intradayHistory"] = {
+        "series": [
+            {
+                "t": bar["time"].isoformat(timespec="minutes"),
+                "o": bar.get("open", bar["close"]),
+                "h": bar.get("high", bar["close"]),
+                "l": bar.get("low", bar["close"]),
+                "c": bar["close"],
+                "v": bar.get("volume", 0),
+            }
+            for bar in bars[-limit:]
+        ]
+    }
     return bars
 
 
@@ -478,7 +536,7 @@ def apply_inferred_cross(context: dict[str, Any], synthetic_cross_index: int | N
 
 def analyze_intraday(candidate: dict[str, Any], current: dt.datetime, count: int) -> dict[str, Any]:
     rows = fetch_minute_rows(candidate["code"], count)
-    bars = aggregate_30m(rows, current)
+    bars = merge_30m_history(candidate, aggregate_30m(rows, current))
     signal_day = dt.date.fromisoformat(candidate["dailySignalDate"])
     tracking = candidate.setdefault("tracking", {})
     if tracking.get("ruleVersion") != TRACKING_RULE_VERSION:
@@ -574,6 +632,9 @@ def analyze_intraday(candidate: dict[str, Any], current: dt.datetime, count: int
     if not eligible_reversal:
         latest_context["rawRiseCount"] = latest_context["riseCount"]
         latest_context["riseCount"] = 0
+    display_bars = [bar for bar in bars if bar["time"].date() >= signal_day]
+    if not display_bars:
+        display_bars = bars
     result: dict[str, Any] = {
         "dataStatus": "ok",
         "barCount": len(bars),
@@ -605,7 +666,7 @@ def analyze_intraday(candidate: dict[str, Any], current: dt.datetime, count: int
                 "m40": round(bar["ma40"], 2) if bar["ma40"] is not None else None,
                 "m60": round(bar["ma60"], 2) if bar["ma60"] is not None else None,
             }
-            for bar in bars[-60:]
+            for bar in display_bars[-130:]
         ],
     }
     if found_index is not None:
