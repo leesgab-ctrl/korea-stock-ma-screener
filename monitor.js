@@ -614,7 +614,13 @@ function drawDailyChart(series) {
     return;
   }
 
-  const values = series.flatMap((row) => [row.h, row.l, row.c, row.m5, row.m20, row.m60]).filter((value) => value != null);
+  const closes = series.map((row) => Number(row.c));
+  const ma10 = closes.map((_, index) => {
+    if (index < 9) return null;
+    return closes.slice(index - 9, index + 1).reduce((sum, value) => sum + value, 0) / 10;
+  });
+  const chartSeries = series.map((row, index) => ({ ...row, m10: row.m10 ?? ma10[index] }));
+  const values = chartSeries.flatMap((row) => [row.h, row.l, row.c, row.m5, row.m10, row.m20, row.m60]).filter((value) => value != null);
   const min = Math.min(...values);
   const max = Math.max(...values);
   const rawSpread = Math.max(max - min, 1);
@@ -626,7 +632,7 @@ function drawDailyChart(series) {
   const volumeTop = height - pad.bottom - volumeHeight;
   const priceBottom = volumeTop - 10;
   const plotWidth = width - pad.left - pad.right;
-  const slot = plotWidth / series.length;
+  const slot = plotWidth / chartSeries.length;
   const x = (index) => pad.left + slot * (index + 0.5);
   const y = (value) => pad.top + ((priceMax - value) / spread) * (priceBottom - pad.top);
 
@@ -639,9 +645,9 @@ function drawDailyChart(series) {
     ctx.fillText(formatter.format(priceMax - (spread * step) / 4), 3, yy + 4);
   }
 
-  const maxVolume = Math.max(...series.map((row) => Number(row.v) || 0), 1);
+  const maxVolume = Math.max(...chartSeries.map((row) => Number(row.v) || 0), 1);
   const candleWidth = Math.max(2, Math.min(8, slot * 0.66));
-  series.forEach((row, index) => {
+  chartSeries.forEach((row, index) => {
     const open = Number(row.o);
     const high = Number(row.h);
     const low = Number(row.l);
@@ -658,17 +664,19 @@ function drawDailyChart(series) {
     ctx.fillRect(center - candleWidth / 2, height - pad.bottom - barHeight, candleWidth, barHeight);
   });
 
-  drawLine(ctx, series, "m5", "#34a853", 1.5, x, y);
-  drawLine(ctx, series, "m20", "#ba3f3f", 2.1, x, y);
-  drawLine(ctx, series, "m60", "#3167ad", 2.1, x, y);
+  drawLine(ctx, chartSeries, "m5", "#34a853", 1.5, x, y);
+  drawLine(ctx, chartSeries, "m10", "#d97706", 1.8, x, y);
+  drawLine(ctx, chartSeries, "m20", "#ba3f3f", 2.1, x, y);
+  drawLine(ctx, chartSeries, "m60", "#3167ad", 2.1, x, y);
   ctx.font = "11px Segoe UI";
   ctx.fillStyle = "#34a853"; ctx.fillRect(pad.left, 9, 14, 3); ctx.fillStyle = "#48574f"; ctx.fillText("MA5", pad.left + 19, 15);
-  ctx.fillStyle = "#ba3f3f"; ctx.fillRect(pad.left + 64, 9, 14, 3); ctx.fillStyle = "#48574f"; ctx.fillText("MA20", pad.left + 83, 15);
-  ctx.fillStyle = "#3167ad"; ctx.fillRect(pad.left + 136, 9, 14, 3); ctx.fillStyle = "#48574f"; ctx.fillText("MA60", pad.left + 155, 15);
+  ctx.fillStyle = "#d97706"; ctx.fillRect(pad.left + 60, 9, 14, 3); ctx.fillStyle = "#48574f"; ctx.fillText("MA10", pad.left + 79, 15);
+  ctx.fillStyle = "#ba3f3f"; ctx.fillRect(pad.left + 132, 9, 14, 3); ctx.fillStyle = "#48574f"; ctx.fillText("MA20", pad.left + 151, 15);
+  ctx.fillStyle = "#3167ad"; ctx.fillRect(pad.left + 204, 9, 14, 3); ctx.fillStyle = "#48574f"; ctx.fillText("MA60", pad.left + 223, 15);
 
   const labelStep = Math.max(1, Math.ceil(series.length / 5));
-  series.forEach((row, index) => {
-    if (index % labelStep !== 0 && index !== series.length - 1) return;
+  chartSeries.forEach((row, index) => {
+    if (index % labelStep !== 0 && index !== chartSeries.length - 1) return;
     const label = row.d.slice(5);
     const center = x(index);
     ctx.fillStyle = "#64746c";

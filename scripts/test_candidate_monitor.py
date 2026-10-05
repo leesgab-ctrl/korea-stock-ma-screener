@@ -34,6 +34,7 @@ class CandidateMonitorTests(unittest.TestCase):
         self.assertEqual(len(chart["series"]), 20)
         self.assertEqual(chart["series"][-1]["c"], 121)
         self.assertIsNotNone(chart["series"][-1]["m5"])
+        self.assertIsNotNone(chart["series"][-1]["m10"])
         self.assertIsNotNone(chart["series"][-1]["m20"])
         self.assertIsNone(chart["series"][-1]["m60"])
 

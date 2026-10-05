@@ -248,6 +248,7 @@ def fetch_daily_chart(code: str, count: int = 90) -> dict[str, Any]:
     rows.sort(key=lambda row: row["date"])
     closes = [row["close"] for row in rows]
     ma5 = rolling_average(closes, 5)
+    ma10 = rolling_average(closes, 10)
     ma20 = rolling_average(closes, 20)
     ma60 = rolling_average(closes, 60)
     series = []
@@ -261,6 +262,7 @@ def fetch_daily_chart(code: str, count: int = 90) -> dict[str, Any]:
                 "c": row["close"],
                 "v": row["volume"],
                 "m5": round(ma5[index], 2) if ma5[index] is not None else None,
+                "m10": round(ma10[index], 2) if ma10[index] is not None else None,
                 "m20": round(ma20[index], 2) if ma20[index] is not None else None,
                 "m60": round(ma60[index], 2) if ma60[index] is not None else None,
             }
