@@ -221,6 +221,53 @@ def fetch_minute_rows(code: str, count: int) -> list[dict[str, Any]]:
     return rows
 
 
+def fetch_daily_chart(code: str, count: int = 90) -> dict[str, Any]:
+    url = (
+        "https://fchart.stock.naver.com/sise.nhn"
+        f"?symbol={code}&timeframe=day&count={count}&requestType=0"
+    )
+    text = fetch_bytes(url).decode("euc-kr", errors="ignore")
+    rows = []
+    for raw in re.findall(r'<item data="([^"]+)"', text):
+        values = raw.split("|")
+        if len(values) < 6:
+            continue
+        try:
+            rows.append(
+                {
+                    "date": dt.datetime.strptime(values[0], "%Y%m%d").date().isoformat(),
+                    "open": int(values[1]),
+                    "high": int(values[2]),
+                    "low": int(values[3]),
+                    "close": int(values[4]),
+                    "volume": int(values[5]),
+                }
+            )
+        except ValueError:
+            continue
+    rows.sort(key=lambda row: row["date"])
+    closes = [row["close"] for row in rows]
+    ma5 = rolling_average(closes, 5)
+    ma20 = rolling_average(closes, 20)
+    ma60 = rolling_average(closes, 60)
+    series = []
+    for index, row in enumerate(rows):
+        series.append(
+            {
+                "d": row["date"],
+                "o": row["open"],
+                "h": row["high"],
+                "l": row["low"],
+                "c": row["close"],
+                "v": row["volume"],
+                "m5": round(ma5[index], 2) if ma5[index] is not None else None,
+                "m20": round(ma20[index], 2) if ma20[index] is not None else None,
+                "m60": round(ma60[index], 2) if ma60[index] is not None else None,
+            }
+        )
+    return {"dataStatus": "ok" if series else "no_data", "series": series[-60:]}
+
+
 def aggregate_30m(rows: list[dict[str, Any]], current: dt.datetime) -> list[dict[str, Any]]:
     grouped: dict[tuple[dt.date, int], list[dict[str, Any]]] = defaultdict(list)
     previous_volume: dict[dt.date, int] = {}
@@ -595,13 +642,27 @@ def notify_ntfy(topic: str, candidate: dict[str, Any]) -> None:
             raise RuntimeError(f"ntfy 전송 실패: HTTP {response.status}")
 
 
-def enrich(payload: dict[str, Any], current: dt.datetime, count: int, no_notify: bool) -> tuple[int, int]:
+def enrich(
+    payload: dict[str, Any],
+    current: dt.datetime,
+    count: int,
+    no_notify: bool,
+    refresh_daily_chart: bool = False,
+) -> tuple[int, int]:
     notified = set(payload.get("notifiedSignals", []))
     topic = os.getenv("NTFY_TOPIC", "").strip()
     new_alerts = 0
     pending = 0
     errors = 0
     for candidate in payload.get("candidates", []):
+        if refresh_daily_chart:
+            try:
+                candidate["dailyChart"] = fetch_daily_chart(candidate["code"])
+            except (OSError, TimeoutError, ValueError) as exc:
+                candidate.setdefault(
+                    "dailyChart",
+                    {"dataStatus": "error", "error": str(exc), "series": []},
+                )
         try:
             intraday = analyze_intraday(candidate, current, count)
         except (OSError, TimeoutError, ValueError) as exc:
@@ -733,7 +794,13 @@ def main() -> None:
             payload.setdefault("candidates", [])
             payload.setdefault("notifiedSignals", [])
     current = dt.datetime.fromisoformat(args.now).astimezone(KST) if args.now else now_kst()
-    alerts, pending = enrich(payload, current, args.minute_count, args.no_notify)
+    alerts, pending = enrich(
+        payload,
+        current,
+        args.minute_count,
+        args.no_notify,
+        refresh_daily_chart=args.mode == "daily",
+    )
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
     write_github_output(args.github_output, alerts, pending)

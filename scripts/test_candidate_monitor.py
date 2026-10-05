@@ -13,6 +13,7 @@ from update_candidate_monitor import (
     depth_rule_context,
     daily_ma10_for_bar,
     evaluate_ag,
+    fetch_daily_chart,
     apply_inferred_cross,
     infer_missing_baseline,
     rise_context,
@@ -21,6 +22,21 @@ from update_candidate_monitor import (
 
 
 class CandidateMonitorTests(unittest.TestCase):
+    def test_daily_chart_parses_candles_and_moving_averages(self) -> None:
+        items = "".join(
+            f'<item data="202601{index + 1:02d}|{100 + index}|{103 + index}|{99 + index}|{102 + index}|{1000 + index}" />'
+            for index in range(20)
+        )
+        with mock.patch.object(monitor, "fetch_bytes", return_value=items.encode("euc-kr")):
+            chart = fetch_daily_chart("005720", 90)
+
+        self.assertEqual(chart["dataStatus"], "ok")
+        self.assertEqual(len(chart["series"]), 20)
+        self.assertEqual(chart["series"][-1]["c"], 121)
+        self.assertIsNotNone(chart["series"][-1]["m5"])
+        self.assertIsNotNone(chart["series"][-1]["m20"])
+        self.assertIsNone(chart["series"][-1]["m60"])
+
     def test_ag_screen_matches_finalized_rules(self) -> None:
         rows = [
             {"date": f"2026-01-{index + 1:02d}", "close": 100, "volume": 100}

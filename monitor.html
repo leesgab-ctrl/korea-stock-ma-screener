@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#176b58">
     <title>A-G 30분봉 신호 감시</title>
-    <link rel="stylesheet" href="monitor.css?v=20261004-6">
+    <link rel="stylesheet" href="monitor.css?v=20261005-1">
   </head>
   <body>
     <header class="topbar">
@@ -19,7 +19,7 @@
       <nav aria-label="화면 이동">
         <a href="index.html">이동평균 검색</a>
         <button id="refreshButton" type="button">새로고침</button>
-        <button id="criteriaButton" class="criteria-button" type="button">운영기준</button>
+        <button id="criteriaButton" class="criteria-button" type="button">운영관리기준</button>
       </nav>
     </header>
 
@@ -90,17 +90,16 @@
               <strong id="detailProgress">0 / 5</strong>
               <span>MA20 연속 상승</span>
             </div>
+            <div class="chart-meta-line">
+              <span>A-G 발생 <strong id="dailySignal">-</strong></span>
+              <span>남은 기간 <strong id="remainingDays">-</strong></span>
+            </div>
             <canvas id="maChart" width="900" height="360" aria-label="30분봉 캔들, 거래량과 이동평균선"></canvas>
-            <dl class="metrics">
-              <div><dt>현재가</dt><dd id="lastPrice">-</dd></div>
-              <div><dt>MA20</dt><dd id="ma20">-</dd></div>
-              <div><dt>MA40</dt><dd id="ma40">-</dd></div>
-              <div><dt>MA60</dt><dd id="ma60">-</dd></div>
-              <div><dt>일봉 MA10</dt><dd id="dailyMa10">-</dd></div>
-              <div><dt>완성봉</dt><dd id="lastBar">-</dd></div>
-              <div><dt>A-G 발생</dt><dd id="dailySignal">-</dd></div>
-              <div><dt>남은 기간</dt><dd id="remainingDays">-</dd></div>
-            </dl>
+            <div class="daily-chart-heading">
+              <strong>일봉 흐름</strong>
+              <span>캔들 · 거래량 · MA5 · MA20 · MA60</span>
+            </div>
+            <canvas id="dailyChart" width="900" height="320" aria-label="일봉 캔들, 거래량과 이동평균선"></canvas>
             <div id="signalMessage" class="signal-message"></div>
           </div>
         </section>
@@ -126,8 +125,8 @@
       <article class="criteria-content">
         <header>
           <div>
-            <h2>운영기준</h2>
-            <p>현재 자동 감시에 적용되는 확정 기준</p>
+            <h2>운영관리기준</h2>
+            <p>핵심·확대 후보 선정부터 매수·손절 감시까지 적용되는 기준</p>
           </div>
           <button id="criteriaDialogClose" class="icon-button" type="button" aria-label="닫기">×</button>
         </header>
@@ -137,21 +136,21 @@
           <div class="criteria-table-wrap">
             <table class="criteria-table">
               <tbody>
-                <tr><th>A</th><td>2거래일 전 거래량이 해당 시점 20일 거래량 평균보다 200% 이상 증가</td></tr>
+                <tr><th>A</th><td>2거래일 전 거래량 증가율: 핵심 후보 20일 평균 대비 200% 이상, 확대 후보 150% 이상</td></tr>
                 <tr><th>B</th><td>2거래일 전 종가가 전일 종가보다 3% 이상 상승</td></tr>
                 <tr><th>C</th><td>1거래일 전 종가가 2거래일 전 종가 대비 -10% 이상 0% 이하</td></tr>
                 <tr><th>D</th><td>1거래일 전 거래량이 2거래일 전 거래량보다 감소</td></tr>
-                <tr><th>E</th><td>A-G 발생일 종가가 1거래일 전 종가보다 1% 이상 상승</td></tr>
+                <tr><th>E</th><td>A-G 발생일 종가 상승률: 핵심 후보 1거래일 전 대비 1% 이상, 확대 후보 0.5% 이상</td></tr>
                 <tr><th>F</th><td>A-G 발생일 거래량이 1거래일 전 거래량보다 증가</td></tr>
                 <tr><th>G</th><td>3거래일 전 종가가 해당 시점 일봉 MA20 대비 -10% 이상 +5% 이하</td></tr>
               </tbody>
             </table>
           </div>
-          <p class="criteria-note">A-G를 모두 만족한 종목을 발생일부터 10거래일 동안 관리합니다.</p>
+          <p class="criteria-note">핵심·확대 후보 모두 A-G를 충족해야 하며, 발생일부터 10거래일 동안 동일한 30분봉 기준으로 관리합니다.</p>
           <div class="criteria-tier-note">
             <strong>후보등급</strong>
-            <span><b class="tier-swatch core"></b>핵심 A-G: 위 기준 그대로 적용</span>
-            <span><b class="tier-swatch expanded"></b>확대 A-G: A만 150% 이상, E만 0.5% 이상으로 완화하고 B·C·D·F·G는 동일 적용</span>
+            <span><b class="tier-swatch core"></b>핵심 A-G: A 200%·E 1% 기준</span>
+            <span><b class="tier-swatch expanded"></b>확대 A-G: A 150%·E 0.5% 기준, B·C·D·F·G는 핵심 후보와 동일</span>
           </div>
         </section>
 
@@ -177,7 +176,7 @@
           </div>
           <div>
             <div class="criteria-section-heading"><strong>감시주기</strong></div>
-            <p>평일 장중 09:00부터 15:59까지 10분마다 검사합니다. 매수 판정은 완료된 30분봉만 사용합니다.</p>
+            <p>평일 장중 09:00부터 15:59까지 15분마다 검사합니다. 매수 판정은 완료된 30분봉만 사용합니다.</p>
           </div>
         </section>
       </article>
@@ -226,6 +225,6 @@
       </form>
     </dialog>
 
-    <script src="monitor.js?v=20261004-11"></script>
+    <script src="monitor.js?v=20261005-1"></script>
   </body>
 </html>

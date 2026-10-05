@@ -198,7 +198,13 @@ main { max-width: 1480px; margin: 0 auto; padding: 18px; display: grid; gap: 14p
 .signal-line { display: flex; align-items: center; gap: 10px; min-height: 42px; }
 .signal-line strong { margin-left: auto; font-size: 21px; }
 .signal-line > span:last-child { color: var(--muted); font-size: 12px; }
+.chart-meta-line { min-height: 34px; padding: 4px 2px 9px; display: flex; align-items: center; gap: 18px; color: var(--muted); font-size: 12px; }
+.chart-meta-line strong { margin-left: 4px; color: var(--ink); font-size: 13px; }
 #maChart { display: block; width: 100%; height: 330px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.daily-chart-heading { min-height: 46px; padding: 11px 2px 8px; display: flex; align-items: end; justify-content: space-between; gap: 12px; }
+.daily-chart-heading strong { font-size: 14px; }
+.daily-chart-heading span { color: var(--muted); font-size: 11px; text-align: right; }
+#dailyChart { display: block; width: 100%; height: 290px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
 .metrics { margin: 14px 0 0; display: grid; grid-template-columns: repeat(4, 1fr); border: 1px solid var(--line); }
 .metrics div { min-height: 68px; padding: 12px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
 .metrics div:nth-child(4n) { border-right: 0; }
@@ -241,6 +247,7 @@ main { max-width: 1480px; margin: 0 auto; padding: 18px; display: grid; gap: 14p
   .metrics div:nth-child(2n) { border-right: 0; }
   .metrics div:nth-last-child(-n+2) { border-bottom: 0; }
   #maChart { height: 260px; }
+  #dailyChart { height: 250px; }
   .topbar nav { gap: 5px; }
   .topbar a, .topbar button { padding: 7px 9px; font-size: 12px; }
   .criteria-dialog { width: calc(100vw - 16px); max-height: calc(100vh - 16px); }

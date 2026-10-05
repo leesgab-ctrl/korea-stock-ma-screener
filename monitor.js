@@ -30,16 +30,11 @@ const elements = {
   detailContent: document.querySelector("#detailContent"),
   detailBadge: document.querySelector("#detailBadge"),
   detailProgress: document.querySelector("#detailProgress"),
-  lastPrice: document.querySelector("#lastPrice"),
-  ma20: document.querySelector("#ma20"),
-  ma40: document.querySelector("#ma40"),
-  ma60: document.querySelector("#ma60"),
-  dailyMa10: document.querySelector("#dailyMa10"),
-  lastBar: document.querySelector("#lastBar"),
   dailySignal: document.querySelector("#dailySignal"),
   remainingDays: document.querySelector("#remainingDays"),
   signalMessage: document.querySelector("#signalMessage"),
   chart: document.querySelector("#maChart"),
+  dailyChart: document.querySelector("#dailyChart"),
   positionManagerButton: document.querySelector("#positionManagerButton"),
   positionDialog: document.querySelector("#positionDialog"),
   positionDialogClose: document.querySelector("#positionDialogClose"),
@@ -432,17 +427,12 @@ function renderDetail(item) {
   elements.detailBadge.textContent = statusLabels[item.status] || "확인 필요";
   elements.detailBadge.className = `status-chip ${item.status}`;
   elements.detailProgress.textContent = `${Math.min(intraday.riseCount || 0, 5)} / 5`;
-  elements.lastPrice.textContent = intraday.lastPrice ? `${formatter.format(intraday.lastPrice)}원` : "-";
-  elements.ma20.textContent = intraday.ma20 == null ? "-" : formatter.format(intraday.ma20);
-  elements.ma40.textContent = intraday.ma40 == null ? "-" : formatter.format(intraday.ma40);
-  elements.ma60.textContent = intraday.ma60 == null ? "-" : formatter.format(intraday.ma60);
-  elements.dailyMa10.textContent = intraday.dailyMa10 == null ? "-" : formatter.format(intraday.dailyMa10);
-  elements.lastBar.textContent = intraday.lastBarTime ? formatDateTime(intraday.lastBarTime) : "-";
   elements.dailySignal.textContent = item.dailySignalDate;
   elements.remainingDays.textContent = `${item.tradingDaysRemaining}거래일`;
   elements.signalMessage.className = `signal-message${item.status === "signal" ? " signal" : ""}`;
   elements.signalMessage.textContent = signalCopy(item, intraday);
   drawChart(intraday.series || [], intraday.dailyMa10);
+  drawDailyChart(item.dailyChart?.series || []);
 }
 
 function signalCopy(item, intraday) {
@@ -555,6 +545,85 @@ function drawChart(series, dailyMa10) {
     ctx.beginPath(); ctx.moveTo(center, pad.top); ctx.lineTo(center, height - pad.bottom); ctx.stroke();
     ctx.fillStyle = "#64746c";
     ctx.fillText(label, Math.min(center + 3, width - pad.right - ctx.measureText(label).width), height - 8);
+  });
+}
+
+function drawDailyChart(series) {
+  const canvas = elements.dailyChart;
+  const ratio = window.devicePixelRatio || 1;
+  const width = canvas.clientWidth || 800;
+  const height = canvas.clientHeight || 300;
+  canvas.width = Math.floor(width * ratio);
+  canvas.height = Math.floor(height * ratio);
+  const ctx = canvas.getContext("2d");
+  ctx.scale(ratio, ratio);
+  ctx.clearRect(0, 0, width, height);
+  if (series.length < 2) {
+    ctx.fillStyle = "#64746c";
+    ctx.font = '13px "Malgun Gothic"';
+    ctx.fillText("다음 일봉 후보 갱신 때 그래프가 표시됩니다.", 20, 35);
+    return;
+  }
+
+  const values = series.flatMap((row) => [row.h, row.l, row.c, row.m5, row.m20, row.m60]).filter((value) => value != null);
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const rawSpread = Math.max(max - min, 1);
+  const priceMin = min - rawSpread * 0.04;
+  const priceMax = max + rawSpread * 0.04;
+  const spread = priceMax - priceMin;
+  const pad = { left: 54, right: 12, top: 28, bottom: 28 };
+  const volumeHeight = Math.max(42, Math.round(height * 0.2));
+  const volumeTop = height - pad.bottom - volumeHeight;
+  const priceBottom = volumeTop - 10;
+  const plotWidth = width - pad.left - pad.right;
+  const slot = plotWidth / series.length;
+  const x = (index) => pad.left + slot * (index + 0.5);
+  const y = (value) => pad.top + ((priceMax - value) / spread) * (priceBottom - pad.top);
+
+  ctx.strokeStyle = "#e2e8e4";
+  ctx.lineWidth = 1;
+  for (let step = 0; step <= 4; step += 1) {
+    const yy = pad.top + (step / 4) * (priceBottom - pad.top);
+    ctx.beginPath(); ctx.moveTo(pad.left, yy); ctx.lineTo(width - pad.right, yy); ctx.stroke();
+    ctx.fillStyle = "#64746c"; ctx.font = "11px Segoe UI";
+    ctx.fillText(formatter.format(priceMax - (spread * step) / 4), 3, yy + 4);
+  }
+
+  const maxVolume = Math.max(...series.map((row) => Number(row.v) || 0), 1);
+  const candleWidth = Math.max(2, Math.min(8, slot * 0.66));
+  series.forEach((row, index) => {
+    const open = Number(row.o);
+    const high = Number(row.h);
+    const low = Number(row.l);
+    const close = Number(row.c);
+    const rising = close >= open;
+    const color = rising ? "#e5484d" : "#316fee";
+    const center = x(index);
+    ctx.strokeStyle = color;
+    ctx.beginPath(); ctx.moveTo(center, y(high)); ctx.lineTo(center, y(low)); ctx.stroke();
+    ctx.fillStyle = color;
+    ctx.fillRect(center - candleWidth / 2, Math.min(y(open), y(close)), candleWidth, Math.max(Math.abs(y(open) - y(close)), 1.5));
+    const barHeight = ((Number(row.v) || 0) / maxVolume) * (volumeHeight - 5);
+    ctx.fillStyle = rising ? "rgba(229,72,77,.38)" : "rgba(49,111,238,.34)";
+    ctx.fillRect(center - candleWidth / 2, height - pad.bottom - barHeight, candleWidth, barHeight);
+  });
+
+  drawLine(ctx, series, "m5", "#34a853", 1.5, x, y);
+  drawLine(ctx, series, "m20", "#ba3f3f", 2.1, x, y);
+  drawLine(ctx, series, "m60", "#3167ad", 2.1, x, y);
+  ctx.font = "11px Segoe UI";
+  ctx.fillStyle = "#34a853"; ctx.fillRect(pad.left, 9, 14, 3); ctx.fillStyle = "#48574f"; ctx.fillText("MA5", pad.left + 19, 15);
+  ctx.fillStyle = "#ba3f3f"; ctx.fillRect(pad.left + 64, 9, 14, 3); ctx.fillStyle = "#48574f"; ctx.fillText("MA20", pad.left + 83, 15);
+  ctx.fillStyle = "#3167ad"; ctx.fillRect(pad.left + 136, 9, 14, 3); ctx.fillStyle = "#48574f"; ctx.fillText("MA60", pad.left + 155, 15);
+
+  const labelStep = Math.max(1, Math.ceil(series.length / 5));
+  series.forEach((row, index) => {
+    if (index % labelStep !== 0 && index !== series.length - 1) return;
+    const label = row.d.slice(5);
+    const center = x(index);
+    ctx.fillStyle = "#64746c";
+    ctx.fillText(label, Math.min(center, width - pad.right - ctx.measureText(label).width), height - 8);
   });
 }
 
