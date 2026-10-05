@@ -23,6 +23,7 @@ const elements = {
   criteriaButton: document.querySelector("#criteriaButton"),
   criteriaDialog: document.querySelector("#criteriaDialog"),
   criteriaDialogClose: document.querySelector("#criteriaDialogClose"),
+  detailPanel: document.querySelector(".detail-panel"),
   detailName: document.querySelector("#detailName"),
   detailMeta: document.querySelector("#detailMeta"),
   naverLink: document.querySelector("#naverLink"),
@@ -56,6 +57,10 @@ const elements = {
   positionFormStatus: document.querySelector("#positionFormStatus"),
   positionSubmitButton: document.querySelector("#positionSubmitButton"),
 };
+
+const detailPanelHome = elements.detailPanel.parentNode;
+const detailPanelAnchor = document.createComment("detail-panel-home");
+detailPanelHome.insertBefore(detailPanelAnchor, elements.detailPanel);
 
 const statusLabels = {
   signal: "매수 검토",
@@ -117,6 +122,7 @@ function render() {
   const closedPositions = (state.positions?.positions || []).filter((item) => item.status === "closed");
   renderPositions(openPositions, closedPositions);
   renderDetail(activeCandidates.find((item) => item.code === state.selectedCode));
+  placeDetailPanel();
 }
 
 function renderPositions(positions, closedPositions = []) {
@@ -221,6 +227,7 @@ function filteredCandidates(candidates) {
 }
 
 function renderCandidates(candidates) {
+  restoreDetailPanel();
   const visible = filteredCandidates(candidates).sort((a, b) =>
     (statusPriority[a.status] ?? 99) - (statusPriority[b.status] ?? 99)
     || a.name.localeCompare(b.name, "ko")
@@ -233,12 +240,16 @@ function renderCandidates(candidates) {
     elements.candidateList.innerHTML = '<div class="empty-list">현재 조건에 해당하는 후보가 없습니다.</div>';
     return;
   }
+  if (!visible.some((item) => item.code === state.selectedCode)) {
+    state.selectedCode = visible[0].code;
+  }
   for (const item of visible) {
     const node = elements.template.content.firstElementChild.cloneNode(true);
     const intraday = item.intraday || {};
     const rise = Math.min(intraday.riseCount || 0, 5);
     node.dataset.status = item.status;
     node.dataset.tier = item.candidateTier || "core";
+    node.dataset.code = item.code;
     node.classList.toggle("selected", item.code === state.selectedCode);
     node.querySelector(".candidate-name").textContent = item.name;
     node.querySelector(".candidate-status").textContent = statusLabels[item.status] || "확인 필요";
@@ -262,6 +273,21 @@ function renderCandidates(candidates) {
     });
     elements.candidateList.append(node);
   }
+}
+
+function restoreDetailPanel() {
+  if (elements.detailPanel.parentNode !== detailPanelHome) {
+    detailPanelHome.insertBefore(elements.detailPanel, detailPanelAnchor.nextSibling);
+  }
+}
+
+function placeDetailPanel() {
+  if (!window.matchMedia("(max-width: 850px)").matches) {
+    restoreDetailPanel();
+    return;
+  }
+  const selected = elements.candidateList.querySelector(`.candidate[data-code="${state.selectedCode}"]`);
+  if (selected) selected.after(elements.detailPanel);
 }
 
 function storedGithubToken() {
@@ -689,6 +715,7 @@ elements.positionDialog.addEventListener("click", (event) => {
 window.addEventListener("resize", () => {
   if (!state.payload) return;
   renderDetail(state.payload.candidates.find((item) => item.code === state.selectedCode));
+  placeDetailPanel();
 });
 
 loadData();
