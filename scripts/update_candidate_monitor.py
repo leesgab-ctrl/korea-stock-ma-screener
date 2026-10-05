@@ -503,16 +503,34 @@ def analyze_intraday(candidate: dict[str, Any], current: dt.datetime, count: int
         baseline_inferred, synthetic_cross_index = infer_missing_baseline(bars, signal_day)
     eligible = [index for index, bar in enumerate(bars) if bar["time"].date() > signal_day]
     found_index = None
+    found_rule_override = None
+    pending_ma60_confirmation = False
     for index in eligible:
         context = apply_inferred_cross(rise_context(bars, index), synthetic_cross_index)
         depth = depth_rule_context(bars, context, index, daily_reference)
-        if (
-            depth["signalReady"]
-            and context["reversalUnderMa40"]
+        sequence_valid = bool(
+            context["reversalUnderMa40"]
             and context["priorDeathCross"]
             and valid_post_candidate_sequence(
                 bars, context, signal_day, baseline_above is True or baseline_inferred
             )
+        )
+        if sequence_valid and context.get("riseCount", 0) >= 5 and not depth["ma60Ready"]:
+            pending_ma60_confirmation = True
+        if (
+            pending_ma60_confirmation
+            and bars[index].get("ma20") is not None
+            and bars[index].get("ma40") is not None
+            and bars[index].get("ma60") is not None
+            and bars[index]["ma20"] > bars[index]["ma40"]
+            and bars[index]["ma20"] > bars[index]["ma60"]
+        ):
+            found_index = index
+            found_rule_override = "ma60_recovery_inferred"
+            break
+        if (
+            depth["signalReady"]
+            and sequence_valid
         ):
             found_index = index
             break
@@ -599,7 +617,7 @@ def analyze_intraday(candidate: dict[str, Any], current: dt.datetime, count: int
                 "signalMa20": round(signal_bar["ma20"], 2),
                 "signalMa40": round(signal_bar["ma40"], 2),
                 "signalMa60": round(signal_bar["ma60"], 2),
-                "signalRule": depth_rule_context(
+                "signalRule": found_rule_override or depth_rule_context(
                     bars,
                     apply_inferred_cross(rise_context(bars, found_index), synthetic_cross_index),
                     found_index,

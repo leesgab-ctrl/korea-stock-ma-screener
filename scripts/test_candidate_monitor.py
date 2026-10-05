@@ -141,6 +141,30 @@ class CandidateMonitorTests(unittest.TestCase):
         self.assertTrue(context["deathCrossInferred"])
         self.assertTrue(valid_post_candidate_sequence(bars, context, signal_day, inferred))
 
+    def test_missing_ma60_confirms_legacy_signal_when_first_value_is_recovered(self) -> None:
+        values = (99, 97, 95, 94, 95, 96, 97, 98, 99, 100, 101, 100)
+        bars = [
+            {
+                "time": dt.datetime(2026, 9, 30, 9, tzinfo=KST) + dt.timedelta(minutes=30 * index),
+                "open": value, "high": value, "low": value, "close": value, "volume": 1,
+                "ma20": float(value),
+                "ma40": 105.0 if index < 11 else 98.0,
+                "ma60": None if index < 11 else 99.0,
+            }
+            for index, value in enumerate(values)
+        ]
+        candidate = {"code": "289930", "dailySignalDate": "2026-09-17", "dailyReference": {}}
+
+        with mock.patch.object(monitor, "fetch_minute_rows", return_value=[]), mock.patch.object(
+            monitor, "aggregate_30m", return_value=bars
+        ):
+            result = monitor.analyze_intraday(
+                candidate, dt.datetime(2026, 10, 1, 16, tzinfo=KST), 5000
+            )
+
+        self.assertEqual(result["signalTime"], "2026-09-30T14:30+09:00")
+        self.assertEqual(result["signalRule"], "ma60_recovery_inferred")
+
     def test_deep_pullback_waits_for_ma60_recovery(self) -> None:
         bars = [
             {
