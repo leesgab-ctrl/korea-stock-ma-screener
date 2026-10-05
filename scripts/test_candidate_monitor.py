@@ -128,6 +128,27 @@ class CandidateMonitorTests(unittest.TestCase):
         self.assertIsNotNone(merged[59]["ma60"])
         self.assertEqual(len(candidate["intradayHistory"]["series"]), 83)
 
+    def test_latest_trading_days_keeps_exactly_five_distinct_days(self) -> None:
+        bars = []
+        for day_offset in range(7):
+            day = dt.date(2026, 9, 21) + dt.timedelta(days=day_offset)
+            for hour in (9, 10):
+                bars.append({"time": dt.datetime.combine(day, dt.time(hour), KST)})
+
+        selected = monitor.latest_trading_days(bars, 5)
+
+        self.assertEqual(len(selected), 10)
+        self.assertEqual(selected[0]["time"].date(), dt.date(2026, 9, 23))
+        self.assertEqual(selected[-1]["time"].date(), dt.date(2026, 9, 27))
+
+    def test_latest_trading_days_keeps_available_days_when_under_five(self) -> None:
+        bars = [
+            {"time": dt.datetime(2026, 10, day, 9, tzinfo=KST)}
+            for day in (1, 2, 5)
+        ]
+
+        self.assertEqual(monitor.latest_trading_days(bars, 5), bars)
+
     def test_five_rises_require_reversal_under_ma40_and_prior_cross(self) -> None:
         bars = [
             {

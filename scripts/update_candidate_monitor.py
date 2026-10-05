@@ -372,6 +372,17 @@ def merge_30m_history(
     return bars
 
 
+def latest_trading_days(
+    bars: list[dict[str, Any]], day_count: int = 5
+) -> list[dict[str, Any]]:
+    """Return all bars belonging to the latest distinct trading days."""
+    if not bars or day_count <= 0:
+        return []
+    days = sorted({bar["time"].date() for bar in bars})[-day_count:]
+    selected_days = set(days)
+    return [bar for bar in bars if bar["time"].date() in selected_days]
+
+
 def latest_death_cross_index(bars: list[dict[str, Any]], index: int, lookback: int = 160) -> int | None:
     found = None
     for cursor in range(max(1, index - lookback), index + 1):
@@ -639,9 +650,10 @@ def analyze_intraday(candidate: dict[str, Any], current: dt.datetime, count: int
         ),
         None,
     )
-    display_bars = [] if first_complete_index is None else [
+    complete_display_bars = [] if first_complete_index is None else [
         bar for bar in bars[first_complete_index:] if bar["time"].date() >= signal_day
     ]
+    display_bars = latest_trading_days(complete_display_bars, 5)
     result: dict[str, Any] = {
         "dataStatus": "ok",
         "barCount": len(bars),
@@ -673,7 +685,7 @@ def analyze_intraday(candidate: dict[str, Any], current: dt.datetime, count: int
                 "m40": round(bar["ma40"], 2) if bar["ma40"] is not None else None,
                 "m60": round(bar["ma60"], 2) if bar["ma60"] is not None else None,
             }
-            for bar in display_bars[-130:]
+            for bar in display_bars
         ],
     }
     if found_index is not None:
