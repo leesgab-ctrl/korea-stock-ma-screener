@@ -39,6 +39,18 @@ class CandidateMonitorTests(unittest.TestCase):
         self.assertIsNotNone(chart["series"][-1]["m20"])
         self.assertIsNone(chart["series"][-1]["m60"])
 
+    def test_daily_chart_uses_warmup_rows_so_ma60_starts_visible(self) -> None:
+        start = dt.date(2026, 1, 1)
+        items = "".join(
+            f'<item data="{(start + dt.timedelta(days=index)).strftime("%Y%m%d")}|{100 + index}|{103 + index}|{99 + index}|{102 + index}|{1000 + index}" />'
+            for index in range(130)
+        )
+        with mock.patch.object(monitor, "fetch_bytes", return_value=items.encode("euc-kr")):
+            chart = fetch_daily_chart("005720")
+
+        self.assertEqual(len(chart["series"]), 60)
+        self.assertIsNotNone(chart["series"][0]["m60"])
+
     def test_ag_screen_matches_finalized_rules(self) -> None:
         rows = [
             {"date": f"2026-01-{index + 1:02d}", "close": 100, "volume": 100}

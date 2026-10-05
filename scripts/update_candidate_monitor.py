@@ -223,7 +223,7 @@ def fetch_minute_rows(code: str, count: int) -> list[dict[str, Any]]:
     return rows
 
 
-def fetch_daily_chart(code: str, count: int = 90) -> dict[str, Any]:
+def fetch_daily_chart(code: str, count: int = 130) -> dict[str, Any]:
     url = (
         "https://fchart.stock.naver.com/sise.nhn"
         f"?symbol={code}&timeframe=day&count={count}&requestType=0"
@@ -632,9 +632,16 @@ def analyze_intraday(candidate: dict[str, Any], current: dt.datetime, count: int
     if not eligible_reversal:
         latest_context["rawRiseCount"] = latest_context["riseCount"]
         latest_context["riseCount"] = 0
-    display_bars = [bar for bar in bars if bar["time"].date() >= signal_day]
-    if not display_bars:
-        display_bars = bars
+    first_complete_index = next(
+        (
+            index for index, bar in enumerate(bars)
+            if None not in (bar.get("ma20"), bar.get("ma40"), bar.get("ma60"))
+        ),
+        None,
+    )
+    display_bars = [] if first_complete_index is None else [
+        bar for bar in bars[first_complete_index:] if bar["time"].date() >= signal_day
+    ]
     result: dict[str, Any] = {
         "dataStatus": "ok",
         "barCount": len(bars),
