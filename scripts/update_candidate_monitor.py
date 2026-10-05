@@ -687,8 +687,6 @@ def enrich(
                     new_alerts += 1
         elif intraday.get("structuralExcluded"):
             candidate["status"] = "excluded"
-        elif intraday.get("breachedDailyMa10"):
-            candidate["status"] = "waiting10"
         elif (
             intraday.get("baselineMa20AboveMa40") is None
             and not intraday.get("baselineInferred")
@@ -702,6 +700,8 @@ def enrich(
             and intraday.get("riseCount", 0) >= 5
         ):
             candidate["status"] = "waiting60"
+        elif intraday.get("breachedDailyMa10"):
+            candidate["status"] = "waiting10"
         elif intraday.get("ma60") is None:
             candidate["status"] = "insufficient"
         elif (

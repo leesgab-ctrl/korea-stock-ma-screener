@@ -220,6 +220,29 @@ class CandidateMonitorTests(unittest.TestCase):
         self.assertFalse(recovered["breachedDailyMa10"])
         self.assertTrue(recovered["signalReady"])
 
+    def test_ma60_wait_precedes_daily_ma10_wait(self) -> None:
+        candidate = {"code": "215790", "dailySignalDate": "2026-09-18"}
+        payload = {"candidates": [candidate], "notifiedSignals": []}
+        intraday = {
+            "dataStatus": "ok", "baselineMa20AboveMa40": True,
+            "ma20": 654.6, "ma40": 654.17, "ma60": 657.83,
+            "breachedMa60": True, "recoveredMa60": False,
+            "breachedDailyMa10": True, "structuralExcluded": False,
+            "riseCount": 13,
+        }
+
+        with mock.patch.object(monitor, "analyze_intraday", return_value=intraday):
+            monitor.enrich(payload, dt.datetime(2026, 10, 5, 16, tzinfo=KST), 5000, True)
+
+        self.assertEqual(candidate["status"], "waiting60")
+
+        intraday["ma20"] = 660.0
+        intraday["recoveredMa60"] = True
+        with mock.patch.object(monitor, "analyze_intraday", return_value=intraday):
+            monitor.enrich(payload, dt.datetime(2026, 10, 5, 16, tzinfo=KST), 5000, True)
+
+        self.assertEqual(candidate["status"], "waiting10")
+
     def test_structural_decline_counts_consecutive_ma20_falls(self) -> None:
         bars = [{"ma20": value} for value in (110.0, 109.0, 108.0, 107.0, 106.0)]
         self.assertEqual(consecutive_ma20_falls(bars, 4), 4)
