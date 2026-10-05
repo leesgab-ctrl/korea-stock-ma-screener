@@ -643,19 +643,9 @@ def analyze_intraday(candidate: dict[str, Any], current: dt.datetime, count: int
     if not eligible_reversal:
         latest_context["rawRiseCount"] = latest_context["riseCount"]
         latest_context["riseCount"] = 0
-    first_complete_index = next(
-        (
-            index for index, bar in enumerate(bars)
-            if None not in (bar.get("ma20"), bar.get("ma40"), bar.get("ma60"))
-        ),
-        None,
-    )
-    # The signal search remains constrained to the A-G candidate period, but
-    # the chart may include earlier warmup bars so users can see five sessions.
-    complete_display_bars = (
-        [] if first_complete_index is None else bars[first_complete_index:]
-    )
-    display_bars = latest_trading_days(complete_display_bars, 5)
+    # Always show five full sessions when raw prices are available. Moving
+    # averages appear naturally as their 20/40/60-bar warmup completes.
+    display_bars = latest_trading_days(bars, 5)
     result: dict[str, Any] = {
         "dataStatus": "ok",
         "barCount": len(bars),
