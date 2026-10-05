@@ -76,6 +76,16 @@ const statusLabels = {
 };
 const statusPriority = { signal: 0, rising: 1, waiting60: 2, setup: 3, signaled: 4, watching: 5, waiting10: 6, insufficient: 7, ineligible: 8, excluded: 9 };
 const tierLabels = { core: "핵심 A-G", expanded: "확대 A-G" };
+const filterLabels = {
+  all: "전체",
+  signal: "매수 검토",
+  signaled: "포착 완료",
+  setup: "매수 준비",
+  rising: "상승 진행",
+  waiting60: "MA60 대기",
+  waiting10: "MA10 대기",
+  watching: "관찰 중",
+};
 const formatter = new Intl.NumberFormat("ko-KR", { maximumFractionDigits: 2 });
 
 async function loadData() {
@@ -118,11 +128,24 @@ function render() {
   elements.updatedAt.textContent = generatedAt ? `마지막 갱신 ${formatDateTime(generatedAt)}` : "갱신 기록 없음";
   elements.pushState.textContent = summary.pushConfigured ? "휴대폰 푸시 연결" : "푸시 연결 대기";
   elements.pushState.className = `status-chip${summary.pushConfigured ? "" : " rising"}`;
+  renderFilterCounts(activeCandidates);
   renderCandidates(activeCandidates);
   const closedPositions = (state.positions?.positions || []).filter((item) => item.status === "closed");
   renderPositions(openPositions, closedPositions);
   renderDetail(activeCandidates.find((item) => item.code === state.selectedCode));
   placeDetailPanel();
+}
+
+function renderFilterCounts(candidates) {
+  const counts = candidates.reduce((result, item) => {
+    result[item.status] = (result[item.status] || 0) + 1;
+    return result;
+  }, {});
+  document.querySelectorAll(".tab").forEach((button) => {
+    const filter = button.dataset.filter;
+    const count = filter === "all" ? candidates.length : counts[filter] || 0;
+    button.textContent = `${filterLabels[filter]} (${count})`;
+  });
 }
 
 function renderPositions(positions, closedPositions = []) {
