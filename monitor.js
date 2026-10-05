@@ -90,8 +90,8 @@ async function loadData() {
     state.payload = await response.json();
     state.positions = positionsResponse.ok ? await positionsResponse.json() : { positions: [] };
     const candidates = (state.payload.candidates || []).filter((item) => !["excluded", "ineligible"].includes(item.status));
-    if (!state.selectedCode || !candidates.some((item) => item.code === state.selectedCode)) {
-      state.selectedCode = candidates[0]?.code || null;
+    if (state.selectedCode && !candidates.some((item) => item.code === state.selectedCode)) {
+      state.selectedCode = null;
     }
     render();
   } catch (error) {
