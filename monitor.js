@@ -70,11 +70,10 @@ const statusLabels = {
   watching: "관찰 중",
   insufficient: "기준자료 부족",
   ineligible: "초기조건 제외",
-  excluded: "일봉 MA10 이탈",
-  waiting10: "MA10 회복 대기",
+  excluded: "구조적 약세",
   waiting60: "MA60 돌파 대기",
 };
-const statusPriority = { signal: 0, rising: 1, waiting60: 2, setup: 3, signaled: 4, watching: 5, waiting10: 6, insufficient: 7, ineligible: 8, excluded: 9 };
+const statusPriority = { signal: 0, rising: 1, waiting60: 2, setup: 3, signaled: 4, watching: 5, insufficient: 6, ineligible: 7, excluded: 8 };
 const tierLabels = { core: "핵심 A-G", expanded: "확대 A-G" };
 const filterLabels = {
   all: "전체",
@@ -83,7 +82,6 @@ const filterLabels = {
   setup: "매수 준비",
   rising: "상승 진행",
   waiting60: "MA60 대기",
-  waiting10: "MA10 대기",
   watching: "관찰 중",
 };
 const formatter = new Intl.NumberFormat("ko-KR", { maximumFractionDigits: 2 });
@@ -495,12 +493,11 @@ function signalCopy(item, intraday) {
   }
   if (item.status === "setup") return "A-G 확정 후 MA20이 MA40 아래로 내려왔습니다. 반등이 시작되어 1/5가 되는지 관찰하는 매수 준비 단계입니다.";
   if (item.status === "waiting60") return "MA20이 MA60 아래까지 내려갔습니다. MA20이 MA60을 다시 돌파한 완성봉까지 기다립니다.";
-  if (item.status === "waiting10") return "30분봉 MA20이 해당 날짜의 직전 완료 일봉 MA10 아래에 있어 매수신호를 보류합니다. MA10 위로 회복하면 감시를 자동 재개합니다.";
-  if (item.status === "excluded") return "MA20이 MA40·MA60·일봉 MA10 아래에서 3개 완료봉 이상 연속 하락해 구조적 약세 후보로 제외했습니다.";
+  if (item.status === "excluded") return "MA20이 MA40·MA60 아래에서 3개 완료봉 이상 연속 하락한 구조적 약세 상태입니다. 후보 기간 중 반등 조건이 생기면 다시 판정합니다.";
   if (item.status === "insufficient") return "A-G 발생일의 30분봉 MA20·MA40 기준값과 후속 교차를 현재 네이버 제공 범위에서 확인할 수 없습니다. 신규 후보부터 기준값을 자동 저장합니다.";
   if (item.status === "ineligible") return "A-G 발생일 마감 시 MA20이 MA40 위에 있지 않아 30분봉 후속 감시에서 제외했습니다.";
   if (intraday.dataStatus === "error") return "네이버 분봉을 가져오지 못했습니다. 다음 예약 실행에서 다시 시도합니다.";
-  return "MA20의 5회 상승을 관찰합니다. MA60 아래까지 조정되면 MA60 재돌파를 기다리고, 일봉 MA10 아래면 제외합니다.";
+  return "MA20의 5회 상승을 관찰합니다. MA60 아래까지 조정되면 MA60 재돌파를 기다립니다. 일봉 MA10은 참고선으로만 사용합니다.";
 }
 
 function drawChart(series, dailyMa10) {

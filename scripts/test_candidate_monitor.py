@@ -184,7 +184,7 @@ class CandidateMonitorTests(unittest.TestCase):
         self.assertTrue(depth["recoveredMa60"])
         self.assertTrue(depth["signalReady"])
 
-    def test_daily_ma10_breach_excludes_signal(self) -> None:
+    def test_daily_ma10_breach_does_not_block_intraday_signal(self) -> None:
         bars = [
             {
                 "time": dt.datetime(2026, 10, 2, 9, tzinfo=KST) + dt.timedelta(minutes=30 * index),
@@ -201,7 +201,7 @@ class CandidateMonitorTests(unittest.TestCase):
         context = rise_context(bars, 12)
         depth = depth_rule_context(bars, context, 12, 100.0)
         self.assertTrue(depth["breachedDailyMa10"])
-        self.assertFalse(depth["signalReady"])
+        self.assertTrue(depth["signalReady"])
 
     def test_daily_ma10_recovery_allows_a_later_signal(self) -> None:
         bars = [
@@ -220,7 +220,7 @@ class CandidateMonitorTests(unittest.TestCase):
         self.assertFalse(recovered["breachedDailyMa10"])
         self.assertTrue(recovered["signalReady"])
 
-    def test_ma60_wait_precedes_daily_ma10_wait(self) -> None:
+    def test_ma60_wait_is_used_even_below_daily_ma10(self) -> None:
         candidate = {"code": "215790", "dailySignalDate": "2026-09-18"}
         payload = {"candidates": [candidate], "notifiedSignals": []}
         intraday = {
@@ -236,20 +236,13 @@ class CandidateMonitorTests(unittest.TestCase):
 
         self.assertEqual(candidate["status"], "waiting60")
 
-        intraday["ma20"] = 660.0
-        intraday["recoveredMa60"] = True
-        with mock.patch.object(monitor, "analyze_intraday", return_value=intraday):
-            monitor.enrich(payload, dt.datetime(2026, 10, 5, 16, tzinfo=KST), 5000, True)
-
-        self.assertEqual(candidate["status"], "waiting10")
-
     def test_structural_decline_counts_consecutive_ma20_falls(self) -> None:
         bars = [{"ma20": value} for value in (110.0, 109.0, 108.0, 107.0, 106.0)]
         self.assertEqual(consecutive_ma20_falls(bars, 4), 4)
         bars[3]["ma20"] = 106.0
         self.assertEqual(consecutive_ma20_falls(bars, 4), 0)
 
-    def test_structural_decline_is_excluded_but_simple_ma10_breach_waits(self) -> None:
+    def test_structural_decline_is_excluded_but_simple_ma10_breach_is_watched(self) -> None:
         candidates = [
             {"code": "357880", "dailySignalDate": "2026-09-21"},
             {"code": "215790", "dailySignalDate": "2026-09-21"},
@@ -269,7 +262,7 @@ class CandidateMonitorTests(unittest.TestCase):
             monitor.enrich(payload, dt.datetime(2026, 10, 4, 16, tzinfo=KST), 5000, True)
 
         self.assertEqual(candidates[0]["status"], "excluded")
-        self.assertEqual(candidates[1]["status"], "waiting10")
+        self.assertEqual(candidates[1]["status"], "watching")
         self.assertEqual(payload["summary"]["active"], 1)
 
     def test_daily_ma10_uses_the_previous_completed_daily_value_for_each_date(self) -> None:

@@ -25,7 +25,7 @@ STRATEGY = {
         EXPANDED_TIER: "확대 A-G(A 거래량 +150%, E 종가 +0.5%)",
     },
     "minuteTimeframe": "30분봉",
-    "maRule": "MA20 5회 상승, MA60 침범 시 MA60 재돌파, 직전 완료 일봉 MA10 하회 중 신호 보류",
+    "maRule": "A-G 통과 후 MA20 5회 상승, MA60 침범 시 MA60 재돌파(일봉 MA10은 참고선)",
     "entry": "신호봉 완성 후 다음 30분봉부터 HTS 현재가 확인",
 }
 
@@ -439,7 +439,6 @@ def depth_rule_context(
     signal_ready = bool(
         ma60_ready
         and context.get("riseCount", 0) >= 5
-        and not breached_daily_ma10
         and (not breached_ma60 or recovered_ma60)
     )
     return {
@@ -553,7 +552,6 @@ def analyze_intraday(candidate: dict[str, Any], current: dt.datetime, count: int
             latest_depth["ma60Ready"]
             and latest_context.get("riseCount", 0) >= 5
             and latest_depth["recoveredMa60"]
-            and not latest_depth["breachedDailyMa10"]
         )
     if not eligible_reversal:
         latest_context["rawRiseCount"] = latest_context["riseCount"]
@@ -571,8 +569,7 @@ def analyze_intraday(candidate: dict[str, Any], current: dt.datetime, count: int
         "dailyMa10": daily_ma10,
         "fallCount": latest_fall_count,
         "structuralExcluded": bool(
-            observed_daily_ma10_breach
-            and latest_fall_count >= 3
+            latest_fall_count >= 3
             and None not in (latest.get("ma20"), latest.get("ma40"), latest.get("ma60"))
             and latest["ma20"] < latest["ma40"] < latest["ma60"]
         ),
@@ -700,8 +697,6 @@ def enrich(
             and intraday.get("riseCount", 0) >= 5
         ):
             candidate["status"] = "waiting60"
-        elif intraday.get("breachedDailyMa10"):
-            candidate["status"] = "waiting10"
         elif intraday.get("ma60") is None:
             candidate["status"] = "insufficient"
         elif (
@@ -748,7 +743,6 @@ def enrich(
         "insufficient": status_counts["insufficient"],
         "ineligible": status_counts["ineligible"],
         "excluded": status_counts["excluded"],
-        "waiting10": status_counts["waiting10"],
         "waiting60": status_counts["waiting60"],
         "dataErrors": errors,
         "newAlerts": new_alerts,
