@@ -570,7 +570,7 @@ function renderDetail(item) {
   if (recovery?.matched) {
     elements.detailBadge.textContent = "정배열 조정·회복 관찰";
     elements.detailBadge.style.backgroundColor = "#fff0a3";
-    elements.signalMessage.textContent = `15:00 기준 정배열 조정·회복 관찰 · ${formatter.format(recovery.price)}원 (${recovery.changePct}%)`;
+    elements.signalMessage.textContent = `15:00 기준 정배열 조정·회복 관찰 · ${formatter.format(recovery.price)}원 · 전일 대비 ${recovery.changePct}% / 시가 대비 ${recovery.openChangePct}%`;
   } else {
     elements.detailBadge.style.backgroundColor = "";
   }

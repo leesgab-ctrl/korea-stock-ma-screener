@@ -721,7 +721,10 @@ def evaluate_session_recovery(candidate, rows, bars, current):
         result["dataStatus"] = "insufficient"
         return result
     reference = previous[-1]["c"]
-    if reference <= 0:
+    daily_today = next((r for r in candidate.get("dailyChart", {}).get("series", []) if r["d"] == day.isoformat()), {})
+    opening_tick = next((r for r in ticks if r["time"].time() == dt.time(9)), {})
+    open_price = daily_today.get("o") or opening_tick.get("price")
+    if reference <= 0 or not open_price or open_price <= 0:
         result["dataStatus"] = "insufficient"
         return result
     signal_day = dt.date.fromisoformat(candidate["dailySignalDate"])
@@ -740,14 +743,18 @@ def evaluate_session_recovery(candidate, rows, bars, current):
     surge = next((r for r in closes if r["time"].time() <= dt.time(10) and r["price"] >= reference * 1.05), None)
     pullback = next((r for r in closes if surge and r["time"] > surge["time"] and r["price"] * 1000 <= reference * 1005), None)
     price = ticks[-1]["price"]
-    matched = bool(aligned and uninterrupted and rising and surge and pullback and reference <= price <= reference * 1.02)
-    result.update(dataStatus="ok", matched=matched, price=price, previousClose=reference,
+    matched = bool(aligned and uninterrupted and rising and surge and pullback
+                   and price * 1000 >= reference * 1005 and price * 100 <= open_price * 101)
+    result.update(dataStatus="ok", matched=matched, price=price, previousClose=reference, openPrice=open_price,
                   changePct=round((price / reference - 1) * 100, 2),
+                  openChangePct=round((price / open_price - 1) * 100, 2),
                   referenceTime=ticks[-1]["time"].isoformat(timespec="minutes"),
                   surgeTime=surge["time"].isoformat(timespec="minutes") if surge else None,
                   pullbackTime=pullback["time"].isoformat(timespec="minutes") if pullback else None)
     if matched:
         candidate.setdefault("sessionRecoveryHistory", {})[day.isoformat()] = result.copy()
+    else:
+        candidate.get("sessionRecoveryHistory", {}).pop(day.isoformat(), None)
     return result
 
 
@@ -916,8 +923,8 @@ def notify_ntfy(topic: str, candidate: dict[str, Any], recovery=None) -> None:
     if recovery:
         message = (f"{candidate['name']}({candidate['code']})\n"
                    f"15:00 기준 정배열 조정·회복 관찰\n"
-                   f"확인가격: {recovery['price']:,}원 ({recovery['changePct']:+.2f}%)\n"
-                   "초반 +5% 상승 → 전일 종가 대비 +0.5% 이하 조정 → 0~+2% 회복\n"
+                   f"확인가격: {recovery['price']:,}원 · 전일 대비 {recovery['changePct']:+.2f}% / 시가 대비 {recovery['openChangePct']:+.2f}%\n"
+                   "초반 전일 대비 +5% 상승 → 전일 종가 대비 +0.5% 이하 조정 → 15:00 전일 종가 +0.5% 이상·시가 +1% 이하\n"
                    f"검사시각: {now_kst().isoformat(timespec='minutes')}")
     body = json.dumps(
         {

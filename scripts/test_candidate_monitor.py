@@ -74,7 +74,7 @@ class CandidateMonitorTests(unittest.TestCase):
 
     def test_session_recovery_uses_boundary_prices_and_1500_cutoff(self):
         day = dt.datetime(2026, 10, 6, tzinfo=KST)
-        candidate = {"dailySignalDate": "2026-10-05", "dailyChart": {"series": [{"d": "2026-10-05", "c": 1000}]}}
+        candidate = {"dailySignalDate": "2026-10-05", "dailyChart": {"series": [{"d": "2026-10-05", "c": 1000}, {"d": "2026-10-06", "o": 1000}]}}
         bars = [{"time": day.replace(hour=9) + dt.timedelta(minutes=30*i),
                  "ma20": 1020+i, "ma40": 1010, "ma60": 1000} for i in range(12)]
         bars.insert(0, {"time": (day - dt.timedelta(days=1)).replace(hour=15), "ma20": 1019, "ma40": 1010, "ma60": 1000})
@@ -83,6 +83,16 @@ class CandidateMonitorTests(unittest.TestCase):
         result = monitor.evaluate_session_recovery(candidate, rows, bars, day.replace(hour=15, minute=10))
         self.assertTrue(result["matched"])
         self.assertEqual(result["price"], 1010)
+        self.assertEqual(result["openChangePct"], 1.0)
+        rows[2]["price"] = 1005
+        self.assertTrue(monitor.evaluate_session_recovery(candidate, rows, bars, day.replace(hour=15, minute=10))["matched"])
+        for price in (1004, 1011):
+            rows[2]["price"] = price
+            self.assertFalse(monitor.evaluate_session_recovery(candidate, rows, bars, day.replace(hour=15, minute=10))["matched"])
+        rows[2]["price"] = 1010
+        candidate["dailyChart"]["series"][-1]["o"] = 990
+        self.assertFalse(monitor.evaluate_session_recovery(candidate, rows, bars, day.replace(hour=15, minute=10))["matched"])
+        candidate["dailyChart"]["series"][-1]["o"] = 1000
         rows[1]["price"] = 1006
         self.assertFalse(monitor.evaluate_session_recovery(candidate, rows, bars, day.replace(hour=15, minute=10))["matched"])
         rows[1]["price"] = 1005
