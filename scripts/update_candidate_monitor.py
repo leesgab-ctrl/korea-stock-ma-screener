@@ -17,6 +17,7 @@ KST = ZoneInfo("Asia/Seoul")
 USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124 Safari/537.36"
 MONITOR_URL = "https://leesgab-ctrl.github.io/korea-stock-ma-screener/monitor.html"
 TRACKING_RULE_VERSION = 5
+OUTCOME_RULE_VERSION = 3
 CORE_TIER = "core"
 EXPANDED_TIER = "expanded"
 STRATEGY = {
@@ -126,14 +127,26 @@ def load_previous(path: Path) -> dict[str, Any]:
 
 
 def candidate_outcome(candidate: dict[str, Any]) -> dict[str, Any]:
-    signal_date = candidate.get("dailySignalDate")
-    start_price = candidate.get("daily", {}).get("close")
+    registered_at = candidate.get("registeredAt")
+    signal_date = str(registered_at)[:10] if registered_at else None
+    start_price = candidate.get("registrationPrice")
     series = [
         row for row in candidate.get("dailyChart", {}).get("series", [])
-        if signal_date and row.get("d", "") >= signal_date
+        if signal_date and row.get("d", "") > signal_date
+        and (not candidate.get("outcomeEndDate") or row.get("d", "") <= candidate["outcomeEndDate"])
     ]
+    same_day_bars = [
+        row for row in candidate.get("intraday", {}).get("series", [])
+        if registered_at and row.get("t", "")[:10] == signal_date
+        and dt.datetime.fromisoformat(row["t"]) >= dt.datetime.fromisoformat(registered_at)
+        and (not candidate.get("outcomeEndDate") or signal_date <= candidate["outcomeEndDate"])
+    ]
+    if same_day_bars:
+        series.insert(0, {"d": signal_date, "h": max(row.get("h", row["c"]) for row in same_day_bars), "c": same_day_bars[-1]["c"]})
     if not start_price or not series:
         return {
+            "ruleVersion": OUTCOME_RULE_VERSION,
+            "basisDate": signal_date,
             "dataStatus": "insufficient",
             "startPrice": start_price,
             "reached5Pct": False,
@@ -146,8 +159,10 @@ def candidate_outcome(candidate: dict[str, Any]) -> dict[str, Any]:
         (row for row in series if row.get("h", row.get("c", 0)) >= target_price),
         None,
     )
-    reached_index = series.index(reached_row) if reached_row else None
+    reached_index = series.index(reached_row) + (0 if series[0]["d"] == signal_date else 1) if reached_row else None
     return {
+        "ruleVersion": OUTCOME_RULE_VERSION,
+        "basisDate": signal_date,
         "dataStatus": "ok",
         "startPrice": start_price,
         "targetPrice": round(target_price, 2),
@@ -164,6 +179,41 @@ def candidate_outcome(candidate: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def restore_registration_baselines(payload: dict[str, Any]) -> None:
+    path = ROOT / "data/candidate-registration-baselines.json"
+    registrations = json.loads(path.read_text(encoding="utf-8")).get("registrations", {}) if path.exists() else {}
+    for record in [*payload.get("candidates", []), *payload.get("history", [])]:
+        key = f"{record.get('code')}|{record.get('dailySignalDate')}"
+        if not record.get("registeredAt") and key in registrations:
+            record["registeredAt"], record["registrationPrice"] = registrations[key]
+            record["registrationSource"] = "first_persisted_snapshot"
+
+
+def refresh_history_outcomes(payload: dict[str, Any]) -> None:
+    charts: dict[str, dict[str, Any]] = {}
+    for record in payload.get("history", []):
+        if record.get("outcome", {}).get("ruleVersion") == OUTCOME_RULE_VERSION:
+            continue
+        try:
+            code = record["code"]
+            if code not in charts:
+                charts[code] = fetch_daily_chart(code)
+            chart = charts[code]
+            signal_date = str(record.get("registeredAt") or "")[:10]
+            if signal_date and chart.get("series") and chart["series"][0]["d"] > signal_date:
+                raise ValueError("등록 시점의 일봉 자료가 없어 재검증할 수 없습니다.")
+            record["outcome"] = candidate_outcome({
+                "registeredAt": record.get("registeredAt"),
+                "registrationPrice": record.get("registrationPrice"),
+                "intraday": {"series": record.get("registrationDayBars", [])},
+                "dailyChart": chart,
+                "outcomeEndDate": str(record.get("archivedAt") or "")[:10],
+            })
+        except (OSError, TimeoutError, ValueError) as exc:
+            # Old successes must not remain in the rate while recalculation is pending.
+            record["outcome"] = {"dataStatus": "error", "reached5Pct": False, "error": str(exc)}
+
+
 def archive_candidate(candidate: dict[str, Any], archived_at: str, reason: str) -> dict[str, Any]:
     intraday = candidate.get("intraday", {})
     return {
@@ -175,12 +225,16 @@ def archive_candidate(candidate: dict[str, Any], archived_at: str, reason: str) 
         "dailySignalDate": candidate.get("dailySignalDate"),
         "spikeDate": candidate.get("daily", {}).get("spikeDate"),
         "agClose": candidate.get("daily", {}).get("close"),
+        "registeredAt": candidate.get("registeredAt"),
+        "registrationPrice": candidate.get("registrationPrice"),
+        "registrationSource": candidate.get("registrationSource"),
+        "registrationDayBars": [row for row in intraday.get("series", []) if row.get("t", "")[:10] == str(candidate.get("registeredAt") or "")[:10]],
         "agValues": candidate.get("daily", {}).get("values", {}),
         "statusAtClose": candidate.get("status"),
         "signalTime": intraday.get("signalTime"),
         "signalPrice": intraday.get("signalPrice"),
         "signalTarget": intraday.get("signalTarget"),
-        "outcome": candidate_outcome(candidate),
+        "outcome": candidate_outcome({**candidate, "outcomeEndDate": archived_at[:10]}),
         "archivedAt": archived_at,
         "archiveReason": reason,
     }
@@ -224,11 +278,12 @@ def update_validation_summary(payload: dict[str, Any]) -> None:
         "completed": len(payload.get("history", [])),
         "reached5Pct": hits,
         "reached5PctRate": round(100 * hits / len(evaluated), 1) if evaluated else 0.0,
-        "basis": "A-G 발생일 종가 대비 관리기간 중 일봉 고가 +5%",
+        "basis": "화면 등록시점 가격 기준, 등록 이후부터 종료일까지 +5% (실제 매매수익 아님)",
     }
 
 
 def build_daily_candidates(stock_data: Path, previous: dict[str, Any]) -> dict[str, Any]:
+    restore_registration_baselines(previous)
     exclusion_path = ROOT / "data/candidate-exclusions.json"
     exclusions = json.loads(exclusion_path.read_text(encoding="utf-8")).get("excluded", []) if exclusion_path.exists() else []
     excluded_codes = {r["code"] for r in exclusions}
@@ -293,6 +348,15 @@ def build_daily_candidates(stock_data: Path, previous: dict[str, Any]) -> dict[s
                 "naverUrl": f"https://stock.naver.com/domestic/stock/{stock['c']}/price",
             }
         prior = previous_candidates.get((stock["c"], signal_date), {})
+        if prior and prior.get("outcome", {}).get("ruleVersion") != OUTCOME_RULE_VERSION:
+            prior["outcome"] = candidate_outcome(prior)
+        for field in ("registeredAt", "registrationPrice", "registrationSource"):
+            if field in prior:
+                candidate[field] = prior[field]
+        if not prior:
+            candidate["registeredAt"] = now_kst().isoformat(timespec="seconds")
+            candidate["registrationPrice"] = rows[-1]["close"]
+            candidate["registrationSource"] = "registration_reference_close"
         if target_completed_before(prior, latest_date):
             continue
         if prior.get("tracking"):
@@ -318,6 +382,7 @@ def build_daily_candidates(stock_data: Path, previous: dict[str, Any]) -> dict[s
             continue
         try:
             prior["dailyChart"] = fetch_daily_chart(prior["code"])
+            prior["outcome"] = candidate_outcome(prior)
         except (OSError, TimeoutError, ValueError):
             pass
         if target_completed_before(prior, latest_date):
@@ -335,7 +400,7 @@ def build_daily_candidates(stock_data: Path, previous: dict[str, Any]) -> dict[s
     )[:1000]
     for record in history:
         outcome = record.get("outcome", {})
-        signal_date = record.get("dailySignalDate")
+        signal_date = outcome.get("basisDate")
         reached_date = outcome.get("reached5PctDate")
         if signal_date in calendar_index and reached_date in calendar_index:
             outcome["reached5PctTradingDays"] = max(
@@ -965,6 +1030,7 @@ def enrich(
     no_notify: bool,
     refresh_daily_chart: bool = False,
 ) -> tuple[int, int]:
+    restore_registration_baselines(payload)
     exclusion_path = ROOT / "data/candidate-exclusions.json"
     exclusions = json.loads(exclusion_path.read_text(encoding="utf-8")).get("excluded", []) if exclusion_path.exists() else []
     excluded_codes = {r["code"] for r in exclusions}
@@ -980,6 +1046,7 @@ def enrich(
         else:
             kept.append(candidate)
     payload["candidates"] = kept
+    refresh_history_outcomes(payload)
     notified = set(payload.get("notifiedSignals", []))
     topic = os.getenv("NTFY_TOPIC", "").strip()
     new_alerts = 0

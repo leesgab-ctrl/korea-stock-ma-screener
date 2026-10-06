@@ -66,24 +66,29 @@ function renderHistory() {
 
   const table = document.createElement("table");
   table.className = "history-table";
-  table.innerHTML = "<thead><tr><th>종목</th><th>등급</th><th>A-G 발생일</th><th>매수포착일</th><th>포착가</th><th>목표달성일</th><th>달성가</th><th>달성기간</th><th>최고수익률</th><th>최종수익률</th><th>종료일</th></tr></thead><tbody></tbody>";
+  table.innerHTML = "<thead><tr><th>종목</th><th>등급</th><th>A-G 발생일</th><th>화면 등록일·기준가</th><th>매수포착일</th><th>포착가</th><th>목표달성일</th><th>달성가</th><th>등록 후 기간</th><th>최고수익률</th><th>최종수익률</th><th>종료일</th></tr></thead><tbody></tbody>";
   const body = table.querySelector("tbody");
   records.forEach((item) => {
     const outcome = item.outcome || {};
     const row = document.createElement("tr");
     const tier = item.candidateTier === "expanded" ? "확대" : "핵심";
     const targetDate = outcome.reached5Pct ? outcome.reached5PctDate : null;
-    const signalDate = item.signalTime ? String(item.signalTime).slice(0, 10) : null;
-    const targetRange = signalDate && targetDate
-      ? `<span class="history-subline">(${formatElapsedDays(signalDate, targetDate)})</span>`
+    const basisDate = outcome.basisDate;
+    const targetRange = basisDate && targetDate
+      ? `<span class="history-subline">(${formatElapsedDays(basisDate, targetDate)})</span>`
       : "";
+    const signalDate = item.signalTime ? String(item.signalTime).slice(0, 10) : null;
+    const afterSignal = signalDate && targetDate && targetDate >= signalDate
+      ? `<span class="history-subline">포착 후 (${formatElapsedDays(signalDate, targetDate)})</span>`
+      : targetDate && signalDate ? '<span class="history-subline">포착 전 달성</span>' : "";
     row.innerHTML = `
       <td><strong>${escapeHtml(item.name || "-")}</strong><span>${escapeHtml(item.code || "")}</span>${item.archiveReason === "manual_excluded" ? '<span>사용자 선정 제외</span>' : ""}</td>
       <td><span class="history-tier ${item.candidateTier === "expanded" ? "expanded" : ""}">${tier}</span></td>
       <td>${escapeHtml(item.dailySignalDate || "-")}</td>
+      <td>${escapeHtml(item.registeredAt ? String(item.registeredAt).slice(0, 10) : "기록 없음")}<span class="history-subline">${formatPrice(item.registrationPrice)}</span></td>
       <td>${item.signalTime ? escapeHtml(formatDateTime(item.signalTime)) : "없음"}${item.signalTarget ? `<span class="history-subline">${escapeHtml(item.signalTarget)} 돌파</span>` : ""}</td>
       <td>${formatPrice(item.signalPrice)}</td>
-      <td>${targetDate ? `<span class="history-result hit">${escapeHtml(targetDate)}</span>${targetRange}` : '<span class="history-result miss">미달</span>'}</td>
+      <td>${targetDate ? `<span class="history-result hit">${escapeHtml(targetDate)}</span>${targetRange}${afterSignal}` : `<span class="history-result miss">${outcome.dataStatus === "ok" ? "미달" : "자료 부족"}</span>`}</td>
       <td>${targetDate ? formatPrice(outcome.targetPrice) : "-"}</td>
       <td>${targetDate ? formatDuration(outcome.reached5PctTradingDays) : "-"}</td>
       <td class="${returnClass(outcome.peakReturnPct)}">${formatReturn(outcome.peakReturnPct)}</td>

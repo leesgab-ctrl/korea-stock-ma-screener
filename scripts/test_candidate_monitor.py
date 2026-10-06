@@ -128,6 +128,7 @@ class CandidateMonitorTests(unittest.TestCase):
 
     def test_candidate_outcome_tracks_five_percent_and_final_return(self) -> None:
         candidate = {
+            "registeredAt": "2026-10-01T16:00:00+09:00", "registrationPrice": 1000,
             "code": "005720",
             "name": "넥센",
             "dailySignalDate": "2026-10-01",
@@ -135,7 +136,7 @@ class CandidateMonitorTests(unittest.TestCase):
             "dailyChart": {
                 "series": [
                     {"d": "2026-09-30", "h": 990, "c": 980},
-                    {"d": "2026-10-01", "h": 1020, "c": 1000},
+                    {"d": "2026-10-01", "h": 1200, "c": 1000},
                     {"d": "2026-10-02", "h": 1060, "c": 1030},
                     {"d": "2026-10-05", "h": 1040, "c": 1010},
                 ]
@@ -151,6 +152,86 @@ class CandidateMonitorTests(unittest.TestCase):
         self.assertEqual(outcome["peakReturnPct"], 6.0)
         self.assertEqual(outcome["finalReturnPct"], 1.0)
         self.assertEqual(archived["outcome"], outcome)
+
+    def test_same_ag_day_high_is_not_a_forward_success(self) -> None:
+        candidate = {
+            "registeredAt": "2026-10-01T16:00:00+09:00", "registrationPrice": 1000,
+            "dailySignalDate": "2026-10-01",
+            "daily": {"close": 1000},
+            "dailyChart": {"series": [
+                {"d": "2026-10-01", "h": 1200, "c": 1000},
+                {"d": "2026-10-02", "h": 1040, "c": 1020},
+                {"d": "2026-10-05", "h": 1100, "c": 1080},
+            ]},
+            "outcomeEndDate": "2026-10-02",
+        }
+        outcome = candidate_outcome(candidate)
+        self.assertFalse(outcome["reached5Pct"])
+        self.assertEqual(outcome["peakReturnPct"], 4.0)
+        self.assertEqual(outcome["finalReturnPct"], 2.0)
+        candidate["dailyChart"]["series"] = candidate["dailyChart"]["series"][:1]
+        self.assertEqual(candidate_outcome(candidate)["dataStatus"], "insufficient")
+
+    def test_history_migration_recalculates_only_until_archive_date(self) -> None:
+        record = {
+            "registeredAt": "2026-10-01T16:00:00+09:00", "registrationPrice": 1000,
+            "code": "005720", "dailySignalDate": "2026-10-01",
+            "agClose": 1000, "archivedAt": "2026-10-02",
+            "outcome": {"dataStatus": "ok", "reached5Pct": True, "reached5PctDate": "2026-10-01"},
+        }
+        chart = {"series": [
+            {"d": "2026-10-01", "h": 1200, "c": 1000},
+            {"d": "2026-10-02", "h": 1040, "c": 1020},
+            {"d": "2026-10-05", "h": 1100, "c": 1080},
+        ]}
+        with mock.patch.object(monitor, "fetch_daily_chart", return_value=chart) as fetch:
+            monitor.refresh_history_outcomes({"history": [record]})
+            monitor.refresh_history_outcomes({"history": [record]})
+        self.assertEqual(fetch.call_count, 1)
+        self.assertFalse(record["outcome"]["reached5Pct"])
+        self.assertEqual(record["outcome"]["finalDate"], "2026-10-02")
+
+    def test_registration_replaces_old_ag_price_and_excludes_earlier_highs(self) -> None:
+        candidate = {
+            "dailySignalDate": "2026-09-28", "daily": {"close": 1000},
+            "registeredAt": "2026-10-04T12:00:00+09:00", "registrationPrice": 1200,
+            "dailyChart": {"series": [
+                {"d": "2026-10-02", "h": 1500, "c": 1200},
+                {"d": "2026-10-05", "h": 1250, "c": 1210},
+                {"d": "2026-10-06", "h": 1265, "c": 1230},
+            ]},
+        }
+        outcome = candidate_outcome(candidate)
+        self.assertEqual(outcome["startPrice"], 1200)
+        self.assertEqual(outcome["targetPrice"], 1260)
+        self.assertEqual(outcome["reached5PctDate"], "2026-10-06")
+        self.assertEqual(outcome["reached5PctTradingDays"], 2)
+        candidate.pop("registeredAt")
+        self.assertEqual(candidate_outcome(candidate)["dataStatus"], "insufficient")
+
+    def test_registration_day_uses_only_later_complete_bars(self) -> None:
+        candidate = {
+            "registeredAt": "2026-10-06T10:15:00+09:00", "registrationPrice": 1000,
+            "dailyChart": {"series": [{"d": "2026-10-06", "h": 1300, "c": 1020}]},
+            "intraday": {"series": [
+                {"t": "2026-10-06T10:00:00+09:00", "h": 1300, "c": 1000},
+                {"t": "2026-10-06T10:30:00+09:00", "h": 1040, "c": 1020},
+            ]},
+        }
+        self.assertFalse(candidate_outcome(candidate)["reached5Pct"])
+        candidate["intraday"]["series"][-1]["h"] = 1060
+        outcome = candidate_outcome(candidate)
+        self.assertTrue(outcome["reached5Pct"])
+        self.assertEqual(outcome["reached5PctTradingDays"], 0)
+
+    def test_history_migration_failure_removes_stale_success_and_retries(self) -> None:
+        record = {"code": "005720", "outcome": {"dataStatus": "ok", "reached5Pct": True}}
+        with mock.patch.object(monitor, "fetch_daily_chart", side_effect=OSError("offline")) as fetch:
+            monitor.refresh_history_outcomes({"history": [record]})
+            monitor.refresh_history_outcomes({"history": [record]})
+        self.assertEqual(fetch.call_count, 2)
+        self.assertEqual(record["outcome"]["dataStatus"], "error")
+        self.assertFalse(record["outcome"]["reached5Pct"])
 
     def test_validation_summary_combines_active_and_archived_candidates(self) -> None:
         payload = {
