@@ -65,21 +65,24 @@ function renderHistory() {
 
   const table = document.createElement("table");
   table.className = "history-table";
-  table.innerHTML = "<thead><tr><th>종목</th><th>등급</th><th>A-G 발생</th><th>매수 포착</th><th>포착가</th><th>최고수익률</th><th>최종수익률</th><th>+5%</th><th>종료일</th></tr></thead><tbody></tbody>";
+  table.innerHTML = "<thead><tr><th>종목</th><th>등급</th><th>A-G 발생일</th><th>매수포착일</th><th>포착가</th><th>목표달성일</th><th>달성가</th><th>달성기간</th><th>최고수익률</th><th>최종수익률</th><th>종료일</th></tr></thead><tbody></tbody>";
   const body = table.querySelector("tbody");
   records.forEach((item) => {
     const outcome = item.outcome || {};
     const row = document.createElement("tr");
-    const tier = item.candidateTier === "expanded" ? "확대 A-G" : "핵심 A-G";
+    const tier = item.candidateTier === "expanded" ? "확대" : "핵심";
+    const targetDate = outcome.reached5Pct ? outcome.reached5PctDate : null;
     row.innerHTML = `
       <td><strong>${escapeHtml(item.name || "-")}</strong><span>${escapeHtml(item.code || "")}</span></td>
       <td><span class="history-tier ${item.candidateTier === "expanded" ? "expanded" : ""}">${tier}</span></td>
       <td>${escapeHtml(item.dailySignalDate || "-")}</td>
-      <td>${item.signalTime ? escapeHtml(formatDateTime(item.signalTime)) : "없음"}${item.signalTarget ? `<br>${escapeHtml(item.signalTarget)}` : ""}</td>
+      <td>${item.signalTime ? escapeHtml(formatDateTime(item.signalTime)) : "없음"}${item.signalTarget ? `<span class="history-subline">${escapeHtml(item.signalTarget)} 돌파</span>` : ""}</td>
       <td>${formatPrice(item.signalPrice)}</td>
+      <td>${targetDate ? `<span class="history-result hit">${escapeHtml(targetDate)}</span>` : '<span class="history-result miss">미달</span>'}</td>
+      <td>${targetDate ? formatPrice(outcome.targetPrice) : "-"}</td>
+      <td>${targetDate ? formatDuration(outcome.reached5PctTradingDays) : "-"}</td>
       <td class="${returnClass(outcome.peakReturnPct)}">${formatReturn(outcome.peakReturnPct)}</td>
       <td class="${returnClass(outcome.finalReturnPct)}">${formatReturn(outcome.finalReturnPct)}</td>
-      <td><span class="history-result ${outcome.reached5Pct ? "hit" : "miss"}">${outcome.reached5Pct ? `달성${outcome.reached5PctDate ? `<br>${escapeHtml(outcome.reached5PctDate)}` : ""}` : "미달"}</span></td>
       <td>${escapeHtml(item.archivedAt || outcome.finalDate || "-")}</td>`;
     body.append(row);
   });
@@ -99,6 +102,11 @@ function formatReturn(value) {
 
 function formatPrice(value) {
   return value != null && value !== "" && Number.isFinite(Number(value)) ? `${formatter.format(Number(value))}원` : "-";
+}
+
+function formatDuration(value) {
+  if (value == null || value === "" || !Number.isFinite(Number(value))) return "-";
+  return Number(value) === 0 ? "당일" : `${formatter.format(Number(value))}거래일`;
 }
 
 function formatDateTime(value) {

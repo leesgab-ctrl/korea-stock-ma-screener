@@ -48,6 +48,7 @@ class CandidateMonitorTests(unittest.TestCase):
 
         self.assertTrue(outcome["reached5Pct"])
         self.assertEqual(outcome["reached5PctDate"], "2026-10-02")
+        self.assertEqual(outcome["reached5PctTradingDays"], 1)
         self.assertEqual(outcome["peakReturnPct"], 6.0)
         self.assertEqual(outcome["finalReturnPct"], 1.0)
         self.assertEqual(archived["outcome"], outcome)

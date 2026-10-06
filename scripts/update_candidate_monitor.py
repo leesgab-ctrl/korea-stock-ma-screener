@@ -146,6 +146,7 @@ def candidate_outcome(candidate: dict[str, Any]) -> dict[str, Any]:
         (row for row in series if row.get("h", row.get("c", 0)) >= target_price),
         None,
     )
+    reached_index = series.index(reached_row) if reached_row else None
     return {
         "dataStatus": "ok",
         "startPrice": start_price,
@@ -158,6 +159,7 @@ def candidate_outcome(candidate: dict[str, Any]) -> dict[str, Any]:
         "finalReturnPct": round(100 * (latest["c"] / start_price - 1), 2),
         "reached5Pct": reached_row is not None,
         "reached5PctDate": reached_row.get("d") if reached_row else None,
+        "reached5PctTradingDays": reached_index,
         "observedTradingDays": len(series),
     }
 
@@ -315,6 +317,14 @@ def build_daily_candidates(stock_data: Path, previous: dict[str, Any]) -> dict[s
         key=lambda item: (item.get("dailySignalDate", ""), item.get("name", "")),
         reverse=True,
     )[:1000]
+    for record in history:
+        outcome = record.get("outcome", {})
+        signal_date = record.get("dailySignalDate")
+        reached_date = outcome.get("reached5PctDate")
+        if signal_date in calendar_index and reached_date in calendar_index:
+            outcome["reached5PctTradingDays"] = max(
+                0, calendar_index[reached_date] - calendar_index[signal_date]
+            )
     return {
         "version": 1,
         "generatedAt": now_kst().isoformat(timespec="seconds"),
