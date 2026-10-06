@@ -79,10 +79,13 @@ class CandidateMonitorTests(unittest.TestCase):
                  "ma20": 1020+i, "ma40": 1010, "ma60": 1000} for i in range(12)]
         bars.insert(0, {"time": (day - dt.timedelta(days=1)).replace(hour=15), "ma20": 1019, "ma40": 1010, "ma60": 1000})
         rows = [{"time": day.replace(hour=h, minute=m), "price": p}
-                for h,m,p in [(9,5,1050), (11,0,995), (15,0,1010), (15,5,1100)]]
+                for h,m,p in [(9,5,1050), (11,0,1005), (15,0,1010), (15,5,1100)]]
         result = monitor.evaluate_session_recovery(candidate, rows, bars, day.replace(hour=15, minute=10))
         self.assertTrue(result["matched"])
         self.assertEqual(result["price"], 1010)
+        rows[1]["price"] = 1006
+        self.assertFalse(monitor.evaluate_session_recovery(candidate, rows, bars, day.replace(hour=15, minute=10))["matched"])
+        rows[1]["price"] = 1005
         rows[0]["time"] = day.replace(hour=9, minute=6)
         self.assertFalse(monitor.evaluate_session_recovery(candidate, rows, bars, day.replace(hour=15, minute=10))["matched"])
         rows.pop(2)

@@ -738,7 +738,7 @@ def evaluate_session_recovery(candidate, rows, bars, current):
     # Use observed five-minute boundary prices, not intrabar extremes.
     closes = [r for r in ticks if r["time"].minute % 5 == 0 and r["time"].time() > dt.time(9)]
     surge = next((r for r in closes if r["time"].time() <= dt.time(10) and r["price"] >= reference * 1.05), None)
-    pullback = next((r for r in closes if surge and r["time"] > surge["time"] and r["price"] <= reference), None)
+    pullback = next((r for r in closes if surge and r["time"] > surge["time"] and r["price"] * 1000 <= reference * 1005), None)
     price = ticks[-1]["price"]
     matched = bool(aligned and uninterrupted and rising and surge and pullback and reference <= price <= reference * 1.02)
     result.update(dataStatus="ok", matched=matched, price=price, previousClose=reference,
@@ -917,7 +917,7 @@ def notify_ntfy(topic: str, candidate: dict[str, Any], recovery=None) -> None:
         message = (f"{candidate['name']}({candidate['code']})\n"
                    f"15:00 기준 정배열 조정·회복 관찰\n"
                    f"확인가격: {recovery['price']:,}원 ({recovery['changePct']:+.2f}%)\n"
-                   "초반 +5% 상승 → 전일 종가 이하 조정 → 0~+2% 회복\n"
+                   "초반 +5% 상승 → 전일 종가 대비 +0.5% 이하 조정 → 0~+2% 회복\n"
                    f"검사시각: {now_kst().isoformat(timespec='minutes')}")
     body = json.dumps(
         {
