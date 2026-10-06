@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#176b58">
+    <title>A-G 후보 검증 이력</title>
+    <link rel="stylesheet" href="monitor.css?v=20261006-2">
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand-lockup">
+        <span class="brand-mark">K</span>
+        <div>
+          <h1>A-G 후보 검증 이력</h1>
+          <p>10거래일 관리 종료 종목</p>
+        </div>
+      </div>
+      <nav aria-label="화면 이동">
+        <a class="history-link" href="monitor.html">현재 감시</a>
+        <button id="refreshButton" type="button">새로고침</button>
+      </nav>
+    </header>
+
+    <main class="history-page">
+      <section class="summary" aria-label="종료 후보 요약">
+        <div><strong id="completedCount">-</strong><span>종료 후보</span></div>
+        <div><strong id="evaluatedCount">-</strong><span>평가 완료</span></div>
+        <div><strong id="reachedCount">-</strong><span>+5% 달성</span></div>
+        <div><strong id="reachedRate">-</strong><span>종료 후보 달성률</span></div>
+      </section>
+
+      <section id="historyNotice" class="notice" aria-label="이력 상태">
+        <div>
+          <strong id="historyStatus">검증 이력 확인 중</strong>
+          <p id="historyUpdatedAt">마지막 갱신 시각을 불러오고 있습니다.</p>
+        </div>
+        <span class="status-chip">종료 후보 전용</span>
+      </section>
+
+      <section class="history-panel" aria-label="A-G 종료 후보">
+        <div class="section-heading">
+          <div>
+            <h2>종료 후보 목록</h2>
+            <p>A-G 발생일 종가 대비 10거래일 동안의 성과</p>
+          </div>
+        </div>
+        <div class="history-toolbar">
+          <p id="historyMeta">종료된 후보부터 이력이 쌓입니다.</p>
+          <label class="search-field">
+            <span>종목 검색</span>
+            <input id="historyKeyword" type="search" placeholder="종목명 또는 코드">
+          </label>
+        </div>
+        <div id="historyList" class="history-list">
+          <div class="empty-list">검증 이력을 불러오는 중입니다.</div>
+        </div>
+      </section>
+    </main>
+
+    <script src="history.js?v=20261006-1"></script>
+  </body>
+</html>

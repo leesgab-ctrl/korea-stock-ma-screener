@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#176b58">
     <title>A-G 30분봉 신호 감시</title>
-    <link rel="stylesheet" href="monitor.css?v=20261006-1">
+    <link rel="stylesheet" href="monitor.css?v=20261006-2">
   </head>
   <body>
     <header class="topbar">
@@ -18,6 +18,7 @@
       </div>
       <nav aria-label="화면 이동">
         <a href="index.html">이동평균 검색</a>
+        <a class="history-link" href="history.html">검증 이력</a>
         <button id="refreshButton" type="button">새로고침</button>
         <button id="criteriaButton" class="criteria-button" type="button">운영관리기준</button>
       </nav>
@@ -42,13 +43,6 @@
           <p id="updatedAt">마지막 갱신 시각을 불러오고 있습니다.</p>
         </div>
         <span id="pushState" class="status-chip">푸시 확인 중</span>
-      </section>
-
-      <section class="history-panel" aria-label="A-G 검증 이력">
-        <div class="section-heading">
-          <div><h2>A-G 검증 이력</h2><p id="historyMeta">A-G 발생일 종가 대비 10거래일 동안의 성과</p></div>
-        </div>
-        <div id="historyList" class="history-list"><div class="empty-list">종료된 후보부터 이력이 쌓입니다.</div></div>
       </section>
 
       <section class="positions-panel" aria-label="보유종목 관리">
@@ -234,6 +228,6 @@
       </form>
     </dialog>
 
-    <script src="monitor.js?v=20261006-1"></script>
+    <script src="monitor.js?v=20261006-2"></script>
   </body>
 </html>

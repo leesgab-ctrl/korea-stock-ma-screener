@@ -20,6 +20,7 @@ from update_candidate_monitor import (
     infer_missing_baseline,
     merge_30m_history,
     rise_context,
+    target_completed_before,
     update_validation_summary,
     valid_post_candidate_sequence,
 )
@@ -73,6 +74,24 @@ class CandidateMonitorTests(unittest.TestCase):
         self.assertEqual(payload["validationSummary"]["totalDetected"], 2)
         self.assertEqual(payload["validationSummary"]["reached5Pct"], 1)
         self.assertEqual(payload["validationSummary"]["reached5PctRate"], 50.0)
+
+    def test_signaled_target_winner_moves_on_following_trading_day(self) -> None:
+        candidate = {
+            "intraday": {"signalTime": "2026-10-06T11:00:00+09:00"},
+            "outcome": {"reached5Pct": True, "reached5PctDate": "2026-10-06"},
+        }
+
+        self.assertFalse(target_completed_before(candidate, "2026-10-06"))
+        self.assertTrue(target_completed_before(candidate, "2026-10-07"))
+
+    def test_target_winner_waits_until_day_after_later_signal(self) -> None:
+        candidate = {
+            "intraday": {"signalTime": "2026-10-07T10:30:00+09:00"},
+            "outcome": {"reached5Pct": True, "reached5PctDate": "2026-10-06"},
+        }
+
+        self.assertFalse(target_completed_before(candidate, "2026-10-07"))
+        self.assertTrue(target_completed_before(candidate, "2026-10-08"))
 
     def test_daily_chart_parses_candles_and_moving_averages(self) -> None:
         items = "".join(

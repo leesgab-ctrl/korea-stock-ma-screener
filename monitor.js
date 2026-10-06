@@ -27,8 +27,6 @@ const elements = {
   candidateMeta: document.querySelector("#candidateMeta"),
   candidateList: document.querySelector("#candidateList"),
   positionList: document.querySelector("#positionList"),
-  historyList: document.querySelector("#historyList"),
-  historyMeta: document.querySelector("#historyMeta"),
   template: document.querySelector("#candidateTemplate"),
   keyword: document.querySelector("#keyword"),
   refreshButton: document.querySelector("#refreshButton"),
@@ -125,7 +123,7 @@ async function loadData() {
 }
 
 function render() {
-  const { summary = {}, validationSummary = {}, candidates = [], history = [], asOf, generatedAt } = state.payload;
+  const { summary = {}, validationSummary = {}, candidates = [], asOf, generatedAt } = state.payload;
   const activeCandidates = candidates.filter((item) => !["excluded", "ineligible"].includes(item.status));
   elements.activeCount.textContent = summary.active ?? activeCandidates.length;
   elements.setupCount.textContent = (summary.setup ?? 0) + (summary.waiting60 ?? 0);
@@ -145,52 +143,12 @@ function render() {
   renderCandidates(activeCandidates);
   const closedPositions = (state.positions?.positions || []).filter((item) => item.status === "closed");
   renderPositions(openPositions, closedPositions);
-  renderHistory(history, validationSummary);
   renderDetail(activeCandidates.find((item) => item.code === state.selectedCode));
   placeDetailPanel();
   if (state.deepLinkPending && state.selectedCode) {
     state.deepLinkPending = false;
     requestAnimationFrame(() => elements.detailPanel.scrollIntoView({ behavior: "smooth", block: "start" }));
   }
-}
-
-function renderHistory(history, summary) {
-  elements.historyMeta.textContent = `누적 ${summary.totalDetected || 0}종목 · 평가 ${summary.evaluated || 0}종목 · +5% 달성 ${summary.reached5Pct || 0}종목 (${formatter.format(summary.reached5PctRate || 0)}%)`;
-  elements.historyList.innerHTML = "";
-  if (!history.length) {
-    elements.historyList.innerHTML = '<div class="empty-list">10거래일 관리가 끝난 종목부터 최종 기록이 여기에 쌓입니다.</div>';
-    return;
-  }
-  const table = document.createElement("table");
-  table.className = "history-table";
-  table.innerHTML = "<thead><tr><th>종목</th><th>A-G 발생</th><th>포착</th><th>최고수익률</th><th>최종수익률</th><th>+5%</th></tr></thead><tbody></tbody>";
-  const body = table.querySelector("tbody");
-  history.slice(0, 30).forEach((item) => {
-    const outcome = item.outcome || {};
-    const row = document.createElement("tr");
-    row.innerHTML = `
-      <td><strong>${escapeHtml(item.name || "-")}</strong><span>${escapeHtml(item.code || "")}</span></td>
-      <td>${escapeHtml(item.dailySignalDate || "-")}</td>
-      <td>${item.signalTime ? escapeHtml(formatShortTime(item.signalTime)) : "없음"}</td>
-      <td class="${Number(outcome.peakReturnPct) >= 0 ? "positive" : "negative"}">${formatReturn(outcome.peakReturnPct)}</td>
-      <td class="${Number(outcome.finalReturnPct) >= 0 ? "positive" : "negative"}">${formatReturn(outcome.finalReturnPct)}</td>
-      <td><span class="history-result ${outcome.reached5Pct ? "hit" : "miss"}">${outcome.reached5Pct ? "달성" : "미달"}</span></td>`;
-    body.append(row);
-  });
-  elements.historyList.append(table);
-}
-
-function formatReturn(value) {
-  return Number.isFinite(Number(value)) ? `${Number(value) >= 0 ? "+" : ""}${formatter.format(Number(value))}%` : "-";
-}
-
-function escapeHtml(value) {
-  return String(value)
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
 }
 
 function renderFilterCounts(candidates) {

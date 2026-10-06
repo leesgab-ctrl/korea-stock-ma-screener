@@ -184,6 +184,18 @@ def archive_candidate(candidate: dict[str, Any], archived_at: str, reason: str) 
     }
 
 
+def target_completed_before(candidate: dict[str, Any], latest_date: str) -> bool:
+    """Move a signaled +5% winner on the trading day after both events exist."""
+    outcome = candidate.get("outcome", {})
+    signal_time = candidate.get("intraday", {}).get("signalTime")
+    reached_date = outcome.get("reached5PctDate")
+    if not signal_time or not outcome.get("reached5Pct") or not reached_date:
+        return False
+    signal_date = str(signal_time)[:10]
+    completed_date = max(str(reached_date), signal_date)
+    return latest_date > completed_date
+
+
 def update_validation_summary(payload: dict[str, Any]) -> None:
     current_records = [
         {
@@ -269,6 +281,8 @@ def build_daily_candidates(stock_data: Path, previous: dict[str, Any]) -> dict[s
                 "naverUrl": f"https://stock.naver.com/domestic/stock/{stock['c']}/price",
             }
         prior = previous_candidates.get((stock["c"], signal_date), {})
+        if target_completed_before(prior, latest_date):
+            continue
         if prior.get("tracking"):
             candidate["tracking"] = prior["tracking"]
         if prior.get("intradayHistory"):
@@ -288,7 +302,12 @@ def build_daily_candidates(stock_data: Path, previous: dict[str, Any]) -> dict[s
             prior["dailyChart"] = fetch_daily_chart(prior["code"])
         except (OSError, TimeoutError, ValueError):
             pass
-        reason = "window_completed" if prior.get("tradingDaysRemaining", 0) <= 1 else "candidate_replaced"
+        if target_completed_before(prior, latest_date):
+            reason = "target_completed"
+        elif prior.get("tradingDaysRemaining", 0) <= 1:
+            reason = "window_completed"
+        else:
+            reason = "candidate_replaced"
         record = archive_candidate(prior, latest_date, reason)
         history_by_id[record["id"]] = record
     history = sorted(
