@@ -302,6 +302,10 @@ def build_daily_candidates(stock_data: Path, previous: dict[str, Any]) -> dict[s
         (item.get("code"), item.get("dailySignalDate")): item
         for item in previous.get("candidates", [])
     }
+    previous_registrations = {
+        (item.get("code"), item.get("dailySignalDate")): item
+        for item in [*previous.get("history", []), *previous.get("candidates", [])]
+    }
     for stock in payload.get("stocks", []):
         if stock["c"] in excluded_codes:
             continue
@@ -350,10 +354,11 @@ def build_daily_candidates(stock_data: Path, previous: dict[str, Any]) -> dict[s
         prior = previous_candidates.get((stock["c"], signal_date), {})
         if prior and prior.get("outcome", {}).get("ruleVersion") != OUTCOME_RULE_VERSION:
             prior["outcome"] = candidate_outcome(prior)
+        registration = previous_registrations.get((stock["c"], signal_date), {})
         for field in ("registeredAt", "registrationPrice", "registrationSource"):
-            if field in prior:
-                candidate[field] = prior[field]
-        if not prior:
+            if field in registration:
+                candidate[field] = registration[field]
+        if not registration:
             candidate["registeredAt"] = now_kst().isoformat(timespec="seconds")
             candidate["registrationPrice"] = rows[-1]["close"]
             candidate["registrationSource"] = "registration_reference_close"
