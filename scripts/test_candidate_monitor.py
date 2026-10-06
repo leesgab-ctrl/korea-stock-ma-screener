@@ -9,6 +9,8 @@ import update_candidate_monitor as monitor
 from update_candidate_monitor import (
     KST,
     aggregate_30m,
+    archive_candidate,
+    candidate_outcome,
     consecutive_ma20_falls,
     depth_rule_context,
     daily_ma10_for_bar,
@@ -18,11 +20,60 @@ from update_candidate_monitor import (
     infer_missing_baseline,
     merge_30m_history,
     rise_context,
+    update_validation_summary,
     valid_post_candidate_sequence,
 )
 
 
 class CandidateMonitorTests(unittest.TestCase):
+    def test_candidate_outcome_tracks_five_percent_and_final_return(self) -> None:
+        candidate = {
+            "code": "005720",
+            "name": "넥센",
+            "dailySignalDate": "2026-10-01",
+            "daily": {"close": 1000, "spikeDate": "2026-09-29", "values": {}},
+            "dailyChart": {
+                "series": [
+                    {"d": "2026-09-30", "h": 990, "c": 980},
+                    {"d": "2026-10-01", "h": 1020, "c": 1000},
+                    {"d": "2026-10-02", "h": 1060, "c": 1030},
+                    {"d": "2026-10-05", "h": 1040, "c": 1010},
+                ]
+            },
+        }
+
+        outcome = candidate_outcome(candidate)
+        archived = archive_candidate(candidate, "2026-10-15", "window_completed")
+
+        self.assertTrue(outcome["reached5Pct"])
+        self.assertEqual(outcome["reached5PctDate"], "2026-10-02")
+        self.assertEqual(outcome["peakReturnPct"], 6.0)
+        self.assertEqual(outcome["finalReturnPct"], 1.0)
+        self.assertEqual(archived["outcome"], outcome)
+
+    def test_validation_summary_combines_active_and_archived_candidates(self) -> None:
+        payload = {
+            "candidates": [
+                {
+                    "code": "005720",
+                    "dailySignalDate": "2026-10-01",
+                    "outcome": {"dataStatus": "ok", "reached5Pct": True},
+                }
+            ],
+            "history": [
+                {
+                    "id": "001250|2026-09-18",
+                    "outcome": {"dataStatus": "ok", "reached5Pct": False},
+                }
+            ],
+        }
+
+        update_validation_summary(payload)
+
+        self.assertEqual(payload["validationSummary"]["totalDetected"], 2)
+        self.assertEqual(payload["validationSummary"]["reached5Pct"], 1)
+        self.assertEqual(payload["validationSummary"]["reached5PctRate"], 50.0)
+
     def test_daily_chart_parses_candles_and_moving_averages(self) -> None:
         items = "".join(
             f'<item data="202601{index + 1:02d}|{100 + index}|{103 + index}|{99 + index}|{102 + index}|{1000 + index}" />'

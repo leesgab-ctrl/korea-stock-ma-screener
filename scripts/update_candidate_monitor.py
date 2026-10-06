@@ -15,6 +15,7 @@ from zoneinfo import ZoneInfo
 ROOT = Path(__file__).resolve().parents[1]
 KST = ZoneInfo("Asia/Seoul")
 USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124 Safari/537.36"
+MONITOR_URL = "https://leesgab-ctrl.github.io/korea-stock-ma-screener/monitor.html"
 TRACKING_RULE_VERSION = 5
 CORE_TIER = "core"
 EXPANDED_TIER = "expanded"
@@ -124,6 +125,90 @@ def load_previous(path: Path) -> dict[str, Any]:
         return {"notifiedSignals": []}
 
 
+def candidate_outcome(candidate: dict[str, Any]) -> dict[str, Any]:
+    signal_date = candidate.get("dailySignalDate")
+    start_price = candidate.get("daily", {}).get("close")
+    series = [
+        row for row in candidate.get("dailyChart", {}).get("series", [])
+        if signal_date and row.get("d", "") >= signal_date
+    ]
+    if not start_price or not series:
+        return {
+            "dataStatus": "insufficient",
+            "startPrice": start_price,
+            "reached5Pct": False,
+        }
+    peak_row = max(series, key=lambda row: row.get("h", row.get("c", 0)))
+    peak_price = peak_row.get("h", peak_row.get("c"))
+    latest = series[-1]
+    target_price = start_price * 1.05
+    reached_row = next(
+        (row for row in series if row.get("h", row.get("c", 0)) >= target_price),
+        None,
+    )
+    return {
+        "dataStatus": "ok",
+        "startPrice": start_price,
+        "targetPrice": round(target_price, 2),
+        "peakPrice": peak_price,
+        "peakDate": peak_row.get("d"),
+        "peakReturnPct": round(100 * (peak_price / start_price - 1), 2),
+        "finalPrice": latest.get("c"),
+        "finalDate": latest.get("d"),
+        "finalReturnPct": round(100 * (latest["c"] / start_price - 1), 2),
+        "reached5Pct": reached_row is not None,
+        "reached5PctDate": reached_row.get("d") if reached_row else None,
+        "observedTradingDays": len(series),
+    }
+
+
+def archive_candidate(candidate: dict[str, Any], archived_at: str, reason: str) -> dict[str, Any]:
+    intraday = candidate.get("intraday", {})
+    return {
+        "id": f"{candidate.get('code')}|{candidate.get('dailySignalDate')}",
+        "code": candidate.get("code"),
+        "name": candidate.get("name"),
+        "market": candidate.get("market"),
+        "candidateTier": candidate.get("candidateTier", CORE_TIER),
+        "dailySignalDate": candidate.get("dailySignalDate"),
+        "spikeDate": candidate.get("daily", {}).get("spikeDate"),
+        "agClose": candidate.get("daily", {}).get("close"),
+        "agValues": candidate.get("daily", {}).get("values", {}),
+        "statusAtClose": candidate.get("status"),
+        "signalTime": intraday.get("signalTime"),
+        "signalPrice": intraday.get("signalPrice"),
+        "signalTarget": intraday.get("signalTarget"),
+        "outcome": candidate_outcome(candidate),
+        "archivedAt": archived_at,
+        "archiveReason": reason,
+    }
+
+
+def update_validation_summary(payload: dict[str, Any]) -> None:
+    current_records = [
+        {
+            "id": f"{candidate.get('code')}|{candidate.get('dailySignalDate')}",
+            "outcome": candidate.get("outcome", {}),
+        }
+        for candidate in payload.get("candidates", [])
+    ]
+    all_records = [*payload.get("history", []), *current_records]
+    unique = {record.get("id"): record for record in all_records if record.get("id")}
+    evaluated = [
+        record for record in unique.values()
+        if record.get("outcome", {}).get("dataStatus") == "ok"
+    ]
+    hits = sum(bool(record["outcome"].get("reached5Pct")) for record in evaluated)
+    payload["validationSummary"] = {
+        "totalDetected": len(unique),
+        "evaluated": len(evaluated),
+        "completed": len(payload.get("history", [])),
+        "reached5Pct": hits,
+        "reached5PctRate": round(100 * hits / len(evaluated), 1) if evaluated else 0.0,
+        "basis": "A-G 발생일 종가 대비 관리기간 중 일봉 고가 +5%",
+    }
+
+
 def build_daily_candidates(stock_data: Path, previous: dict[str, Any]) -> dict[str, Any]:
     payload = json.loads(stock_data.read_text(encoding="utf-8"))
     calendar = payload.get("dates", [])
@@ -191,6 +276,26 @@ def build_daily_candidates(stock_data: Path, previous: dict[str, Any]) -> dict[s
         candidates.append(candidate)
 
     candidates.sort(key=lambda item: (item["dailySignalDate"], item["name"]), reverse=True)
+    active_keys = {(item["code"], item["dailySignalDate"]) for item in candidates}
+    history_by_id = {
+        item.get("id"): item for item in previous.get("history", []) if item.get("id")
+    }
+    for prior in previous.get("candidates", []):
+        key = (prior.get("code"), prior.get("dailySignalDate"))
+        if key in active_keys:
+            continue
+        try:
+            prior["dailyChart"] = fetch_daily_chart(prior["code"])
+        except (OSError, TimeoutError, ValueError):
+            pass
+        reason = "window_completed" if prior.get("tradingDaysRemaining", 0) <= 1 else "candidate_replaced"
+        record = archive_candidate(prior, latest_date, reason)
+        history_by_id[record["id"]] = record
+    history = sorted(
+        history_by_id.values(),
+        key=lambda item: (item.get("dailySignalDate", ""), item.get("name", "")),
+        reverse=True,
+    )[:1000]
     return {
         "version": 1,
         "generatedAt": now_kst().isoformat(timespec="seconds"),
@@ -199,6 +304,7 @@ def build_daily_candidates(stock_data: Path, previous: dict[str, Any]) -> dict[s
         "strategy": STRATEGY,
         "summary": {},
         "candidates": candidates,
+        "history": history,
         "notifiedSignals": previous.get("notifiedSignals", []),
     }
 
@@ -725,9 +831,9 @@ def notify_ntfy(topic: str, candidate: dict[str, Any]) -> None:
             "topic": topic,
             "title": f"🔴 [{tier_label}] {candidate['name']} 매수시점 포착",
             "message": message,
-            "priority": 4,
+            "priority": 5,
             "tags": ["chart_with_upwards_trend"],
-            "click": candidate["naverUrl"],
+            "click": f"{MONITOR_URL}?stock={candidate['code']}",
         },
         ensure_ascii=False,
     ).encode("utf-8")
@@ -766,6 +872,7 @@ def enrich(
             intraday = {"dataStatus": "error", "error": str(exc), "barCount": 0}
             errors += 1
         candidate["intraday"] = intraday
+        candidate["outcome"] = candidate_outcome(candidate)
         if intraday.get("signalTime"):
             signal_at = dt.datetime.fromisoformat(intraday["signalTime"])
             signal_age = current - signal_at
@@ -844,6 +951,7 @@ def enrich(
         "pendingNotifications": pending - new_alerts,
         "pushConfigured": bool(topic),
     }
+    update_validation_summary(payload)
     return new_alerts, pending - new_alerts
 
 
@@ -890,7 +998,7 @@ def main() -> None:
         current,
         args.minute_count,
         args.no_notify,
-        refresh_daily_chart=args.mode == "daily",
+        refresh_daily_chart=True,
     )
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")

@@ -49,7 +49,7 @@ h2 { font-size: 17px; }
 .topbar .criteria-button { background: #fff; color: var(--green); }
 
 main { max-width: 1480px; margin: 0 auto; padding: 18px; display: grid; gap: 14px; }
-.summary { display: grid; grid-template-columns: repeat(7, 1fr); background: var(--panel); border: 1px solid var(--line); border-radius: 7px; overflow: hidden; }
+.summary { display: grid; grid-template-columns: repeat(9, 1fr); background: var(--panel); border: 1px solid var(--line); border-radius: 7px; overflow: hidden; }
 .summary div { min-height: 78px; padding: 15px 18px; display: grid; align-content: center; gap: 3px; border-right: 1px solid var(--line); }
 .summary div:last-child { border-right: 0; }
 .summary strong { font-size: 23px; }
@@ -64,6 +64,19 @@ main { max-width: 1480px; margin: 0 auto; padding: 18px; display: grid; gap: 14p
 .status-chip.waiting60 { background: var(--amber-soft); color: var(--amber); }
 .status-chip.waiting10 { background: #f0f2f1; color: var(--muted); }
 .status-chip.excluded { background: #ecefed; color: var(--muted); }
+
+.history-panel { background: var(--panel); border: 1px solid var(--line); border-radius: 7px; overflow: hidden; }
+.history-list { max-height: 320px; overflow: auto; }
+.history-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.history-table th, .history-table td { padding: 10px 12px; border-bottom: 1px solid var(--line); text-align: left; white-space: nowrap; }
+.history-table th { position: sticky; top: 0; z-index: 1; background: #f7faf8; color: var(--muted); font-size: 11px; }
+.history-table td:first-child { min-width: 145px; }
+.history-table td:first-child span { display: block; margin-top: 2px; color: var(--muted); font-size: 10px; }
+.history-table .positive { color: var(--red); font-weight: 800; }
+.history-table .negative { color: var(--blue); font-weight: 800; }
+.history-result { display: inline-flex; min-height: 24px; align-items: center; padding: 3px 7px; border-radius: 4px; font-weight: 800; }
+.history-result.hit { background: var(--red-soft); color: var(--red); }
+.history-result.miss { background: #eef1ef; color: var(--muted); }
 
 .positions-panel { background: var(--panel); border: 1px solid var(--line); border-radius: 7px; overflow: hidden; }
 .position-list { padding: 10px; display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 8px; }

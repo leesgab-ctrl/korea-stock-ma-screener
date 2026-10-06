@@ -1,4 +1,12 @@
-const state = { payload: null, positions: null, filter: "all", keyword: "", selectedCode: null };
+const requestedCode = new URLSearchParams(window.location.search).get("stock");
+const state = {
+  payload: null,
+  positions: null,
+  filter: "all",
+  keyword: "",
+  selectedCode: requestedCode && /^\d{6}$/.test(requestedCode) ? requestedCode : null,
+  deepLinkPending: Boolean(requestedCode),
+};
 const GITHUB_TOKEN_KEY = "koreaStockMonitor.githubToken";
 const WORKFLOW_DISPATCH_URL = "https://api.github.com/repos/leesgab-ctrl/korea-stock-ma-screener/actions/workflows/manage-position.yml/dispatches";
 const MAX_STOP_PCT = 5;
@@ -10,6 +18,8 @@ const elements = {
   signaledCount: document.querySelector("#signaledCount"),
   risingCount: document.querySelector("#risingCount"),
   positionCount: document.querySelector("#positionCount"),
+  detectedCount: document.querySelector("#detectedCount"),
+  targetRate: document.querySelector("#targetRate"),
   asOf: document.querySelector("#asOf"),
   runStatus: document.querySelector("#runStatus"),
   updatedAt: document.querySelector("#updatedAt"),
@@ -17,6 +27,8 @@ const elements = {
   candidateMeta: document.querySelector("#candidateMeta"),
   candidateList: document.querySelector("#candidateList"),
   positionList: document.querySelector("#positionList"),
+  historyList: document.querySelector("#historyList"),
+  historyMeta: document.querySelector("#historyMeta"),
   template: document.querySelector("#candidateTemplate"),
   keyword: document.querySelector("#keyword"),
   refreshButton: document.querySelector("#refreshButton"),
@@ -36,6 +48,7 @@ const elements = {
   signalMessage: document.querySelector("#signalMessage"),
   chart: document.querySelector("#maChart"),
   dailyChart: document.querySelector("#dailyChart"),
+  dailyChartMeta: document.querySelector("#dailyChartMeta"),
   positionManagerButton: document.querySelector("#positionManagerButton"),
   positionDialog: document.querySelector("#positionDialog"),
   positionDialogClose: document.querySelector("#positionDialogClose"),
@@ -112,7 +125,7 @@ async function loadData() {
 }
 
 function render() {
-  const { summary = {}, candidates = [], asOf, generatedAt } = state.payload;
+  const { summary = {}, validationSummary = {}, candidates = [], history = [], asOf, generatedAt } = state.payload;
   const activeCandidates = candidates.filter((item) => !["excluded", "ineligible"].includes(item.status));
   elements.activeCount.textContent = summary.active ?? activeCandidates.length;
   elements.setupCount.textContent = (summary.setup ?? 0) + (summary.waiting60 ?? 0);
@@ -121,6 +134,8 @@ function render() {
   elements.risingCount.textContent = summary.rising ?? 0;
   const openPositions = (state.positions?.positions || []).filter((item) => item.status === "open");
   elements.positionCount.textContent = openPositions.length;
+  elements.detectedCount.textContent = validationSummary.totalDetected ?? candidates.length;
+  elements.targetRate.textContent = `${formatter.format(validationSummary.reached5PctRate || 0)}%`;
   elements.asOf.textContent = asOf || "-";
   elements.runStatus.textContent = summary.dataErrors ? `분봉 오류 ${summary.dataErrors}건` : "클라우드 감시 정상";
   elements.updatedAt.textContent = generatedAt ? `마지막 갱신 ${formatDateTime(generatedAt)}` : "갱신 기록 없음";
@@ -130,8 +145,52 @@ function render() {
   renderCandidates(activeCandidates);
   const closedPositions = (state.positions?.positions || []).filter((item) => item.status === "closed");
   renderPositions(openPositions, closedPositions);
+  renderHistory(history, validationSummary);
   renderDetail(activeCandidates.find((item) => item.code === state.selectedCode));
   placeDetailPanel();
+  if (state.deepLinkPending && state.selectedCode) {
+    state.deepLinkPending = false;
+    requestAnimationFrame(() => elements.detailPanel.scrollIntoView({ behavior: "smooth", block: "start" }));
+  }
+}
+
+function renderHistory(history, summary) {
+  elements.historyMeta.textContent = `누적 ${summary.totalDetected || 0}종목 · 평가 ${summary.evaluated || 0}종목 · +5% 달성 ${summary.reached5Pct || 0}종목 (${formatter.format(summary.reached5PctRate || 0)}%)`;
+  elements.historyList.innerHTML = "";
+  if (!history.length) {
+    elements.historyList.innerHTML = '<div class="empty-list">10거래일 관리가 끝난 종목부터 최종 기록이 여기에 쌓입니다.</div>';
+    return;
+  }
+  const table = document.createElement("table");
+  table.className = "history-table";
+  table.innerHTML = "<thead><tr><th>종목</th><th>A-G 발생</th><th>포착</th><th>최고수익률</th><th>최종수익률</th><th>+5%</th></tr></thead><tbody></tbody>";
+  const body = table.querySelector("tbody");
+  history.slice(0, 30).forEach((item) => {
+    const outcome = item.outcome || {};
+    const row = document.createElement("tr");
+    row.innerHTML = `
+      <td><strong>${escapeHtml(item.name || "-")}</strong><span>${escapeHtml(item.code || "")}</span></td>
+      <td>${escapeHtml(item.dailySignalDate || "-")}</td>
+      <td>${item.signalTime ? escapeHtml(formatShortTime(item.signalTime)) : "없음"}</td>
+      <td class="${Number(outcome.peakReturnPct) >= 0 ? "positive" : "negative"}">${formatReturn(outcome.peakReturnPct)}</td>
+      <td class="${Number(outcome.finalReturnPct) >= 0 ? "positive" : "negative"}">${formatReturn(outcome.finalReturnPct)}</td>
+      <td><span class="history-result ${outcome.reached5Pct ? "hit" : "miss"}">${outcome.reached5Pct ? "달성" : "미달"}</span></td>`;
+    body.append(row);
+  });
+  elements.historyList.append(table);
+}
+
+function formatReturn(value) {
+  return Number.isFinite(Number(value)) ? `${Number(value) >= 0 ? "+" : ""}${formatter.format(Number(value))}%` : "-";
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
 }
 
 function renderFilterCounts(candidates) {
@@ -287,7 +346,13 @@ function renderCandidates(candidates) {
     node.querySelector(".candidate-stop").textContent = stopPrice
       ? `기본 손절 ${formatter.format(stopPrice)}원${capped ? " (-5% 제한)" : ""}`
       : "손절가 확인 필요";
-    node.querySelector(".candidate-select").addEventListener("click", () => { state.selectedCode = item.code; render(); });
+    node.querySelector(".candidate-select").addEventListener("click", () => {
+      state.selectedCode = item.code;
+      const url = new URL(window.location.href);
+      url.searchParams.set("stock", item.code);
+      window.history.replaceState(null, "", url);
+      render();
+    });
     node.querySelector(".candidate-register").addEventListener("click", () => {
       const position = state.positions?.positions?.find((entry) => entry.code === item.code && entry.status === "open") || null;
       openPositionDialog(item, position, "buy");
@@ -479,7 +544,10 @@ function renderDetail(item) {
   elements.signalMessage.className = `signal-message${item.status === "signal" ? " signal" : ""}`;
   elements.signalMessage.textContent = signalCopy(item, intraday);
   drawChart(intraday.series || [], intraday.dailyMa10);
-  drawDailyChart(item.dailyChart?.series || []);
+  const dailySeries = item.dailyChart?.series || [];
+  const latestDailyDate = dailySeries.at(-1)?.d;
+  elements.dailyChartMeta.textContent = `${latestDailyDate || "일봉 대기"} 장중 현재가 포함 · MA5 · MA10 · MA20 · MA60`;
+  drawDailyChart(dailySeries);
 }
 
 function signalCopy(item, intraday) {
