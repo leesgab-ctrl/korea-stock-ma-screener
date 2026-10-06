@@ -136,11 +136,15 @@ def candidate_outcome(candidate: dict[str, Any]) -> dict[str, Any]:
         and (not candidate.get("outcomeEndDate") or row.get("d", "") <= candidate["outcomeEndDate"])
     ]
     same_day_bars = [
-        row for row in candidate.get("intraday", {}).get("series", [])
+        row for row in {
+            row["t"]: row for row in [*candidate.get("registrationDayBars", []), *candidate.get("intraday", {}).get("series", [])]
+            if row.get("t")
+        }.values()
         if registered_at and row.get("t", "")[:10] == signal_date
         and dt.datetime.fromisoformat(row["t"]) >= dt.datetime.fromisoformat(registered_at)
         and (not candidate.get("outcomeEndDate") or signal_date <= candidate["outcomeEndDate"])
     ]
+    same_day_bars.sort(key=lambda row: row["t"])
     if same_day_bars:
         series.insert(0, {"d": signal_date, "h": max(row.get("h", row["c"]) for row in same_day_bars), "c": same_day_bars[-1]["c"]})
     if not start_price or not series:
@@ -228,7 +232,7 @@ def archive_candidate(candidate: dict[str, Any], archived_at: str, reason: str) 
         "registeredAt": candidate.get("registeredAt"),
         "registrationPrice": candidate.get("registrationPrice"),
         "registrationSource": candidate.get("registrationSource"),
-        "registrationDayBars": [row for row in intraday.get("series", []) if row.get("t", "")[:10] == str(candidate.get("registeredAt") or "")[:10]],
+        "registrationDayBars": candidate.get("registrationDayBars", []),
         "agValues": candidate.get("daily", {}).get("values", {}),
         "statusAtClose": candidate.get("status"),
         "signalTime": intraday.get("signalTime"),
@@ -370,6 +374,8 @@ def build_daily_candidates(stock_data: Path, previous: dict[str, Any]) -> dict[s
             candidate["intradayHistory"] = prior["intradayHistory"]
         if prior.get("sessionRecoveryHistory"):
             candidate["sessionRecoveryHistory"] = prior["sessionRecoveryHistory"]
+        if prior.get("registrationDayBars"):
+            candidate["registrationDayBars"] = prior["registrationDayBars"]
         candidates.append(candidate)
 
     candidates.sort(key=lambda item: (item["dailySignalDate"], item["name"]), reverse=True)
@@ -1072,6 +1078,10 @@ def enrich(
             intraday = {"dataStatus": "error", "error": str(exc), "barCount": 0}
             errors += 1
         candidate["intraday"] = intraday
+        registration_day = str(candidate.get("registeredAt") or "")[:10]
+        saved_registration_bars = {row["t"]: row for row in candidate.get("registrationDayBars", [])}
+        saved_registration_bars.update({row["t"]: row for row in intraday.get("series", []) if row.get("t", "")[:10] == registration_day})
+        candidate["registrationDayBars"] = sorted(saved_registration_bars.values(), key=lambda row: row["t"])
         recovery = intraday.get("sessionRecovery", {})
         recovery_key = f"recovery|{candidate['code']}|{candidate['dailySignalDate']}|{recovery.get('date')}"
         if recovery.get("matched") and current.time() <= dt.time(15, 30) and recovery_key not in notified:

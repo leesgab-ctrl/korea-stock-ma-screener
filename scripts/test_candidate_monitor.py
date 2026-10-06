@@ -223,6 +223,9 @@ class CandidateMonitorTests(unittest.TestCase):
         outcome = candidate_outcome(candidate)
         self.assertTrue(outcome["reached5Pct"])
         self.assertEqual(outcome["reached5PctTradingDays"], 0)
+        candidate["registrationDayBars"] = candidate["intraday"]["series"]
+        candidate["intraday"] = {"series": []}
+        self.assertTrue(candidate_outcome(candidate)["reached5Pct"])
 
     def test_history_migration_failure_removes_stale_success_and_retries(self) -> None:
         record = {"code": "005720", "outcome": {"dataStatus": "ok", "reached5Pct": True}}
