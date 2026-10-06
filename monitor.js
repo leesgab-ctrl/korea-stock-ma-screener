@@ -663,6 +663,11 @@ function drawDailyChart(series) {
     return closes.slice(index - 9, index + 1).reduce((sum, value) => sum + value, 0) / 10;
   });
   const chartSeries = series.map((row, index) => ({ ...row, m10: row.m10 ?? ma10[index] }));
+  const observationDate = state.payload?.generatedAt?.slice(0, 10);
+  const completedSessions = chartSeries.filter((row) => !observationDate || row.d < observationDate).slice(-20);
+  const averageVolume = completedSessions.length === 20 && completedSessions.every((row) => Number.isFinite(Number(row.v)))
+    ? completedSessions.reduce((sum, row) => sum + Number(row.v), 0) / 20
+    : null;
   const values = chartSeries.flatMap((row) => [row.h, row.l, row.c, row.m5, row.m10, row.m20, row.m60]).filter((value) => value != null);
   const min = Math.min(...values);
   const max = Math.max(...values);
@@ -673,7 +678,7 @@ function drawDailyChart(series) {
   const pad = { left: 54, right: 12, top: 28, bottom: 28 };
   const volumeHeight = Math.max(42, Math.round(height * 0.2));
   const volumeTop = height - pad.bottom - volumeHeight;
-  const priceBottom = volumeTop - 10;
+  const priceBottom = volumeTop - 24;
   const plotWidth = width - pad.left - pad.right;
   const slot = plotWidth / chartSeries.length;
   const x = (index) => pad.left + slot * (index + 0.5);
@@ -706,6 +711,25 @@ function drawDailyChart(series) {
     ctx.fillStyle = rising ? "rgba(229,72,77,.38)" : "rgba(49,111,238,.34)";
     ctx.fillRect(center - candleWidth / 2, height - pad.bottom - barHeight, candleWidth, barHeight);
   });
+
+  ctx.font = '11px "Malgun Gothic"';
+  ctx.fillStyle = "#53636b";
+  const volumeLabel = averageVolume == null
+    ? "거래량 20일 평균: 자료 부족"
+    : `거래량 20일 평균 ${formatter.format(Math.round(averageVolume))}주`;
+  ctx.fillText(volumeLabel, pad.left, volumeTop - 7);
+  if (averageVolume != null) {
+    const averageY = height - pad.bottom - (averageVolume / maxVolume) * (volumeHeight - 5);
+    ctx.save();
+    ctx.strokeStyle = "#53636b";
+    ctx.lineWidth = 1.4;
+    ctx.setLineDash([6, 4]);
+    ctx.beginPath();
+    ctx.moveTo(pad.left, averageY);
+    ctx.lineTo(width - pad.right, averageY);
+    ctx.stroke();
+    ctx.restore();
+  }
 
   drawLine(ctx, chartSeries, "m5", "#34a853", 1.5, x, y);
   drawLine(ctx, chartSeries, "m10", "#d97706", 1.8, x, y);
