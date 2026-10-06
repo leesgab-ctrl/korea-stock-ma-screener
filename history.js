@@ -72,13 +72,17 @@ function renderHistory() {
     const row = document.createElement("tr");
     const tier = item.candidateTier === "expanded" ? "확대" : "핵심";
     const targetDate = outcome.reached5Pct ? outcome.reached5PctDate : null;
+    const signalDate = item.signalTime ? String(item.signalTime).slice(0, 10) : null;
+    const targetRange = signalDate && targetDate
+      ? `<span class="history-subline">(${formatElapsedDays(signalDate, targetDate)})</span>`
+      : "";
     row.innerHTML = `
       <td><strong>${escapeHtml(item.name || "-")}</strong><span>${escapeHtml(item.code || "")}</span></td>
       <td><span class="history-tier ${item.candidateTier === "expanded" ? "expanded" : ""}">${tier}</span></td>
       <td>${escapeHtml(item.dailySignalDate || "-")}</td>
       <td>${item.signalTime ? escapeHtml(formatDateTime(item.signalTime)) : "없음"}${item.signalTarget ? `<span class="history-subline">${escapeHtml(item.signalTarget)} 돌파</span>` : ""}</td>
       <td>${formatPrice(item.signalPrice)}</td>
-      <td>${targetDate ? `<span class="history-result hit">${escapeHtml(targetDate)}</span>` : '<span class="history-result miss">미달</span>'}</td>
+      <td>${targetDate ? `<span class="history-result hit">${escapeHtml(targetDate)}</span>${targetRange}` : '<span class="history-result miss">미달</span>'}</td>
       <td>${targetDate ? formatPrice(outcome.targetPrice) : "-"}</td>
       <td>${targetDate ? formatDuration(outcome.reached5PctTradingDays) : "-"}</td>
       <td class="${returnClass(outcome.peakReturnPct)}">${formatReturn(outcome.peakReturnPct)}</td>
@@ -107,6 +111,13 @@ function formatPrice(value) {
 function formatDuration(value) {
   if (value == null || value === "" || !Number.isFinite(Number(value))) return "-";
   return Number(value) === 0 ? "당일" : `${formatter.format(Number(value))}거래일`;
+}
+
+function formatElapsedDays(startDate, endDate) {
+  const start = new Date(`${startDate}T00:00:00Z`);
+  const end = new Date(`${endDate}T00:00:00Z`);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return "-";
+  return `${Math.round((end - start) / 86400000)}일`;
 }
 
 function formatDateTime(value) {
