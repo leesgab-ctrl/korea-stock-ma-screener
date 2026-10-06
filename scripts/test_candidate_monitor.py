@@ -2,6 +2,9 @@ from __future__ import annotations
 
 import datetime as dt
 import unittest
+import tempfile
+import json
+from pathlib import Path
 from unittest import mock
 
 import update_candidate_monitor as monitor
@@ -27,6 +30,48 @@ from update_candidate_monitor import (
 
 
 class CandidateMonitorTests(unittest.TestCase):
+    def test_manual_exclusion_removes_candidate_and_excludes_statistics(self):
+        from manage_candidate_exclusions import manage
+        candidate = {"code": "188260", "name": "세니젠", "dailySignalDate": "2026-10-01", "status": "watching",
+                     "daily": {"close": 1000}, "dailyChart": {"series": [{"d": "2026-10-02", "h": 1100, "c": 1090}]}}
+        payload = {"candidates": [candidate], "history": []}
+        registry = {"excluded": []}
+        current = dt.datetime(2026, 10, 6, 15, tzinfo=KST)
+        manage(payload, registry, "exclude", "188260", "shape", current)
+        self.assertEqual(payload["candidates"], [])
+        self.assertEqual(payload["validationSummary"]["totalDetected"], 1)
+        self.assertEqual(payload["validationSummary"]["evaluated"], 0)
+        self.assertEqual(payload["validationSummary"]["manualExcluded"], 1)
+        self.assertEqual(payload["history"][0]["excludeReason"], "shape")
+        manage(payload, registry, "restore", "188260", "", current, ["2026-10-01", "2026-10-02", "2026-10-05", "2026-10-06"])
+        self.assertEqual(len(payload["candidates"]), 1)
+        self.assertEqual(payload["candidates"][0]["tradingDaysRemaining"], 7)
+        self.assertEqual(registry["excluded"], [])
+
+    def test_excluded_candidate_is_not_analyzed_or_notified(self):
+        candidate = {"code": "188260", "name": "세니젠", "dailySignalDate": "2026-10-01"}
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            (root / "data").mkdir()
+            (root / "data/candidate-exclusions.json").write_text(json.dumps({"excluded": [{"code": "188260", "name": "test"}]}))
+            with mock.patch.object(monitor, "ROOT", root), mock.patch.object(monitor, "analyze_intraday") as analyze, mock.patch.object(monitor, "fetch_daily_chart") as daily, mock.patch.object(monitor, "notify_ntfy") as notify:
+                payload = {"candidates": [candidate]}
+                monitor.enrich(payload, dt.datetime(2026, 10, 6, 15, tzinfo=KST), 5000, False, True)
+                analyze.assert_not_called()
+                daily.assert_not_called()
+                notify.assert_not_called()
+                self.assertEqual(payload["summary"]["active"], 0)
+
+    def test_restore_does_not_reactivate_expired_candidate(self):
+        from manage_candidate_exclusions import manage
+        candidate = {"code": "188260", "dailySignalDate": "2026-09-01"}
+        payload = {"candidates": [], "history": []}
+        registry = {"excluded": [{"code": "188260", "candidate": candidate}]}
+        calendar = [f"2026-09-{d:02d}" for d in range(1, 15)]
+        manage(payload, registry, "restore", "188260", "", dt.datetime(2026, 10, 6, tzinfo=KST), calendar)
+        self.assertEqual(payload["candidates"], [])
+        self.assertEqual(registry["excluded"], [])
+
     def test_session_recovery_uses_boundary_prices_and_1500_cutoff(self):
         day = dt.datetime(2026, 10, 6, tzinfo=KST)
         candidate = {"dailySignalDate": "2026-10-05", "dailyChart": {"series": [{"d": "2026-10-05", "c": 1000}]}}

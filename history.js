@@ -1,4 +1,4 @@
-const state = { history: [], keyword: "" };
+const state = { history: [], keyword: "", excludedCodes: new Set() };
 const formatter = new Intl.NumberFormat("ko-KR", { maximumFractionDigits: 2 });
 const elements = {
   completedCount: document.querySelector("#completedCount"),
@@ -21,6 +21,7 @@ async function loadHistory() {
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const payload = await response.json();
     state.history = Array.isArray(payload.history) ? payload.history : [];
+    state.excludedCodes = new Set((payload.manualExclusions || []).map((r) => r.code));
     renderSummary();
     renderHistory();
     elements.historyStatus.textContent = "종료 후보 이력 정상";
@@ -39,7 +40,7 @@ async function loadHistory() {
 }
 
 function renderSummary() {
-  const evaluated = state.history.filter((item) => item.outcome?.dataStatus === "ok");
+  const evaluated = state.history.filter((item) => !state.excludedCodes.has(item.code) && item.archiveReason !== "manual_excluded" && item.outcome?.dataStatus === "ok");
   const reached = evaluated.filter((item) => item.outcome?.reached5Pct);
   const rate = evaluated.length ? (100 * reached.length) / evaluated.length : 0;
   elements.completedCount.textContent = formatter.format(state.history.length);
@@ -56,7 +57,7 @@ function renderHistory() {
   });
   elements.historyMeta.textContent = keyword
     ? `전체 ${state.history.length}종목 중 ${records.length}종목`
-    : `종료 후보 ${state.history.length}종목`;
+    : `종료 후보 ${state.history.length}종목 · 사용자 선정 제외 ${state.excludedCodes.size}종목 (달성률 집계 제외)`;
   elements.historyList.innerHTML = "";
   if (!records.length) {
     elements.historyList.innerHTML = `<div class="empty-list">${state.history.length ? "검색 결과가 없습니다." : "10거래일 관리가 끝난 종목부터 이력이 쌓입니다."}</div>`;
@@ -77,7 +78,7 @@ function renderHistory() {
       ? `<span class="history-subline">(${formatElapsedDays(signalDate, targetDate)})</span>`
       : "";
     row.innerHTML = `
-      <td><strong>${escapeHtml(item.name || "-")}</strong><span>${escapeHtml(item.code || "")}</span></td>
+      <td><strong>${escapeHtml(item.name || "-")}</strong><span>${escapeHtml(item.code || "")}</span>${item.archiveReason === "manual_excluded" ? '<span>사용자 선정 제외</span>' : ""}</td>
       <td><span class="history-tier ${item.candidateTier === "expanded" ? "expanded" : ""}">${tier}</span></td>
       <td>${escapeHtml(item.dailySignalDate || "-")}</td>
       <td>${item.signalTime ? escapeHtml(formatDateTime(item.signalTime)) : "없음"}${item.signalTarget ? `<span class="history-subline">${escapeHtml(item.signalTarget)} 돌파</span>` : ""}</td>

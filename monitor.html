@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#176b58">
     <title>A-G 30분봉 신호 감시</title>
-    <link rel="stylesheet" href="monitor.css?v=20261006-2">
+    <link rel="stylesheet" href="monitor.css?v=20261006-3">
   </head>
   <body>
     <header class="topbar">
@@ -21,6 +21,7 @@
         <a class="history-link" href="history.html">검증 이력</a>
         <button id="refreshButton" type="button">새로고침</button>
         <button id="criteriaButton" class="criteria-button" type="button">운영관리기준</button>
+        <button id="manualExclusionsButton" type="button">수동 제외 (0)</button>
       </nav>
     </header>
 
@@ -119,6 +120,7 @@
         <div class="candidate-actions">
           <span class="candidate-stop"></span>
           <button class="candidate-register" type="button">보유등록</button>
+          <button class="candidate-exclude" type="button">감시 제외</button>
         </div>
       </article>
     </template>
@@ -128,6 +130,7 @@
         <header>
           <div>
             <h2>운영관리기준</h2>
+            <p>사용자 선정 제외: 차트 검토에서 부적합한 종목은 감시 제외 버튼으로 분석·알림·달성률 계산에서 제외합니다. 기록과 누적 A-G 검출 수는 유지하며 수동 제외 목록에서 복원할 수 있습니다.</p>
             <p>핵심·확대 후보 선정부터 매수·손절 감시까지 적용되는 기준</p>
           </div>
           <button id="criteriaDialogClose" class="icon-button" type="button" aria-label="닫기">×</button>
@@ -229,6 +232,20 @@
       </form>
     </dialog>
 
-    <script src="monitor.js?v=20261006-4"></script>
+    <dialog id="exclusionDialog" class="position-dialog">
+      <form id="exclusionForm" class="position-form">
+        <h2 id="exclusionTitle">감시 제외</h2>
+        <input id="exclusionCode" type="hidden">
+        <input id="exclusionAction" type="hidden">
+        <label>제외 이유<textarea id="exclusionReason" maxlength="300" rows="3">차트 형태 부적합</textarea></label>
+        <label>GitHub 연결키<input id="exclusionToken" type="password" autocomplete="off" required></label>
+        <p id="exclusionStatus" role="status"></p>
+        <footer><button type="button" id="exclusionCancel">취소</button><button type="submit" id="exclusionSubmit">제외</button></footer>
+      </form>
+    </dialog>
+    <dialog id="excludedListDialog" class="position-dialog">
+      <div class="position-form"><h2>사용자 선정 제외</h2><div id="excludedList"></div><button id="excludedListClose" type="button">닫기</button></div>
+    </dialog>
+    <script src="monitor.js?v=20261006-5"></script>
   </body>
 </html>

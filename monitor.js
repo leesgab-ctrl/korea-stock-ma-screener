@@ -113,6 +113,7 @@ async function loadData() {
       state.selectedCode = null;
     }
     render();
+    renderManualExclusions();
   } catch (error) {
     elements.runStatus.textContent = "감시 데이터를 불러오지 못했습니다";
     elements.updatedAt.textContent = String(error);
@@ -319,6 +320,7 @@ function renderCandidates(candidates) {
       const position = state.positions?.positions?.find((entry) => entry.code === item.code && entry.status === "open") || null;
       openPositionDialog(item, position, "buy");
     });
+    node.querySelector(".candidate-exclude").addEventListener("click", () => openExclusionDialog(item, "exclude"));
     elements.candidateList.append(node);
   }
 }
@@ -337,6 +339,65 @@ function placeDetailPanel() {
   const selected = elements.candidateList.querySelector(`.candidate[data-code="${state.selectedCode}"]`);
   if (selected) selected.after(elements.detailPanel);
 }
+
+function renderManualExclusions() {
+  const entries = state.payload.manualExclusions || [];
+  document.querySelector("#manualExclusionsButton").textContent = `수동 제외 (${entries.length})`;
+  const list = document.querySelector("#excludedList");
+  list.replaceChildren();
+  if (!entries.length) list.textContent = "수동 제외한 종목이 없습니다.";
+  for (const entry of entries) {
+    const row = document.createElement("div");
+    row.className = "manual-exclusion-row";
+    const label = document.createElement("span");
+    label.textContent = `${entry.name} (${entry.code}) · ${entry.excludedAt?.slice(0, 10) || ""} · ${entry.reason || "차트 형태 부적합"}`;
+    const button = document.createElement("button");
+    button.type = "button";
+    button.textContent = "복원";
+    button.addEventListener("click", () => {
+      document.querySelector("#excludedListDialog").close();
+      openExclusionDialog(entry, "restore");
+    });
+    row.append(label, button);
+    list.append(row);
+  }
+}
+
+function openExclusionDialog(item, action) {
+  document.querySelector("#exclusionTitle").textContent = `${item.name} · ${action === "exclude" ? "감시 제외" : "감시 복원"}`;
+  document.querySelector("#exclusionCode").value = item.code;
+  document.querySelector("#exclusionAction").value = action;
+  document.querySelector("#exclusionReason").value = item.reason || "차트 형태 부적합";
+  document.querySelector("#exclusionReason").disabled = action === "restore";
+  document.querySelector("#exclusionToken").value = storedGithubToken();
+  document.querySelector("#exclusionStatus").textContent = action === "exclude" ? "분석·알림·달성률 계산에서 제외됩니다. 보유 기록은 유지됩니다." : "후보 기간이 남아 있으면 다시 감시합니다.";
+  document.querySelector("#exclusionSubmit").textContent = action === "exclude" ? "제외" : "복원";
+  document.querySelector("#exclusionDialog").showModal();
+}
+
+document.querySelector("#manualExclusionsButton").addEventListener("click", () => document.querySelector("#excludedListDialog").showModal());
+document.querySelector("#excludedListClose").addEventListener("click", () => document.querySelector("#excludedListDialog").close());
+document.querySelector("#exclusionCancel").addEventListener("click", () => document.querySelector("#exclusionDialog").close());
+document.querySelector("#exclusionForm").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const button = document.querySelector("#exclusionSubmit");
+  const status = document.querySelector("#exclusionStatus");
+  const token = document.querySelector("#exclusionToken").value.trim();
+  if (!token) { status.textContent = "GitHub 연결키를 입력해 주세요."; return; }
+  button.disabled = true;
+  try {
+    const response = await fetch(WORKFLOW_DISPATCH_URL, {
+      method: "POST",
+      headers: { Accept: "application/vnd.github+json", Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ref: "main", inputs: { action: document.querySelector("#exclusionAction").value,
+        code: document.querySelector("#exclusionCode").value, reason: document.querySelector("#exclusionReason").value }}),
+    });
+    if (!response.ok) throw new Error(`요청 실패 (${response.status}) · 연결키와 권한을 확인해 주세요.`);
+    try { localStorage.setItem(GITHUB_TOKEN_KEY, token); } catch {}
+    status.textContent = "요청되었습니다. 서버 반영 후 새로고침해 주세요.";
+  } catch (error) { status.textContent = error.message; }
+  finally { button.disabled = false; }
+});
 
 function storedGithubToken() {
   try { return localStorage.getItem(GITHUB_TOKEN_KEY) || ""; }

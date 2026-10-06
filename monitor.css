@@ -284,3 +284,11 @@ main { max-width: 1480px; margin: 0 auto; padding: 18px; display: grid; gap: 14p
   .form-grid { grid-template-columns: 1fr; }
   .position-form footer { display: grid; grid-template-columns: 1fr 1fr; }
 }
+.manual-exclusion-row { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid #dde5e1; }
+.manual-exclusion-row span { flex: 1; overflow-wrap: anywhere; }
+#exclusionReason { width: 100%; box-sizing: border-box; resize: vertical; }
+#exclusionForm label { display: grid; gap: 8px; font-size: 14px; }
+#exclusionForm input[type="password"], #exclusionReason { padding: 10px; border: 1px solid var(--line); border-radius: 4px; font: inherit; width: 100%; box-sizing: border-box; }
+#exclusionForm h2 { margin: 0; font-size: 20px; }
+#exclusionForm footer button, .manual-exclusion-row button, #excludedListClose { padding: 10px 16px; border: 1px solid var(--line); border-radius: 4px; background: white; color: var(--ink); cursor: pointer; }
+#exclusionForm footer button[type="submit"] { background: var(--accent, #176b58); color: white; }

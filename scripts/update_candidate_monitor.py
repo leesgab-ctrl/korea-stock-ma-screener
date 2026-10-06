@@ -199,10 +199,12 @@ def target_completed_before(candidate: dict[str, Any], latest_date: str) -> bool
 
 
 def update_validation_summary(payload: dict[str, Any]) -> None:
+    excluded_codes = {r["code"] for r in payload.get("manualExclusions", [])}
     current_records = [
         {
             "id": f"{candidate.get('code')}|{candidate.get('dailySignalDate')}",
             "outcome": candidate.get("outcome", {}),
+            "code": candidate.get("code"),
         }
         for candidate in payload.get("candidates", [])
     ]
@@ -211,10 +213,13 @@ def update_validation_summary(payload: dict[str, Any]) -> None:
     evaluated = [
         record for record in unique.values()
         if record.get("outcome", {}).get("dataStatus") == "ok"
+        and record.get("archiveReason") != "manual_excluded"
+        and record.get("code") not in excluded_codes
     ]
     hits = sum(bool(record["outcome"].get("reached5Pct")) for record in evaluated)
     payload["validationSummary"] = {
         "totalDetected": len(unique),
+        "manualExcluded": len(excluded_codes),
         "evaluated": len(evaluated),
         "completed": len(payload.get("history", [])),
         "reached5Pct": hits,
@@ -224,6 +229,9 @@ def update_validation_summary(payload: dict[str, Any]) -> None:
 
 
 def build_daily_candidates(stock_data: Path, previous: dict[str, Any]) -> dict[str, Any]:
+    exclusion_path = ROOT / "data/candidate-exclusions.json"
+    exclusions = json.loads(exclusion_path.read_text(encoding="utf-8")).get("excluded", []) if exclusion_path.exists() else []
+    excluded_codes = {r["code"] for r in exclusions}
     payload = json.loads(stock_data.read_text(encoding="utf-8"))
     calendar = payload.get("dates", [])
     if not calendar:
@@ -240,6 +248,8 @@ def build_daily_candidates(stock_data: Path, previous: dict[str, Any]) -> dict[s
         for item in previous.get("candidates", [])
     }
     for stock in payload.get("stocks", []):
+        if stock["c"] in excluded_codes:
+            continue
         if stock.get("h"):
             continue
         rows = stock_rows(payload, stock)
@@ -289,6 +299,8 @@ def build_daily_candidates(stock_data: Path, previous: dict[str, Any]) -> dict[s
             candidate["tracking"] = prior["tracking"]
         if prior.get("intradayHistory"):
             candidate["intradayHistory"] = prior["intradayHistory"]
+        if prior.get("sessionRecoveryHistory"):
+            candidate["sessionRecoveryHistory"] = prior["sessionRecoveryHistory"]
         candidates.append(candidate)
 
     candidates.sort(key=lambda item: (item["dailySignalDate"], item["name"]), reverse=True)
@@ -299,6 +311,10 @@ def build_daily_candidates(stock_data: Path, previous: dict[str, Any]) -> dict[s
     for prior in previous.get("candidates", []):
         key = (prior.get("code"), prior.get("dailySignalDate"))
         if key in active_keys:
+            continue
+        if prior.get("code") in excluded_codes:
+            record = archive_candidate(prior, latest_date, "manual_excluded")
+            history_by_id[record["id"]] = record
             continue
         try:
             prior["dailyChart"] = fetch_daily_chart(prior["code"])
@@ -929,6 +945,21 @@ def enrich(
     no_notify: bool,
     refresh_daily_chart: bool = False,
 ) -> tuple[int, int]:
+    exclusion_path = ROOT / "data/candidate-exclusions.json"
+    exclusions = json.loads(exclusion_path.read_text(encoding="utf-8")).get("excluded", []) if exclusion_path.exists() else []
+    excluded_codes = {r["code"] for r in exclusions}
+    payload["manualExclusions"] = [{k: v for k, v in r.items() if k != "candidate"} for r in exclusions]
+    kept = []
+    history_ids = {r.get("id") for r in payload.get("history", [])}
+    for candidate in payload.get("candidates", []):
+        if candidate["code"] in excluded_codes:
+            record = archive_candidate(candidate, current.date().isoformat(), "manual_excluded")
+            if record["id"] not in history_ids:
+                payload.setdefault("history", []).append(record)
+                history_ids.add(record["id"])
+        else:
+            kept.append(candidate)
+    payload["candidates"] = kept
     notified = set(payload.get("notifiedSignals", []))
     topic = os.getenv("NTFY_TOPIC", "").strip()
     new_alerts = 0

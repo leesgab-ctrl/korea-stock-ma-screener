@@ -10,9 +10,15 @@ on:
         options:
           - buy
           - sold
+          - exclude
+          - restore
       code:
         description: 종목코드 6자리
         required: true
+        type: string
+      reason:
+        description: 사용자 선정 제외 이유
+        required: false
         type: string
       name:
         description: 종목명 (매수 등록 시 입력)
@@ -75,6 +81,13 @@ jobs:
           ARGS=(--action buy --code "$CODE" --name "$NAME" --buy-price "$BUY_PRICE" --quantity "$QUANTITY" --target-pct "$TARGET_PCT")
           if [ -n "$STOP_PRICE" ]; then ARGS+=(--stop-price "$STOP_PRICE"); fi
           python scripts/manage_positions.py "${ARGS[@]}"
+      - name: Manage candidate exclusion
+        if: inputs.action == 'exclude' || inputs.action == 'restore'
+        env:
+          CODE: ${{ inputs.code }}
+          REASON: ${{ inputs.reason }}
+          ACTION: ${{ inputs.action }}
+        run: python scripts/manage_candidate_exclusions.py --action "$ACTION"
       - name: Mark as sold
         if: inputs.action == 'sold'
         env:
@@ -86,11 +99,16 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/positions.json
-          git commit -m "Update purchased stock ${INPUT_CODE}"
+          if [ "$INPUT_ACTION" = "exclude" ] || [ "$INPUT_ACTION" = "restore" ]; then
+            git add data/candidate-exclusions.json data/candidate-monitor.json
+          else
+            git add data/positions.json
+          fi
+          git diff --cached --quiet || git commit -m "Update stock registration ${INPUT_CODE}"
           git push
         env:
           INPUT_CODE: ${{ inputs.code }}
+          INPUT_ACTION: ${{ inputs.action }}
       - name: Configure Pages
         uses: actions/configure-pages@v5
       - name: Upload Pages artifact
