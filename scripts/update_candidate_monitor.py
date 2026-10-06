@@ -694,6 +694,47 @@ def apply_inferred_cross(context: dict[str, Any], synthetic_cross_index: int | N
     return context
 
 
+def evaluate_session_recovery(candidate, rows, bars, current):
+    day = current.date()
+    result = {"date": day.isoformat(), "matched": False, "dataStatus": "pending"}
+    if current.time() < dt.time(15, 2):
+        return result
+    previous = [r for r in candidate.get("dailyChart", {}).get("series", []) if r["d"] < day.isoformat()]
+    ticks = [r for r in rows if r["time"].date() == day and dt.time(9) <= r["time"].time() <= dt.time(15)]
+    if not previous or not ticks or ticks[-1]["time"].time() != dt.time(15):
+        result["dataStatus"] = "insufficient"
+        return result
+    reference = previous[-1]["c"]
+    if reference <= 0:
+        result["dataStatus"] = "insufficient"
+        return result
+    signal_day = dt.date.fromisoformat(candidate["dailySignalDate"])
+    eligible = [b for b in bars if signal_day < b["time"].date() <= day and b["time"].time() < dt.time(15)]
+    today = [b for b in eligible if b["time"].date() == day]
+    if not today or any(b.get("ma20") is None or b.get("ma40") is None for b in eligible):
+        result["dataStatus"] = "insufficient"
+        return result
+    last = today[-1]
+    aligned = last.get("ma60") is not None and last["ma20"] > last["ma40"] > last["ma60"]
+    uninterrupted = all(b["ma20"] > b["ma40"] for b in eligible)
+    indexes = [i for i, b in enumerate(bars) if b in today]
+    rising = all(i > 0 and bars[i - 1].get("ma20") is not None and bars[i]["ma20"] > bars[i - 1]["ma20"] for i in indexes)
+    # Use observed five-minute boundary prices, not intrabar extremes.
+    closes = [r for r in ticks if r["time"].minute % 5 == 0 and r["time"].time() > dt.time(9)]
+    surge = next((r for r in closes if r["time"].time() <= dt.time(10) and r["price"] >= reference * 1.05), None)
+    pullback = next((r for r in closes if surge and r["time"] > surge["time"] and r["price"] <= reference), None)
+    price = ticks[-1]["price"]
+    matched = bool(aligned and uninterrupted and rising and surge and pullback and reference <= price <= reference * 1.02)
+    result.update(dataStatus="ok", matched=matched, price=price, previousClose=reference,
+                  changePct=round((price / reference - 1) * 100, 2),
+                  referenceTime=ticks[-1]["time"].isoformat(timespec="minutes"),
+                  surgeTime=surge["time"].isoformat(timespec="minutes") if surge else None,
+                  pullbackTime=pullback["time"].isoformat(timespec="minutes") if pullback else None)
+    if matched:
+        candidate.setdefault("sessionRecoveryHistory", {})[day.isoformat()] = result.copy()
+    return result
+
+
 def analyze_intraday(candidate: dict[str, Any], current: dt.datetime, count: int) -> dict[str, Any]:
     rows = fetch_minute_rows(candidate["code"], count)
     bars = merge_30m_history(candidate, aggregate_30m(rows, current))
@@ -780,6 +821,7 @@ def analyze_intraday(candidate: dict[str, Any], current: dt.datetime, count: int
     # averages appear naturally as their 20/40/60-bar warmup completes.
     display_bars = latest_trading_days(bars, 5)
     result: dict[str, Any] = {
+        "sessionRecovery": evaluate_session_recovery(candidate, rows, bars, current),
         "dataStatus": "ok",
         "barCount": len(bars),
         "lastBarTime": latest["time"].isoformat(timespec="minutes"),
@@ -843,10 +885,10 @@ def analyze_intraday(candidate: dict[str, Any], current: dt.datetime, count: int
     return result
 
 
-def notify_ntfy(topic: str, candidate: dict[str, Any]) -> None:
+def notify_ntfy(topic: str, candidate: dict[str, Any], recovery=None) -> None:
     intraday = candidate["intraday"]
     tier_label = "핵심 후보" if candidate.get("candidateTier") == CORE_TIER else "확대 후보"
-    message = (
+    message = "" if recovery else (
         f"{candidate['name']}({candidate['code']})\n"
         f"후보등급: {tier_label}\n"
         f"확정봉 {intraday['signalTime']}\n"
@@ -855,10 +897,16 @@ def notify_ntfy(topic: str, candidate: dict[str, Any]) -> None:
         f"MA20 {intraday['signalMa20']:,.2f} / MA40 {intraday['signalMa40']:,.2f} / MA60 {intraday['signalMa60']:,.2f}\n"
         "다음 30분봉부터 HTS 현재가와 거래량을 확인하세요."
     )
+    if recovery:
+        message = (f"{candidate['name']}({candidate['code']})\n"
+                   f"15:00 기준 정배열 조정·회복 관찰\n"
+                   f"확인가격: {recovery['price']:,}원 ({recovery['changePct']:+.2f}%)\n"
+                   "초반 +5% 상승 → 전일 종가 이하 조정 → 0~+2% 회복\n"
+                   f"검사시각: {now_kst().isoformat(timespec='minutes')}")
     body = json.dumps(
         {
             "topic": topic,
-            "title": f"🔴 [{tier_label}] {candidate['name']} 매수시점 포착",
+            "title": f"{candidate['name']} 정배열 조정·회복 관찰" if recovery else f"🔴 [{tier_label}] {candidate['name']} 매수시점 포착",
             "message": message,
             "priority": 5,
             "tags": ["chart_with_upwards_trend"],
@@ -901,6 +949,14 @@ def enrich(
             intraday = {"dataStatus": "error", "error": str(exc), "barCount": 0}
             errors += 1
         candidate["intraday"] = intraday
+        recovery = intraday.get("sessionRecovery", {})
+        recovery_key = f"recovery|{candidate['code']}|{candidate['dailySignalDate']}|{recovery.get('date')}"
+        if recovery.get("matched") and current.time() <= dt.time(15, 30) and recovery_key not in notified:
+            pending += 1
+            if topic and not no_notify:
+                notify_ntfy(topic, candidate, recovery)
+                notified.add(recovery_key)
+                new_alerts += 1
         candidate["outcome"] = candidate_outcome(candidate)
         if intraday.get("signalTime"):
             signal_at = dt.datetime.fromisoformat(intraday["signalTime"])

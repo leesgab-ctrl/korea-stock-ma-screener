@@ -291,6 +291,10 @@ function renderCandidates(candidates) {
     node.classList.toggle("selected", item.code === state.selectedCode);
     node.querySelector(".candidate-name").textContent = item.name;
     node.querySelector(".candidate-status").textContent = statusLabels[item.status] || "확인 필요";
+    if (intraday.sessionRecovery?.matched) {
+      node.querySelector(".candidate-status").textContent = "정배열 조정·회복";
+      node.style.backgroundColor = "#fff8d4";
+    }
     node.querySelector(".candidate-code").textContent = `${item.code} · ${item.market}`;
     node.querySelector(".candidate-tier").textContent = tierLabels[item.candidateTier || "core"];
     node.querySelector(".candidate-progress i").style.width = `${(rise / 5) * 100}%`;
@@ -501,7 +505,15 @@ function renderDetail(item) {
   elements.remainingDays.textContent = `${item.tradingDaysRemaining}거래일`;
   elements.signalMessage.className = `signal-message${item.status === "signal" ? " signal" : ""}`;
   elements.signalMessage.textContent = signalCopy(item, intraday);
-  drawChart(intraday.series || [], intraday.dailyMa10);
+  const recovery = intraday.sessionRecovery;
+  if (recovery?.matched) {
+    elements.detailBadge.textContent = "정배열 조정·회복 관찰";
+    elements.detailBadge.style.backgroundColor = "#fff0a3";
+    elements.signalMessage.textContent = `15:00 기준 정배열 조정·회복 관찰 · ${formatter.format(recovery.price)}원 (${recovery.changePct}%)`;
+  } else {
+    elements.detailBadge.style.backgroundColor = "";
+  }
+  drawChart(intraday.series || [], intraday.dailyMa10, item.sessionRecoveryHistory || {});
   const dailySeries = item.dailyChart?.series || [];
   const latestDailyDate = dailySeries.at(-1)?.d;
   elements.dailyChartMeta.textContent = `${latestDailyDate || "일봉 대기"} 장중 현재가 포함 · MA5 · MA10 · MA20 · MA60`;
@@ -526,7 +538,7 @@ function signalCopy(item, intraday) {
   return "MA20의 5회 상승을 관찰합니다. MA20이 MA40까지만 조정되면 MA3→MA40, MA60 아래까지 조정되면 MA3→MA60 돌파를 기다립니다. 일봉 MA10은 참고선입니다.";
 }
 
-function drawChart(series, dailyMa10) {
+function drawChart(series, dailyMa10, recoveryHistory = {}) {
   const canvas = elements.chart;
   const ratio = window.devicePixelRatio || 1;
   const width = canvas.clientWidth || 800;
@@ -556,6 +568,12 @@ function drawChart(series, dailyMa10) {
   const plotWidth = width - pad.left - pad.right;
   const slot = plotWidth / series.length;
   const x = (index) => pad.left + slot * (index + 0.5);
+  ctx.fillStyle = "#fff3b0";
+  series.forEach((row, index) => {
+    if (recoveryHistory[row.t.slice(0, 10)]?.matched) {
+      ctx.fillRect(pad.left + slot * index, pad.top, slot + 0.5, height - pad.top - pad.bottom);
+    }
+  });
   const y = (value) => pad.top + ((priceMax - value) / spread) * (priceBottom - pad.top);
   ctx.strokeStyle = "#e2e8e4";
   ctx.lineWidth = 1;

@@ -27,6 +27,22 @@ from update_candidate_monitor import (
 
 
 class CandidateMonitorTests(unittest.TestCase):
+    def test_session_recovery_uses_boundary_prices_and_1500_cutoff(self):
+        day = dt.datetime(2026, 10, 6, tzinfo=KST)
+        candidate = {"dailySignalDate": "2026-10-05", "dailyChart": {"series": [{"d": "2026-10-05", "c": 1000}]}}
+        bars = [{"time": day.replace(hour=9) + dt.timedelta(minutes=30*i),
+                 "ma20": 1020+i, "ma40": 1010, "ma60": 1000} for i in range(12)]
+        bars.insert(0, {"time": (day - dt.timedelta(days=1)).replace(hour=15), "ma20": 1019, "ma40": 1010, "ma60": 1000})
+        rows = [{"time": day.replace(hour=h, minute=m), "price": p}
+                for h,m,p in [(9,5,1050), (11,0,995), (15,0,1010), (15,5,1100)]]
+        result = monitor.evaluate_session_recovery(candidate, rows, bars, day.replace(hour=15, minute=10))
+        self.assertTrue(result["matched"])
+        self.assertEqual(result["price"], 1010)
+        rows[0]["time"] = day.replace(hour=9, minute=6)
+        self.assertFalse(monitor.evaluate_session_recovery(candidate, rows, bars, day.replace(hour=15, minute=10))["matched"])
+        rows.pop(2)
+        self.assertEqual(monitor.evaluate_session_recovery(candidate, rows, bars, day.replace(hour=15, minute=10))["dataStatus"], "insufficient")
+
     def test_candidate_outcome_tracks_five_percent_and_final_return(self) -> None:
         candidate = {
             "code": "005720",
