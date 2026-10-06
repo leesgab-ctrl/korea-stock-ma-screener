@@ -4,6 +4,9 @@ import datetime as dt
 import unittest
 import tempfile
 import json
+import runpy
+import sys
+import os
 from pathlib import Path
 from unittest import mock
 
@@ -30,6 +33,19 @@ from update_candidate_monitor import (
 
 
 class CandidateMonitorTests(unittest.TestCase):
+    def test_exclude_command_does_not_require_full_market_data(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            (root / "data").mkdir()
+            payload = {"candidates": [{"code": "188260", "name": "test", "dailySignalDate": "2026-10-01"}]}
+            (root / "data/candidate-monitor.json").write_text(json.dumps(payload), encoding="utf-8")
+            (root / "data/candidate-exclusions.json").write_text('{"excluded": []}', encoding="utf-8")
+            script = monitor.ROOT / "scripts/manage_candidate_exclusions.py"
+            with mock.patch.object(monitor, "ROOT", root), mock.patch.object(sys, "argv", [str(script), "--action", "exclude"]), mock.patch.dict(os.environ, {"CODE": "188260", "REASON": "shape"}):
+                runpy.run_path(str(script), run_name="__main__")
+            saved = json.loads((root / "data/candidate-monitor.json").read_text(encoding="utf-8"))
+            self.assertEqual(saved["candidates"], [])
+
     def test_manual_exclusion_removes_candidate_and_excludes_statistics(self):
         from manage_candidate_exclusions import manage
         candidate = {"code": "188260", "name": "세니젠", "dailySignalDate": "2026-10-01", "status": "watching",

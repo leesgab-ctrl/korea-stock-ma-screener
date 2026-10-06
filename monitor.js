@@ -1,5 +1,15 @@
 const requestedCode = new URLSearchParams(window.location.search).get("stock");
+const PENDING_EXCLUSION_KEY = "koreaStockMonitor.pendingExclusions";
+function readPendingExclusions() {
+  try {
+    return new Map(JSON.parse(sessionStorage.getItem(PENDING_EXCLUSION_KEY) || "[]")
+      .filter(([code, entry]) => /^\d{6}$/.test(code) && ["exclude", "restore"].includes(entry.action) && Number.isFinite(entry.at)));
+  } catch { return new Map(); }
+}
+let exclusionPollTimer;
 const state = {
+  pendingExclusions: readPendingExclusions(),
+  exclusionMessage: "",
   payload: null,
   positions: null,
   filter: "all",
@@ -98,6 +108,7 @@ const filterLabels = {
 const formatter = new Intl.NumberFormat("ko-KR", { maximumFractionDigits: 2 });
 
 async function loadData() {
+  clearTimeout(exclusionPollTimer);
   elements.refreshButton.disabled = true;
   try {
     const stamp = Date.now();
@@ -107,6 +118,7 @@ async function loadData() {
     ]);
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     state.payload = await response.json();
+    applyPendingExclusions();
     state.positions = positionsResponse.ok ? await positionsResponse.json() : { positions: [] };
     const candidates = (state.payload.candidates || []).filter((item) => !["excluded", "ineligible"].includes(item.status));
     if (state.selectedCode && !candidates.some((item) => item.code === state.selectedCode)) {
@@ -120,6 +132,7 @@ async function loadData() {
     elements.candidateList.innerHTML = '<div class="empty-list">잠시 후 다시 시도해 주세요.</div>';
   } finally {
     elements.refreshButton.disabled = false;
+    if (state.pendingExclusions.size) exclusionPollTimer = setTimeout(loadData, 10000);
   }
 }
 
@@ -136,7 +149,7 @@ function render() {
   elements.detectedCount.textContent = validationSummary.totalDetected ?? candidates.length;
   elements.targetRate.textContent = `${formatter.format(validationSummary.reached5PctRate || 0)}%`;
   elements.asOf.textContent = asOf || "-";
-  elements.runStatus.textContent = summary.dataErrors ? `분봉 오류 ${summary.dataErrors}건` : "클라우드 감시 정상";
+  elements.runStatus.textContent = state.pendingExclusions.size ? "제외·복원 요청 접수 · 서버 반영 확인 중" : state.exclusionMessage || (summary.dataErrors ? `분봉 오류 ${summary.dataErrors}건` : "클라우드 감시 정상");
   elements.updatedAt.textContent = generatedAt ? `마지막 갱신 ${formatDateTime(generatedAt)}` : "갱신 기록 없음";
   elements.pushState.textContent = summary.pushConfigured ? "휴대폰 푸시 연결" : "푸시 연결 대기";
   elements.pushState.className = `status-chip${summary.pushConfigured ? "" : " rising"}`;
@@ -340,6 +353,31 @@ function placeDetailPanel() {
   if (selected) selected.after(elements.detailPanel);
 }
 
+function applyPendingExclusions() {
+  const serverExcluded = new Set((state.payload.manualExclusions || []).map((entry) => entry.code));
+  for (const [code, entry] of state.pendingExclusions) {
+    const confirmed = entry.action === "exclude" ? serverExcluded.has(code) : !serverExcluded.has(code);
+    if (confirmed) {
+      state.pendingExclusions.delete(code);
+      state.exclusionMessage = "제외·복원 요청이 서버에 반영되었습니다.";
+    } else if (Date.now() - entry.at > 600000) {
+      state.pendingExclusions.delete(code);
+      state.exclusionMessage = "서버 반영 확인이 지연되어 현재 서버 목록을 표시합니다. 수동 제외 목록을 확인해 주세요.";
+    }
+  }
+  try { sessionStorage.setItem(PENDING_EXCLUSION_KEY, JSON.stringify([...state.pendingExclusions])); } catch {}
+  if (!state.pendingExclusions.size) return;
+  const hidden = new Set([...state.pendingExclusions].filter(([, entry]) => entry.action === "exclude").map(([code]) => code));
+  state.payload.candidates = (state.payload.candidates || []).filter((entry) => !hidden.has(entry.code));
+  const candidates = state.payload.candidates;
+  const summary = state.payload.summary ||= {};
+  summary.active = candidates.filter((entry) => !["excluded", "ineligible"].includes(entry.status)).length;
+  for (const [key, status] of Object.entries({signals: "signal", signalHistory: "signaled", setup: "setup", rising: "rising", waiting60: "waiting60"})) {
+    summary[key] = candidates.filter((entry) => entry.status === status).length;
+  }
+  if (hidden.has(state.selectedCode)) state.selectedCode = null;
+}
+
 function renderManualExclusions() {
   const entries = state.payload.manualExclusions || [];
   document.querySelector("#manualExclusionsButton").textContent = `수동 제외 (${entries.length})`;
@@ -385,16 +423,24 @@ document.querySelector("#exclusionForm").addEventListener("submit", async (event
   const token = document.querySelector("#exclusionToken").value.trim();
   if (!token) { status.textContent = "GitHub 연결키를 입력해 주세요."; return; }
   button.disabled = true;
+  const action = document.querySelector("#exclusionAction").value;
+  const code = document.querySelector("#exclusionCode").value;
+  const reason = document.querySelector("#exclusionReason").value;
   try {
     const response = await fetch(WORKFLOW_DISPATCH_URL, {
       method: "POST",
       headers: { Accept: "application/vnd.github+json", Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ref: "main", inputs: { action: document.querySelector("#exclusionAction").value,
-        code: document.querySelector("#exclusionCode").value, reason: document.querySelector("#exclusionReason").value }}),
+      body: JSON.stringify({ref: "main", inputs: { action, code, reason }}),
     });
     if (!response.ok) throw new Error(`요청 실패 (${response.status}) · 연결키와 권한을 확인해 주세요.`);
     try { localStorage.setItem(GITHUB_TOKEN_KEY, token); } catch {}
-    status.textContent = "요청되었습니다. 서버 반영 후 새로고침해 주세요.";
+    state.pendingExclusions.set(code, {action, at: Date.now()});
+    state.exclusionMessage = "";
+    applyPendingExclusions();
+    document.querySelector("#exclusionDialog").close();
+    render();
+    renderManualExclusions();
+    await loadData();
   } catch (error) { status.textContent = error.message; }
   finally { button.disabled = false; }
 });

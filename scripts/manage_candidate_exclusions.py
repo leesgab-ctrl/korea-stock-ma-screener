@@ -56,7 +56,7 @@ if __name__ == "__main__":
     registry_path = ROOT / "data/candidate-exclusions.json"
     payload = json.loads(path.read_text(encoding="utf-8"))
     registry = json.loads(registry_path.read_text(encoding="utf-8"))
-    calendar = json.loads((ROOT / "data/stock-data.json").read_text(encoding="utf-8")).get("dates", [])
+    calendar = json.loads((ROOT / "data/stock-data.json").read_text(encoding="utf-8")).get("dates", []) if args.action == "restore" else None
     manage(payload, registry, args.action, code, os.getenv("REASON", "차트 형태 부적합")[:300], now_kst(), calendar)
     for target, value in [(path, payload), (registry_path, registry)]:
         target.write_text(json.dumps(value, ensure_ascii=False, indent=2), encoding="utf-8")
