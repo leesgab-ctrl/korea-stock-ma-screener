@@ -33,6 +33,15 @@ from update_candidate_monitor import (
 
 
 class CandidateMonitorTests(unittest.TestCase):
+    def test_quote_uses_latest_regular_tick_not_completed_bar_or_afterhours(self):
+        current = dt.datetime(2026, 10, 6, 9, 22, tzinfo=KST)
+        candidate = {"dailyChart": {"series": [{"d": "2026-10-02", "c": 1000}, {"d": "2026-10-06", "c": 1020}]}}
+        rows = [{"time": current.replace(hour=h, minute=m), "price": p} for h,m,p in [(8,50,1100), (9,20,1010), (9,25,1030), (16,0,1200)]]
+        quote = monitor.latest_session_quote(candidate, rows, current)
+        self.assertEqual(quote["quotePrice"], 1010)
+        self.assertEqual(quote["quotePreviousClose"], 1000)
+        self.assertEqual(quote["quoteChangePct"], 1.0)
+
     def test_exclude_command_does_not_require_full_market_data(self):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)

@@ -182,6 +182,12 @@ main { max-width: 1480px; margin: 0 auto; padding: 18px; display: grid; gap: 14p
 .candidate:hover, .candidate.selected { border-color: var(--green); background: #f8fcfa; }
 .candidate-top, .candidate-bottom { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .candidate-name { font-size: 15px; }
+.candidate-title { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 7px; min-width: 0; flex: 1; text-align: left; }
+.candidate-quote { font-size: 12px; font-weight: 600; }
+.candidate-title[data-direction="up"] { color: #d9363e; }
+.candidate-title[data-direction="down"] { color: #2464c8; }
+.candidate-title[data-direction="flat"] { color: #198449; }
+.candidate-top .candidate-status { flex-shrink: 0; }
 .candidate-code, .candidate-bottom { color: var(--muted); font-size: 12px; }
 .candidate-identity { display: flex; align-items: center; gap: 7px; }
 .candidate-tier { padding: 2px 5px; border: 1px solid #b9d5c8; border-radius: 4px; background: #f2faf6; color: var(--green); font-size: 10px; font-weight: 800; }

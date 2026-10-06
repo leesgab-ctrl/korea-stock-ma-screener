@@ -758,6 +758,18 @@ def evaluate_session_recovery(candidate, rows, bars, current):
     return result
 
 
+def latest_session_quote(candidate, rows, current):
+    regular = [r for r in rows if r["time"] <= current and dt.time(9) <= r["time"].time() <= dt.time(15, 30)]
+    if not regular:
+        return {}
+    quote = max(regular, key=lambda r: r["time"])
+    previous = [r for r in candidate.get("dailyChart", {}).get("series", []) if r["d"] < quote["time"].date().isoformat()]
+    previous_close = previous[-1]["c"] if previous else None
+    return {"quotePrice": quote["price"], "quoteTime": quote["time"].isoformat(timespec="minutes"),
+            "quotePreviousClose": previous_close,
+            "quoteChangePct": round((quote["price"] / previous_close - 1) * 100, 2) if previous_close else None}
+
+
 def analyze_intraday(candidate: dict[str, Any], current: dt.datetime, count: int) -> dict[str, Any]:
     rows = fetch_minute_rows(candidate["code"], count)
     bars = merge_30m_history(candidate, aggregate_30m(rows, current))
@@ -803,7 +815,7 @@ def analyze_intraday(candidate: dict[str, Any], current: dt.datetime, count: int
             break
 
     if not bars:
-        return {"dataStatus": "no_data", "barCount": 0}
+        return {"dataStatus": "no_data", "barCount": 0, **latest_session_quote(candidate, rows, current)}
     latest_index = eligible[-1] if eligible else len(bars) - 1
     latest = bars[latest_index]
     latest_context = apply_inferred_cross(rise_context(bars, latest_index), synthetic_cross_index)
@@ -844,6 +856,7 @@ def analyze_intraday(candidate: dict[str, Any], current: dt.datetime, count: int
     # averages appear naturally as their 20/40/60-bar warmup completes.
     display_bars = latest_trading_days(bars, 5)
     result: dict[str, Any] = {
+        **latest_session_quote(candidate, rows, current),
         "sessionRecovery": evaluate_session_recovery(candidate, rows, bars, current),
         "dataStatus": "ok",
         "barCount": len(bars),

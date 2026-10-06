@@ -304,6 +304,15 @@ function renderCandidates(candidates) {
     node.dataset.code = item.code;
     node.classList.toggle("selected", item.code === state.selectedCode);
     node.querySelector(".candidate-name").textContent = item.name;
+    const quotePrice = intraday.quotePrice ?? intraday.lastPrice;
+    const quoteTime = intraday.quoteTime ?? intraday.lastBarTime;
+    const quoteDate = quoteTime?.slice(0, 10);
+    const previousDay = (item.dailyChart?.series || []).filter((row) => quoteDate && row.d < quoteDate).at(-1);
+    const referencePrice = intraday.quotePreviousClose ?? previousDay?.c;
+    const change = intraday.quoteChangePct ?? (quotePrice && referencePrice ? 100 * (quotePrice / referencePrice - 1) : null);
+    const direction = change == null ? "" : quotePrice > referencePrice ? "up" : quotePrice < referencePrice ? "down" : "flat";
+    node.querySelector(".candidate-title").dataset.direction = direction;
+    node.querySelector(".candidate-quote").textContent = quotePrice ? `${formatter.format(quotePrice)}원 (${change == null ? "등락률 대기" : `${change > 0 ? "+" : ""}${formatter.format(change)}%`})` : "가격 대기";
     node.querySelector(".candidate-status").textContent = statusLabels[item.status] || "확인 필요";
     if (intraday.sessionRecovery?.matched) {
       node.querySelector(".candidate-status").textContent = "정배열 조정·회복";
@@ -314,7 +323,7 @@ function renderCandidates(candidates) {
     node.querySelector(".candidate-progress i").style.width = `${(rise / 5) * 100}%`;
     node.querySelector(".candidate-rise").textContent = `${rise} / 5`;
     node.querySelector(".candidate-days").textContent = `A-G ${item.dailySignalDate} · ${item.tradingDaysRemaining}일 남음`;
-    node.querySelector(".candidate-price").textContent = intraday.lastPrice ? `${formatter.format(intraday.lastPrice)}원` : "분봉 대기";
+    node.querySelector(".candidate-price").textContent = quoteTime ? `${quoteTime.slice(11, 16)} ${intraday.quoteTime ? "수집가" : "완성봉"}` : "분봉 대기";
     const technicalStop = item.daily?.preSpikeClose;
     const maximumLossStop = intraday.lastPrice ? Math.round(intraday.lastPrice * 0.95) : null;
     const stopPrice = technicalStop && maximumLossStop ? Math.max(technicalStop, maximumLossStop) : technicalStop;
