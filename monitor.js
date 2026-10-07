@@ -13,7 +13,7 @@ const state = {
   payload: null,
   lastLoadedAt: 0,
   positions: null,
-  filter: "all",
+  view: "target",
   keyword: "",
   selectedCode: requestedCode && /^\d{6}$/.test(requestedCode) ? requestedCode : null,
   deepLinkPending: Boolean(requestedCode),
@@ -97,15 +97,18 @@ const statusLabels = {
 };
 const statusPriority = { signal: 0, rising: 1, waiting60: 2, setup: 3, signaled: 4, watching: 5, insufficient: 6, ineligible: 7, excluded: 8 };
 const tierLabels = { core: "핵심 A-G", expanded: "확대 A-G" };
-const filterLabels = {
-  all: "전체",
-  signal: "매수 검토",
-  signaled: "포착 완료",
-  setup: "매수 준비",
-  rising: "상승 진행",
-  waiting60: "MA3 대기",
-  watching: "관찰 중",
-};
+const viewLabels = { target: "포착대상종목", reference: "참고종목", positions: "보유종목", operations: "운영관리" };
+
+function chartGroup(item) {
+  if (item.status === "insufficient") return "insufficient";
+  const chart = item.displayCharts?.intraday;
+  if (chart?.dataStatus !== "ok") return "insufficient";
+  const last = chart.series?.filter((row) => row.complete !== false).at(-1);
+  if (!last || ![last.m20, last.m40, last.m60].every(Number.isFinite)) return "insufficient";
+  if (last.m20 < last.m40 || last.m20 < last.m60) return "target";
+  if (last.m20 > last.m40 && last.m40 > last.m60) return "reference";
+  return "unclassified";
+}
 const formatter = new Intl.NumberFormat("ko-KR", { maximumFractionDigits: 2 });
 
 async function loadData() {
@@ -123,7 +126,7 @@ async function loadData() {
     applyPendingExclusions();
     state.positions = positionsResponse.ok ? await positionsResponse.json() : { positions: [] };
     state.lastLoadedAt = Date.now();
-    const candidates = (state.payload.candidates || []).filter((item) => !["excluded", "ineligible"].includes(item.status));
+    const candidates = state.payload.candidates || [];
     if (state.selectedCode && !candidates.some((item) => item.code === state.selectedCode)) {
       state.selectedCode = null;
     }
@@ -141,7 +144,14 @@ async function loadData() {
 
 function render() {
   const { summary = {}, validationSummary = {}, candidates = [], asOf, generatedAt } = state.payload;
-  const activeCandidates = candidates.filter((item) => !["excluded", "ineligible"].includes(item.status));
+  const activeCandidates = candidates;
+  if (state.deepLinkPending) {
+    const requested = candidates.find((item) => item.code === state.selectedCode);
+    if (requested) {
+      const group = chartGroup(requested);
+      state.view = ["target", "reference"].includes(group) ? group : "operations";
+    }
+  }
   elements.activeCount.textContent = summary.active ?? activeCandidates.length;
   elements.setupCount.textContent = (summary.setup ?? 0) + (summary.waiting60 ?? 0);
   elements.signalCount.textContent = summary.signals ?? 0;
@@ -156,28 +166,57 @@ function render() {
   elements.updatedAt.textContent = generatedAt ? `마지막 갱신 ${formatDateTime(generatedAt)}` : "갱신 기록 없음";
   elements.pushState.textContent = summary.pushConfigured ? "휴대폰 푸시 연결" : "푸시 연결 대기";
   elements.pushState.className = `status-chip${summary.pushConfigured ? "" : " rising"}`;
-  renderFilterCounts(activeCandidates);
-  renderCandidates(activeCandidates);
+  renderViewCounts(activeCandidates, openPositions);
+  const candidateView = ["target", "reference"].includes(state.view);
+  document.querySelector(".workspace").classList.toggle("hidden", !candidateView);
+  document.querySelector(".toolbar").classList.toggle("hidden", !candidateView);
+  document.querySelector(".positions-panel").classList.toggle("hidden", state.view !== "positions");
+  document.querySelector("#operationsPanel").classList.toggle("hidden", state.view !== "operations");
+  document.querySelector("#viewTitle").textContent = viewLabels[state.view];
+  renderOperations(activeCandidates);
+  if (candidateView) renderCandidates(activeCandidates);
   const closedPositions = (state.positions?.positions || []).filter((item) => item.status === "closed");
   renderPositions(openPositions, closedPositions);
   renderDetail(activeCandidates.find((item) => item.code === state.selectedCode));
   placeDetailPanel();
-  if (state.deepLinkPending && state.selectedCode) {
+  if (state.deepLinkPending && state.selectedCode && candidateView) {
     state.deepLinkPending = false;
     requestAnimationFrame(() => elements.detailPanel.scrollIntoView({ behavior: "smooth", block: "start" }));
   }
 }
 
-function renderFilterCounts(candidates) {
-  const counts = candidates.reduce((result, item) => {
-    result[item.status] = (result[item.status] || 0) + 1;
-    return result;
-  }, {});
-  document.querySelectorAll(".tab").forEach((button) => {
-    const filter = button.dataset.filter;
-    const count = filter === "all" ? candidates.length : counts[filter] || 0;
-    button.textContent = `${filterLabels[filter]} (${count})`;
+function renderViewCounts(candidates, positions) {
+  document.querySelectorAll(".view-tab").forEach((button) => {
+    const view = button.dataset.view;
+    const count = view === "positions" ? positions.length : candidates.filter((item) => chartGroup(item) === view).length;
+    button.textContent = `${viewLabels[view]}${view === "operations" ? "" : ` (${count})`}`;
+    button.classList.toggle("active", state.view === view);
+    button.setAttribute("aria-selected", String(state.view === view));
   });
+}
+
+function renderOperations(candidates) {
+  const insufficient = candidates.filter((item) => chartGroup(item) === "insufficient");
+  const unclassified = candidates.filter((item) => chartGroup(item) === "unclassified");
+  document.querySelector("#unclassifiedMeta").textContent = `자료부족 ${insufficient.length}종목 · 배열 확인 ${unclassified.length}종목`;
+  const list = document.querySelector("#dataReviewList");
+  list.replaceChildren();
+  for (const item of [...insufficient, ...unclassified]) {
+    const row = document.createElement("li");
+    row.textContent = `${item.name} (${item.code}) · ${chartGroup(item) === "insufficient" ? (item.status === "insufficient" ? "A-G 기준자료 부족" : "차트 자료 부족·갱신 대기") : "정배열·조정 분류 확인"}`;
+    list.append(row);
+  }
+  const select = document.querySelector("#operationStock");
+  const prior = select.value;
+  select.replaceChildren();
+  for (const item of candidates) {
+    const option = document.createElement("option");
+    option.value = item.code;
+    option.textContent = `${item.name} (${item.code})`;
+    select.append(option);
+  }
+  if (candidates.some((item) => item.code === prior)) select.value = prior;
+  document.querySelector("#operationExclude").disabled = !candidates.length;
 }
 
 function renderPositions(positions, closedPositions = []) {
@@ -275,7 +314,7 @@ function renderClosedPosition(item) {
 function filteredCandidates(candidates) {
   const keyword = state.keyword.trim().toLowerCase();
   return candidates.filter((item) => {
-    const statusMatch = state.filter === "all" || item.status === state.filter;
+    const statusMatch = chartGroup(item) === state.view;
     const keywordMatch = !keyword || item.name.toLowerCase().includes(keyword) || item.code.includes(keyword);
     return statusMatch && keywordMatch;
   });
@@ -287,9 +326,7 @@ function renderCandidates(candidates) {
     (statusPriority[a.status] ?? 99) - (statusPriority[b.status] ?? 99)
     || a.name.localeCompare(b.name, "ko")
   );
-  const coreCount = candidates.filter((item) => (item.candidateTier || "core") === "core").length;
-  const expandedCount = candidates.filter((item) => item.candidateTier === "expanded").length;
-  elements.candidateMeta.textContent = `${visible.length}개 표시 · 핵심 ${coreCount} · 확대 ${expandedCount}`;
+  elements.candidateMeta.textContent = `${visible.length}종목 · ${state.view === "target" ? "MA20 < MA40 또는 MA60" : "MA20 > MA40 > MA60"}`;
   elements.candidateList.innerHTML = "";
   if (!visible.length) {
     elements.candidateList.innerHTML = '<div class="empty-list">현재 조건에 해당하는 후보가 없습니다.</div>';
@@ -326,7 +363,7 @@ function renderCandidates(candidates) {
     node.querySelector(".candidate-progress i").style.width = `${(rise / 5) * 100}%`;
     node.querySelector(".candidate-rise").textContent = `${rise} / 5`;
     node.querySelector(".candidate-days").textContent = `A-G ${item.dailySignalDate} · ${item.tradingDaysRemaining}일 남음`;
-    node.querySelector(".candidate-price").textContent = quoteTime ? `${quoteTime.slice(11, 16)} ${intraday.quoteTime ? "수집가" : "완성봉"}` : "분봉 대기";
+    node.querySelector(".candidate-price").textContent = quoteTime ? `${quoteTime.slice(5, 10)} ${quoteTime.slice(11, 16)} ${intraday.quoteTime ? "수집가" : "완성봉"}` : "분봉 대기";
     const technicalStop = item.daily?.preSpikeClose;
     const maximumLossStop = intraday.lastPrice ? Math.round(intraday.lastPrice * 0.95) : null;
     const stopPrice = technicalStop && maximumLossStop ? Math.max(technicalStop, maximumLossStop) : technicalStop;
@@ -632,10 +669,15 @@ function renderDetail(item) {
   } else {
     elements.detailBadge.style.backgroundColor = "";
   }
-  drawChart(intraday.series || [], intraday.dailyMa10, item.sessionRecoveryHistory || {});
-  const dailySeries = item.dailyChart?.series || [];
+  const native = item.displayCharts?.intraday;
+  const daily = item.displayCharts?.daily;
+  drawChart(native?.series || [], null, item.sessionRecoveryHistory || {});
+  const dailySeries = daily?.series || [];
+  const latest = native?.series?.at(-1);
+  const incompleteWarmup = native?.series?.some((row) => row.m60 == null);
+  document.querySelector("#chartSource").textContent = `네이버 KRX 원본 · 최근 5거래일 · ${latest ? formatDateTime(latest.t) : "자료 대기"}${native?.dataStatus === "stale" ? " · 갱신 지연" : ""}${incompleteWarmup ? " · 초기 MA60 자료 부족" : ""} · 신호판정은 기존 정규장 기준`;
   const latestDailyDate = dailySeries.at(-1)?.d;
-  elements.dailyChartMeta.textContent = `${latestDailyDate || "일봉 대기"} 장중 현재가 포함 · MA5 · MA10 · MA20 · MA60`;
+  elements.dailyChartMeta.textContent = `${latestDailyDate || "일봉 대기"} · 네이버 일봉 · MA5 · MA10 · MA20 · MA60${daily?.dataStatus === "stale" ? " · 갱신 지연" : ""}`;
   drawDailyChart(dailySeries);
 }
 
@@ -687,10 +729,13 @@ function drawChart(series, dailyMa10, recoveryHistory = {}) {
   const plotWidth = width - pad.left - pad.right;
   const slot = plotWidth / series.length;
   const x = (index) => pad.left + slot * (index + 0.5);
-  ctx.fillStyle = "#fff3b0";
+  const phaseColors = { before: "#f1f3f5", pullback: "#fff7d1", fast: "#eef8d6", confirmed: "#dff2e7" };
   series.forEach((row, index) => {
+    ctx.fillStyle = phaseColors[row.phase] || phaseColors.before;
+    ctx.fillRect(pad.left + slot * index, pad.top, slot + 0.5, height - pad.top - pad.bottom);
     if (recoveryHistory[row.t.slice(0, 10)]?.matched) {
-      ctx.fillRect(pad.left + slot * index, pad.top, slot + 0.5, height - pad.top - pad.bottom);
+      ctx.fillStyle = "#e8c748";
+      ctx.fillRect(pad.left + slot * index, volumeTop - 4, slot + 0.5, 3);
     }
   });
   const y = (value) => pad.top + ((priceMax - value) / spread) * (priceBottom - pad.top);
@@ -743,7 +788,9 @@ function drawChart(series, dailyMa10, recoveryHistory = {}) {
   ctx.fillStyle = "#e53935"; ctx.fillRect(pad.left + 58, 9, 14, 3); ctx.fillStyle = "#48574f"; ctx.fillText("MA20", pad.left + 77, 15);
   ctx.fillStyle = "#9a641d"; ctx.fillRect(pad.left + 126, 9, 14, 3); ctx.fillStyle = "#48574f"; ctx.fillText("MA40", pad.left + 145, 15);
   ctx.fillStyle = "#3167ad"; ctx.fillRect(pad.left + 194, 9, 14, 3); ctx.fillStyle = "#48574f"; ctx.fillText("MA60", pad.left + 213, 15);
-  ctx.fillStyle = "#d97706"; ctx.fillRect(pad.left, 27, 14, 3); ctx.fillStyle = "#48574f"; ctx.fillText("일봉 MA10", pad.left + 19, 33);
+  if (dailyMa10 != null) {
+    ctx.fillStyle = "#d97706"; ctx.fillRect(pad.left, 27, 14, 3); ctx.fillStyle = "#48574f"; ctx.fillText("일봉 MA10", pad.left + 19, 33);
+  }
   ctx.fillStyle = "#64746c";
   const dateIndexes = [0];
   for (let index = 1; index < series.length; index += 1) {
@@ -891,12 +938,18 @@ function formatShortTime(value) {
   return value ? value.slice(5, 16).replace("T", " ") : "";
 }
 
-document.querySelectorAll(".tab").forEach((button) => {
+document.querySelectorAll(".view-tab").forEach((button) => {
   button.addEventListener("click", () => {
-    document.querySelectorAll(".tab").forEach((item) => item.classList.toggle("active", item === button));
-    state.filter = button.dataset.filter;
+    state.view = button.dataset.view;
+    state.keyword = "";
+    elements.keyword.value = "";
+    state.deepLinkPending = false;
     render();
   });
+});
+document.querySelector("#operationExclude").addEventListener("click", () => {
+  const item = state.payload?.candidates?.find((entry) => entry.code === document.querySelector("#operationStock").value);
+  if (item) openExclusionDialog(item, "exclude");
 });
 elements.keyword.addEventListener("input", (event) => { state.keyword = event.target.value; render(); });
 elements.refreshButton.addEventListener("click", loadData);

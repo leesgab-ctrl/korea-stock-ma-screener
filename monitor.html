@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#176b58">
     <title>A-G 30분봉 신호 감시</title>
-    <link rel="stylesheet" href="monitor.css?v=20261006-4">
+    <link rel="stylesheet" href="monitor.css?v=20261007-5">
   </head>
   <body>
     <header class="topbar">
@@ -16,16 +16,23 @@
           <p>최근 10거래일 후보 자동 관리</p>
         </div>
       </div>
-      <nav aria-label="화면 이동">
-        <a href="index.html">이동평균 검색</a>
-        <a class="history-link" href="history.html">검증 이력</a>
-        <button id="refreshButton" type="button">새로고침</button>
-        <button id="criteriaButton" class="criteria-button" type="button">운영관리기준</button>
-        <button id="manualExclusionsButton" type="button">수동 제외 (0)</button>
-      </nav>
+      <button id="refreshButton" class="external-link" type="button">새로고침</button>
     </header>
 
     <main>
+      <nav class="main-tabs" aria-label="감시 메뉴" role="tablist">
+        <button class="view-tab active" data-view="target" type="button" role="tab" aria-selected="true">포착대상종목</button>
+        <button class="view-tab" data-view="reference" type="button" role="tab" aria-selected="false">참고종목</button>
+        <button class="view-tab" data-view="positions" type="button" role="tab" aria-selected="false">보유종목</button>
+        <button class="view-tab" data-view="operations" type="button" role="tab" aria-selected="false">운영관리</button>
+      </nav>
+      <section id="operationsPanel" class="hidden" aria-label="운영관리">
+        <div class="operation-links">
+          <a class="external-link" href="index.html">종목검색</a>
+          <a class="external-link" href="history.html">검증이력</a>
+          <button id="criteriaButton" class="external-link" type="button">운영관리기준</button>
+          <button id="manualExclusionsButton" class="external-link" type="button">수동 제외 (0)</button>
+        </div>
       <section class="summary" aria-label="감시 요약">
         <div><strong id="activeCount">-</strong><span>활성 후보</span></div>
         <div><strong id="setupCount">-</strong><span>매수 준비</span></div>
@@ -46,7 +53,16 @@
         <span id="pushState" class="status-chip">푸시 확인 중</span>
       </section>
 
-      <section class="positions-panel" aria-label="보유종목 관리">
+        <section class="operation-review">
+          <h2>분류 확인·감시 관리</h2>
+          <p id="unclassifiedMeta"></p>
+          <ul id="dataReviewList"></ul>
+          <label>종목<select id="operationStock"></select></label>
+          <button id="operationExclude" class="external-link" type="button">감시 제외</button>
+        </section>
+      </section>
+
+      <section class="positions-panel hidden" aria-label="보유종목 관리">
         <div class="section-heading">
           <div><h2>보유종목 관리</h2><p>목표 +5%, 손절가, 30분봉 추세약화 알림</p></div>
           <button id="positionManagerButton" class="external-link" type="button">보유 등록·수정</button>
@@ -55,15 +71,7 @@
       </section>
 
       <section class="toolbar" aria-label="후보 필터">
-        <div class="tabs" role="tablist">
-          <button class="tab active" data-filter="all" type="button">전체</button>
-          <button class="tab" data-filter="signal" type="button">매수 검토</button>
-          <button class="tab" data-filter="signaled" type="button">포착 완료</button>
-          <button class="tab" data-filter="setup" type="button">매수 준비</button>
-          <button class="tab" data-filter="rising" type="button">상승 진행</button>
-          <button class="tab" data-filter="waiting60" type="button">MA3 대기</button>
-          <button class="tab" data-filter="watching" type="button">관찰 중</button>
-        </div>
+        <h2 id="viewTitle">포착대상종목</h2>
         <label class="search-field">
           <span>종목 검색</span>
           <input id="keyword" type="search" placeholder="종목명 또는 코드">
@@ -73,7 +81,7 @@
       <section class="workspace">
         <section class="candidate-panel" aria-label="활성 후보">
           <div class="section-heading">
-            <div><h2>활성 후보</h2><p id="candidateMeta">불러오는 중</p></div>
+            <div><p id="candidateMeta">불러오는 중</p></div>
           </div>
           <div id="candidateList" class="candidate-list"></div>
         </section>
@@ -97,6 +105,8 @@
               <span>A-G 발생 <strong id="dailySignal">-</strong></span>
               <span>남은 기간 <strong id="remainingDays">-</strong></span>
             </div>
+            <p id="chartSource" class="chart-source"></p>
+            <div class="phase-legend"><span class="phase-before">이전</span><span class="phase-pullback">MA20 하향</span><span class="phase-fast">MA3 돌파</span><span class="phase-confirmed">MA20 돌파</span></div>
             <canvas id="maChart" width="900" height="360" aria-label="30분봉 캔들, 거래량과 이동평균선"></canvas>
             <div class="daily-chart-heading">
               <strong>일봉 흐름</strong>
@@ -118,9 +128,9 @@
           <span class="candidate-bottom"><span class="candidate-days"></span><span class="candidate-price"></span></span>
         </button>
         <div class="candidate-actions">
-          <span class="candidate-stop"></span>
+          <span class="candidate-stop hidden"></span>
           <button class="candidate-register" type="button">보유등록</button>
-          <button class="candidate-exclude" type="button">감시 제외</button>
+          <button class="candidate-exclude hidden" type="button">감시 제외</button>
         </div>
       </article>
     </template>
@@ -157,6 +167,12 @@
             <span><b class="tier-swatch core"></b>핵심 A-G: A 200%·E 1% 기준</span>
             <span><b class="tier-swatch expanded"></b>확대 A-G: A 150%·E 0.5% 기준, B·C·D·F·G는 핵심 후보와 동일</span>
           </div>
+        </section>
+
+        <section>
+          <div class="criteria-section-heading"><strong>화면 분류·차트 표시</strong></div>
+          <p>포착대상종목은 네이버 KRX 원본 30분봉 마지막 완성봉의 MA20이 MA40 또는 MA60 아래인 종목, 참고종목은 MA20 &gt; MA40 &gt; MA60인 종목입니다. 자료부족 종목은 운영관리에서 확인합니다. 자료가 보완되면 재분류하며, 수동 제외한 종목은 복원 전까지 돌아오지 않습니다.</p>
+          <p>차트 배경은 이전 구간 회색 → MA20 하향 진입 노란색 → MA3 상향 돌파 연두색 → MA20 상향 돌파 초록색입니다. MA60 아래까지 조정되면 MA60, 그 외는 MA40을 돌파 기준으로 사용합니다. 배경은 원본 차트의 완성봉 기준이며, 기존 정규장 매수 판정·알림과 별도로 표시합니다.</p>
         </section>
 
         <section>
@@ -246,6 +262,6 @@
     <dialog id="excludedListDialog" class="position-dialog">
       <div class="position-form"><h2>사용자 선정 제외</h2><div id="excludedList"></div><button id="excludedListClose" type="button">닫기</button></div>
     </dialog>
-    <script src="monitor.js?v=20261007-3"></script>
+    <script src="monitor.js?v=20261007-5"></script>
   </body>
 </html>

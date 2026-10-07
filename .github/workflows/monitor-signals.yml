@@ -2,6 +2,11 @@ name: Monitor 30-minute buy signals
 
 on:
   workflow_dispatch:
+    inputs:
+      charts_only:
+        description: Refresh display charts without changing signals or sending alerts
+        type: boolean
+        default: false
   schedule:
     - cron: "*/10 0-6 * * 1-5"
 
@@ -34,14 +39,19 @@ jobs:
         id: monitor
         env:
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
-        run: python scripts/update_candidate_monitor.py --mode intraday --github-output "$GITHUB_OUTPUT"
+          CHARTS_ONLY: ${{ inputs.charts_only }}
+        run: |
+          MODE=intraday
+          if [ "$CHARTS_ONLY" = "true" ]; then MODE=charts; fi
+          python scripts/update_candidate_monitor.py --mode "$MODE" --github-output "$GITHUB_OUTPUT"
       - name: Check purchased stocks
+        if: inputs.charts_only != true
         id: positions
         env:
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
         run: python scripts/manage_positions.py --action monitor --github-output "$GITHUB_OUTPUT"
       - name: Save newly notified signals
-        if: steps.monitor.outputs.alerts != '0' || steps.positions.outputs.alerts != '0'
+        if: inputs.charts_only != true && (steps.monitor.outputs.alerts != '0' || steps.positions.outputs.alerts != '0')
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"

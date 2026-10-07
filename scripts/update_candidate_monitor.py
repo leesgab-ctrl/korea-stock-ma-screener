@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import datetime as dt
 import json
+import math
 import os
 import re
 import urllib.request
@@ -372,6 +373,8 @@ def build_daily_candidates(stock_data: Path, previous: dict[str, Any]) -> dict[s
             candidate["tracking"] = prior["tracking"]
         if prior.get("intradayHistory"):
             candidate["intradayHistory"] = prior["intradayHistory"]
+        if prior.get("displayCharts"):
+            candidate["displayCharts"] = prior["displayCharts"]
         if prior.get("sessionRecoveryHistory"):
             candidate["sessionRecoveryHistory"] = prior["sessionRecoveryHistory"]
         if prior.get("registrationDayBars"):
@@ -448,6 +451,121 @@ def fetch_minute_rows(code: str, count: int) -> list[dict[str, Any]]:
             continue
     rows.sort(key=lambda row: row["time"])
     return rows
+
+
+def apply_display_phases(series: list[dict[str, Any]]) -> None:
+    """Visual cross stages only; never used by the buy-signal evaluator."""
+    phase, target = "before", None
+    previous = None
+    for row in series:
+        row["phase"] = phase
+        row["phaseTarget"] = target
+        if row.get("complete") is False:
+            continue
+        if any(row.get(f"m{window}") is None for window in (3, 20, 40, 60)):
+            previous = None
+            continue
+        if previous is not None:
+            down40 = previous["m20"] >= previous["m40"] and row["m20"] < row["m40"]
+            down60 = previous["m20"] >= previous["m60"] and row["m20"] < row["m60"]
+            if down40 or down60:
+                target = 60 if down60 or row["m20"] < row["m60"] else 40
+                phase = "pullback"
+            if target is not None:
+                key = f"m{target}"
+                if previous["m20"] <= previous[key] and row["m20"] > row[key]:
+                    phase = "confirmed"
+                elif phase == "pullback" and previous["m3"] <= previous[key] and row["m3"] > row[key]:
+                    phase = "fast"
+        row["phase"], row["phaseTarget"] = phase, target
+        previous = row
+
+
+def fetch_display_chart(
+    code: str, timeframe: str, current: dt.datetime, previous: dict[str, Any] | None = None
+) -> dict[str, Any]:
+    if timeframe not in ("minute30", "day"):
+        raise ValueError("Unsupported chart timeframe")
+    previous = previous or {}
+    start = current.date() - dt.timedelta(days=35 if timeframe == "minute30" else 400)
+    url = (
+        f"https://api.stock.naver.com/chart/domestic/item/{code}/{timeframe}"
+        f"?startDateTime={start:%Y%m%d}0000&endDateTime={current:%Y%m%d}2359&wrapper=true"
+    )
+    response = json.loads(fetch_bytes(url).decode("utf-8"))
+    if response.get("stockExchangeType") != "KRX" or not isinstance(response.get("priceInfos"), list):
+        raise ValueError("Unexpected native chart response")
+    intraday = timeframe == "minute30"
+    time_key = "t" if intraday else "d"
+    fresh = {}
+    for item in response["priceInfos"]:
+        if intraday:
+            stamp = dt.datetime.strptime(item["localDateTime"], "%Y%m%d%H%M%S").replace(tzinfo=KST)
+            if stamp > current:
+                continue
+            date_key = stamp.isoformat(timespec="minutes")
+        else:
+            day = dt.datetime.strptime(item["localDate"], "%Y%m%d").date()
+            if day > current.date():
+                continue
+            date_key = day.isoformat()
+        values = {
+            "o": float(item["openPrice"]), "h": float(item["highPrice"]),
+            "l": float(item["lowPrice"]), "c": float(item["currentPrice" if intraday else "closePrice"]),
+            "v": float(item["accumulatedTradingVolume"]),
+        }
+        if any(not math.isfinite(value) or value < 0 for value in values.values()) or min(values[key] for key in ("o", "h", "l", "c")) <= 0:
+            raise ValueError("Invalid native chart price")
+        fresh[date_key] = {time_key: date_key, **values}
+
+    # This cache contains only native chart bars, never signal-analysis bars.
+    compatible = previous.get("schemaVersion") == 1 and previous.get("source") == "naver_native" and previous.get("venue") == "KRX" and previous.get("timeframe") == timeframe
+    history = {row[time_key]: {key: row[key] for key in (time_key, "o", "h", "l", "c", "v")} for row in previous.get("history", [])} if compatible else {}
+    if fresh:
+        first, last = min(fresh), max(fresh)
+        history = {key: row for key, row in history.items() if key < first or key > last}
+        history.update(fresh)
+    limit = 600 if intraday else 250
+    rows = [history[key] for key in sorted(history)][-limit:]
+    windows = (3, 20, 40, 60) if intraday else (5, 10, 20, 60)
+    averages = {window: rolling_average([row["c"] for row in rows], window) for window in windows}
+    series = [
+        {**row, **{f"m{window}": round(averages[window][index], 2) if averages[window][index] is not None else None for window in windows}}
+        for index, row in enumerate(rows)
+    ]
+    if intraday:
+        for row in series:
+            stamp = dt.datetime.fromisoformat(row["t"])
+            row["complete"] = current >= stamp + dt.timedelta(minutes=30)
+        apply_display_phases(series)
+        visible_days = sorted({row["t"][:10] for row in rows})[-5:]
+        series = [row for row in series if row["t"][:10] in visible_days]
+    else:
+        series = series[-60:]
+    return {
+        "schemaVersion": 1, "source": "naver_native", "venue": "KRX", "timeframe": timeframe,
+        "session": "regular_and_aftermarket", "dataStatus": "ok" if fresh else "stale" if rows else "no_data",
+        "fetchedAt": current.isoformat(timespec="seconds") if fresh else previous.get("fetchedAt"),
+        "sourceAsOf": response.get("localDateTimeNow"), "marketStatus": response.get("marketStatus"),
+        "barCount": len(rows), "history": rows, "series": series,
+    }
+
+
+def refresh_display_charts(payload: dict[str, Any], current: dt.datetime) -> None:
+    errors = 0
+    for candidate in payload.get("candidates", []):
+        charts = candidate.setdefault("displayCharts", {})
+        for name, timeframe in (("intraday", "minute30"), ("daily", "day")):
+            previous = charts.get(name, {})
+            try:
+                charts[name] = fetch_display_chart(candidate["code"], timeframe, current, previous)
+            except (OSError, TimeoutError, ValueError, KeyError, TypeError) as exc:
+                errors += 1
+                charts[name] = {**previous, "dataStatus": "stale" if previous.get("series") else "error", "error": str(exc)}
+    payload["displayChartSummary"] = {
+        "updatedAt": current.isoformat(timespec="seconds"),
+        "candidateCount": len(payload.get("candidates", [])), "errors": errors,
+    }
 
 
 def fetch_daily_chart(code: str, count: int = 130) -> dict[str, Any]:
@@ -1187,7 +1305,7 @@ def write_github_output(path: str | None, alerts: int, pending: int) -> None:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="A-G 후보와 30분봉 MA 신호를 관리합니다.")
-    parser.add_argument("--mode", choices=("daily", "intraday"), required=True)
+    parser.add_argument("--mode", choices=("daily", "intraday", "charts"), required=True)
     parser.add_argument("--stock-data", default="data/stock-data.json")
     parser.add_argument("--output", default="data/candidate-monitor.json")
     parser.add_argument("--minute-count", type=int, default=5000)
@@ -1211,13 +1329,10 @@ def main() -> None:
             payload.setdefault("candidates", [])
             payload.setdefault("notifiedSignals", [])
     current = dt.datetime.fromisoformat(args.now).astimezone(KST) if args.now else now_kst()
-    alerts, pending = enrich(
-        payload,
-        current,
-        args.minute_count,
-        args.no_notify,
-        refresh_daily_chart=True,
+    alerts, pending = (0, 0) if args.mode == "charts" else enrich(
+        payload, current, args.minute_count, args.no_notify, refresh_daily_chart=True,
     )
+    refresh_display_charts(payload, current)
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
     write_github_output(args.github_output, alerts, pending)
