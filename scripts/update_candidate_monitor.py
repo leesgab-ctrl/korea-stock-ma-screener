@@ -481,6 +481,56 @@ def apply_display_phases(series: list[dict[str, Any]]) -> None:
         previous = row
 
 
+def apply_reference_rebound(series: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """MA-only, completed native bars; each intraday pullback is a separate cycle."""
+    completed = []
+    sessions = {}
+    active = None
+    events = []
+    for row in series:
+        row["referencePullback"] = False
+        row["referenceQualified"] = False
+        if row.get("complete") is False:
+            continue
+        day = row["t"][:10]
+        previous_days = sorted(d for d in sessions if d < day)
+        yesterday = sessions[previous_days[-1]] if previous_days else []
+        previous = completed[-1] if completed else None
+        valid = all(row.get(f"m{w}") is not None for w in (10, 20, 40, 60))
+        previous_valid = previous and all(previous.get(f"m{w}") is not None for w in (10, 20, 40, 60))
+        if not valid or not previous_valid:
+            active = None
+        if active and active["day"] != day:
+            active = None
+        if valid and previous_valid:
+            gap = 100 * (row["m20"] / row["m40"] - 1)
+            structure = row["m20"] > row["m40"] and row["m40"] > previous["m40"] and row["m60"] > previous["m60"]
+            if active and not structure:
+                active = None
+            if active and row["m10"] > row["m20"]:
+                if previous["m10"] <= previous["m20"] and gap <= 1:
+                    event = {"time": row["t"], "price": row["c"], "start": active["start"], "gapPct": round(gap, 3)}
+                    events.append(event)
+                    row["referenceRebound"] = True
+                active = None
+            if active:
+                row["referencePullback"] = True
+            elif previous["t"][:10] == day and previous["m10"] >= previous["m20"] and row["m10"] < row["m20"]:
+                baseline = completed[-3] if len(completed) >= 3 else None
+                yesterday_valid = [r for r in yesterday if r.get("m20") is not None]
+                yesterday_up = len(yesterday_valid) >= 2 and yesterday_valid[-1]["m20"] > yesterday_valid[0]["m20"]
+                flat = baseline and baseline.get("m20") and abs(100 * (row["m20"] / baseline["m20"] - 1)) <= 0.2
+                recent = completed[-3:] + [row]
+                rising40 = len(recent) == 4 and all(a.get("m40") is not None and b.get("m40") is not None and b["m40"] > a["m40"] for a, b in zip(recent, recent[1:]))
+                if structure and gap <= 1 and yesterday_up and flat and rising40 and all(r.get("m20") and r.get("m40") and r["m20"] > r["m40"] for r in recent):
+                    active = {"day": day, "start": row["t"]}
+                    row["referencePullback"] = True
+            row["referenceQualified"] = bool(structure and (active or any(e["time"][:10] == day for e in events)))
+        completed.append(row)
+        sessions.setdefault(day, []).append(row)
+    return events
+
+
 def fetch_display_chart(
     code: str, timeframe: str, current: dt.datetime, previous: dict[str, Any] | None = None
 ) -> dict[str, Any]:
@@ -527,17 +577,19 @@ def fetch_display_chart(
         history.update(fresh)
     limit = 600 if intraday else 250
     rows = [history[key] for key in sorted(history)][-limit:]
-    windows = (3, 20, 40, 60) if intraday else (5, 10, 20, 60)
+    windows = (3, 10, 20, 40, 60) if intraday else (5, 10, 20, 60)
     averages = {window: rolling_average([row["c"] for row in rows], window) for window in windows}
     series = [
         {**row, **{f"m{window}": round(averages[window][index], 2) if averages[window][index] is not None else None for window in windows}}
         for index, row in enumerate(rows)
     ]
+    rebound_events = []
     if intraday:
         for row in series:
             stamp = dt.datetime.fromisoformat(row["t"])
             row["complete"] = current >= stamp + dt.timedelta(minutes=30)
         apply_display_phases(series)
+        rebound_events = apply_reference_rebound(series)
         visible_days = sorted({row["t"][:10] for row in rows})[-5:]
         series = [row for row in series if row["t"][:10] in visible_days]
     else:
@@ -548,6 +600,7 @@ def fetch_display_chart(
         "fetchedAt": current.isoformat(timespec="seconds") if fresh else previous.get("fetchedAt"),
         "sourceAsOf": response.get("localDateTimeNow"), "marketStatus": response.get("marketStatus"),
         "barCount": len(rows), "history": rows, "series": series,
+        "referenceRebounds": rebound_events,
     }
 
 
@@ -1173,6 +1226,44 @@ def notify_ntfy(topic: str, candidate: dict[str, Any], recovery=None) -> None:
             raise RuntimeError(f"ntfy 전송 실패: HTTP {response.status}")
 
 
+def notify_reference_rebounds(payload, current, no_notify=False):
+    notified = set(payload.get("notifiedSignals", []))
+    topic = os.getenv("NTFY_TOPIC", "").strip()
+    alerts = pending = 0
+    if current.weekday() >= 5 or not dt.time(9) <= current.time() <= dt.time(15, 30):
+        return alerts, pending
+    for candidate in payload.get("candidates", []):
+        if candidate.get("status") == "insufficient":
+            continue
+        chart = candidate.get("displayCharts", {}).get("intraday", {})
+        if chart.get("dataStatus") != "ok":
+            continue
+        for event in chart.get("referenceRebounds", []):
+            stamp = dt.datetime.fromisoformat(event["time"])
+            registered = str(candidate.get("registeredAt") or candidate.get("dailySignalDate") or "")[:10]
+            age = current - (stamp + dt.timedelta(minutes=30))
+            signature = f"reference-rebound|{candidate['code']}|{candidate['dailySignalDate']}|{event['time']}"
+            if stamp.date() != current.date() or event["start"][:10] < registered or not dt.timedelta(0) <= age <= dt.timedelta(minutes=90) or signature in notified:
+                continue
+            pending += 1
+            if not topic or no_notify:
+                continue
+            body = json.dumps({
+                "topic": topic, "title": f"{candidate['name']} 참고종목 재상승",
+                "message": f"{candidate['name']}({candidate['code']})\nMA10 → MA20 재상승 확인\n확정봉: {event['time']}\n포착가격: {event['price']:,.0f}원\nMA20·MA40 밀착 / MA40·MA60 상승\n기존 매수신호와 별도인 관찰 알림입니다.",
+                "priority": 5, "tags": ["chart_with_upwards_trend"],
+                "click": f"{MONITOR_URL}?stock={candidate['code']}",
+            }, ensure_ascii=False).encode("utf-8")
+            request = urllib.request.Request("https://ntfy.sh", data=body, headers={"Content-Type": "application/json", "User-Agent": USER_AGENT})
+            with urllib.request.urlopen(request, timeout=20) as response:
+                if response.status >= 300:
+                    raise RuntimeError(f"ntfy HTTP {response.status}")
+            notified.add(signature)
+            alerts += 1
+    payload["notifiedSignals"] = sorted(notified)
+    return alerts, pending
+
+
 def enrich(
     payload: dict[str, Any],
     current: dt.datetime,
@@ -1354,6 +1445,10 @@ def main() -> None:
         payload, current, args.minute_count, args.no_notify, refresh_daily_chart=True,
     )
     refresh_display_charts(payload, current)
+    if args.mode != "charts":
+        rebound_alerts, rebound_pending = notify_reference_rebounds(payload, current, args.no_notify)
+        alerts += rebound_alerts
+        pending += rebound_pending
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
     write_github_output(args.github_output, alerts, pending)

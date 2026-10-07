@@ -106,6 +106,7 @@ function chartGroup(item) {
   if (chart?.dataStatus !== "ok") return "insufficient";
   const last = chart.series?.filter((row) => row.complete !== false).at(-1);
   if (!last || ![last.m20, last.m40, last.m60].every(Number.isFinite)) return "insufficient";
+  if (last.m20 > last.m40 && last.referenceQualified) return "reference";
   if (last.m20 < last.m40 || last.m20 < last.m60) return "target";
   if (last.m20 > last.m40 && last.m40 > last.m60) return "reference";
   return "unclassified";
@@ -353,7 +354,7 @@ function renderCandidates(candidates) {
     (statusPriority[a.status] ?? 99) - (statusPriority[b.status] ?? 99)
     || a.name.localeCompare(b.name, "ko")
   );
-  elements.candidateMeta.textContent = `${visible.length}종목 · ${state.view === "target" ? "MA20 < MA40 또는 MA60" : "MA20 > MA40 > MA60"}`;
+  elements.candidateMeta.textContent = `${visible.length}종목 · ${state.view === "target" ? "MA20 < MA40 또는 MA60" : "정배열 · 밀착 후 재상승"}`;
   elements.candidateList.innerHTML = "";
   if (!visible.length) {
     elements.candidateList.innerHTML = '<div class="empty-list">현재 조건에 해당하는 후보가 없습니다.</div>';
@@ -386,6 +387,15 @@ function renderCandidates(candidates) {
       node.style.backgroundColor = "#fff8d4";
     }
     node.querySelector(".candidate-code").textContent = `${item.code} · ${item.market}`;
+    const nativeChart = item.displayCharts?.intraday;
+    const nativeLast = nativeChart?.series?.filter((row) => row.complete !== false).at(-1);
+    const rebound = nativeChart?.referenceRebounds?.filter((event) => event.start.slice(0, 10) >= (item.registeredAt || item.dailySignalDate).slice(0, 10)).at(-1);
+    if (nativeLast?.referencePullback) {
+      node.querySelector(".candidate-status").textContent = "MA10 조정 관찰";
+      node.style.backgroundColor = "#fff7d1";
+    } else if (rebound && rebound.time.slice(0, 10) === nativeLast?.t.slice(0, 10)) {
+      node.querySelector(".candidate-status").textContent = `밀착 후 재상승 ${formatDateTime(rebound.time)}`;
+    }
     node.querySelector(".candidate-tier").textContent = tierLabels[item.candidateTier || "core"];
     node.querySelector(".candidate-progress i").style.width = `${(rise / 5) * 100}%`;
     node.querySelector(".candidate-rise").textContent = `${rise} / 5`;
@@ -706,6 +716,13 @@ function renderDetail(item) {
   }
   const native = item.displayCharts?.intraday;
   const daily = item.displayCharts?.daily;
+  const rebound = native?.referenceRebounds?.filter((event) => event.start.slice(0, 10) >= (item.registeredAt || item.dailySignalDate || "").slice(0, 10)).at(-1);
+  const nativeLast = native?.series?.filter((row) => row.complete !== false).at(-1);
+  if (!item.positionDetail && nativeLast?.referencePullback) {
+    elements.signalMessage.textContent = "MA10이 MA20 아래에서 조정 중입니다. MA20·MA40 밀착과 MA40·MA60 상승을 유지하는지 관찰합니다.";
+  } else if (!item.positionDetail && rebound) {
+    elements.signalMessage.textContent = `밀착 후 재상승 · ${formatDateTime(rebound.time)} · 포착가격 ${formatter.format(rebound.price)}원 · MA10 → MA20 상향 돌파 (별도 관찰 신호)`;
+  }
   drawChart(native?.series || [], null, item.sessionRecoveryHistory || {});
   const dailySeries = daily?.series || [];
   const latest = native?.series?.at(-1);
@@ -757,7 +774,11 @@ function drawChart(series, dailyMa10, recoveryHistory = {}) {
   const priceMin = min - rawSpread * 0.04;
   const priceMax = max + rawSpread * 0.04;
   const spread = priceMax - priceMin;
-  const pad = { left: 54, right: 12, top: 42, bottom: 28 };
+  const mobile = window.innerWidth <= 540;
+  ctx.font = mobile ? "10px Segoe UI" : "11px Segoe UI";
+  const priceLabel = (value) => mobile ? formatter.format(Math.round(value)) : formatter.format(value);
+  const labelWidth = Math.max(...[priceMin, priceMax].map((value) => ctx.measureText(priceLabel(value)).width));
+  const pad = { left: mobile ? Math.ceil(labelWidth) + 5 : 54, right: mobile ? 3 : 12, top: 42, bottom: 28 };
   const volumeHeight = Math.max(44, Math.round(height * 0.2));
   const volumeTop = height - pad.bottom - volumeHeight;
   const priceBottom = volumeTop - 10;
@@ -766,7 +787,7 @@ function drawChart(series, dailyMa10, recoveryHistory = {}) {
   const x = (index) => pad.left + slot * (index + 0.5);
   const phaseColors = { before: "#e9edf0", pullback: "#fff7d1", fast: "#eef8d6", confirmed: "#dff2e7" };
   series.forEach((row, index) => {
-    ctx.fillStyle = phaseColors[row.phase] || phaseColors.before;
+    ctx.fillStyle = row.referencePullback ? "#fff7d1" : phaseColors[row.phase] || phaseColors.before;
     ctx.fillRect(pad.left + slot * index, pad.top, slot + 0.5, height - pad.top - pad.bottom);
     if (recoveryHistory[row.t.slice(0, 10)]?.matched) {
       ctx.fillStyle = "#e8c748";
@@ -779,8 +800,9 @@ function drawChart(series, dailyMa10, recoveryHistory = {}) {
   for (let step = 0; step <= 4; step += 1) {
     const yy = pad.top + (step / 4) * (priceBottom - pad.top);
     ctx.beginPath(); ctx.moveTo(pad.left, yy); ctx.lineTo(width - pad.right, yy); ctx.stroke();
-    ctx.fillStyle = "#64746c"; ctx.font = "11px Segoe UI";
-    ctx.fillText(formatter.format(priceMax - (spread * step) / 4), 3, yy + 4);
+    ctx.fillStyle = "#64746c"; ctx.font = mobile ? "10px Segoe UI" : "11px Segoe UI";
+    const label = priceLabel(priceMax - (spread * step) / 4);
+    ctx.fillText(label, mobile ? pad.left - ctx.measureText(label).width - 4 : 3, yy + 4);
   }
   const maxVolume = Math.max(...series.map((row) => Number(row.v) || 0), 1);
   const candleWidth = Math.max(2, Math.min(8, slot * 0.66));
@@ -811,6 +833,7 @@ function drawChart(series, dailyMa10, recoveryHistory = {}) {
     drawLine(ctx, series, "c", "#73827a", 1.4, x, y);
   }
   drawLine(ctx, series, "m3", "#34a853", 1.1, x, y);
+  drawLine(ctx, series, "m10", "#d97706", 1.4, x, y);
   drawLine(ctx, series, "m20", "#e53935", 2.2, x, y);
   drawLine(ctx, series, "m40", "#9a641d", 2.2, x, y);
   drawLine(ctx, series, "m60", "#3167ad", 2.2, x, y);
@@ -826,6 +849,8 @@ function drawChart(series, dailyMa10, recoveryHistory = {}) {
   ctx.fillStyle = "#3167ad"; ctx.fillRect(pad.left + 194, 9, 14, 3); ctx.fillStyle = "#48574f"; ctx.fillText("MA60", pad.left + 213, 15);
   if (dailyMa10 != null) {
     ctx.fillStyle = "#d97706"; ctx.fillRect(pad.left, 27, 14, 3); ctx.fillStyle = "#48574f"; ctx.fillText("일봉 MA10", pad.left + 19, 33);
+  } else {
+    ctx.fillStyle = "#d97706"; ctx.fillRect(pad.left, 27, 14, 2); ctx.fillStyle = "#48574f"; ctx.fillText("MA10", pad.left + 19, 33);
   }
   ctx.fillStyle = "#64746c";
   const dateIndexes = [0];
@@ -877,7 +902,11 @@ function drawDailyChart(series) {
   const priceMin = min - rawSpread * 0.04;
   const priceMax = max + rawSpread * 0.04;
   const spread = priceMax - priceMin;
-  const pad = { left: 54, right: 12, top: 28, bottom: 28 };
+  const mobile = window.innerWidth <= 540;
+  ctx.font = mobile ? "10px Segoe UI" : "11px Segoe UI";
+  const priceLabel = (value) => mobile ? formatter.format(Math.round(value)) : formatter.format(value);
+  const labelWidth = Math.max(...[priceMin, priceMax].map((value) => ctx.measureText(priceLabel(value)).width));
+  const pad = { left: mobile ? Math.ceil(labelWidth) + 5 : 54, right: mobile ? 3 : 12, top: 28, bottom: 28 };
   const volumeHeight = Math.max(42, Math.round(height * 0.2));
   const volumeTop = height - pad.bottom - volumeHeight;
   const priceBottom = volumeTop - 24;
@@ -891,8 +920,9 @@ function drawDailyChart(series) {
   for (let step = 0; step <= 4; step += 1) {
     const yy = pad.top + (step / 4) * (priceBottom - pad.top);
     ctx.beginPath(); ctx.moveTo(pad.left, yy); ctx.lineTo(width - pad.right, yy); ctx.stroke();
-    ctx.fillStyle = "#64746c"; ctx.font = "11px Segoe UI";
-    ctx.fillText(formatter.format(priceMax - (spread * step) / 4), 3, yy + 4);
+    ctx.fillStyle = "#64746c"; ctx.font = mobile ? "10px Segoe UI" : "11px Segoe UI";
+    const label = priceLabel(priceMax - (spread * step) / 4);
+    ctx.fillText(label, mobile ? pad.left - ctx.measureText(label).width - 4 : 3, yy + 4);
   }
 
   const maxVolume = Math.max(...chartSeries.map((row) => Number(row.v) || 0), 1);
