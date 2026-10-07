@@ -730,20 +730,20 @@ function drawChart(series, dailyMa10, recoveryHistory = {}) {
   if (!series.some((row) => [row.o, row.h, row.l].every((value) => Number.isFinite(Number(value))))) {
     drawLine(ctx, series, "c", "#73827a", 1.4, x, y);
   }
-  drawLine(ctx, series, "m3", "#d946a8", 1.8, x, y);
-  drawLine(ctx, series, "m20", "#ba3f3f", 2.2, x, y);
-  drawLine(ctx, series, "m40", "#3167ad", 2.2, x, y);
-  drawLine(ctx, series, "m60", "#9a641d", 2.2, x, y);
+  drawLine(ctx, series, "m3", "#34a853", 1.1, x, y);
+  drawLine(ctx, series, "m20", "#e53935", 2.2, x, y);
+  drawLine(ctx, series, "m40", "#9a641d", 2.2, x, y);
+  drawLine(ctx, series, "m60", "#3167ad", 2.2, x, y);
   if (dailyMa10 != null) {
-    ctx.strokeStyle = "#176b58"; ctx.lineWidth = 1.5; ctx.setLineDash([6, 4]);
+    ctx.strokeStyle = "#d97706"; ctx.lineWidth = 1.5; ctx.setLineDash([6, 4]);
     ctx.beginPath(); ctx.moveTo(pad.left, y(dailyMa10)); ctx.lineTo(width - pad.right, y(dailyMa10)); ctx.stroke(); ctx.setLineDash([]);
   }
   ctx.font = "11px Segoe UI";
-  ctx.fillStyle = "#d946a8"; ctx.fillRect(pad.left, 9, 14, 3); ctx.fillStyle = "#48574f"; ctx.fillText("MA3", pad.left + 19, 15);
-  ctx.fillStyle = "#ba3f3f"; ctx.fillRect(pad.left + 58, 9, 14, 3); ctx.fillStyle = "#48574f"; ctx.fillText("MA20", pad.left + 77, 15);
-  ctx.fillStyle = "#3167ad"; ctx.fillRect(pad.left + 126, 9, 14, 3); ctx.fillStyle = "#48574f"; ctx.fillText("MA40", pad.left + 145, 15);
-  ctx.fillStyle = "#9a641d"; ctx.fillRect(pad.left + 194, 9, 14, 3); ctx.fillStyle = "#48574f"; ctx.fillText("MA60", pad.left + 213, 15);
-  ctx.fillStyle = "#176b58"; ctx.fillRect(pad.left, 27, 14, 3); ctx.fillStyle = "#48574f"; ctx.fillText("일봉 MA10", pad.left + 19, 33);
+  ctx.fillStyle = "#34a853"; ctx.fillRect(pad.left, 9, 14, 1.1); ctx.fillStyle = "#48574f"; ctx.fillText("MA3", pad.left + 19, 15);
+  ctx.fillStyle = "#e53935"; ctx.fillRect(pad.left + 58, 9, 14, 3); ctx.fillStyle = "#48574f"; ctx.fillText("MA20", pad.left + 77, 15);
+  ctx.fillStyle = "#9a641d"; ctx.fillRect(pad.left + 126, 9, 14, 3); ctx.fillStyle = "#48574f"; ctx.fillText("MA40", pad.left + 145, 15);
+  ctx.fillStyle = "#3167ad"; ctx.fillRect(pad.left + 194, 9, 14, 3); ctx.fillStyle = "#48574f"; ctx.fillText("MA60", pad.left + 213, 15);
+  ctx.fillStyle = "#d97706"; ctx.fillRect(pad.left, 27, 14, 3); ctx.fillStyle = "#48574f"; ctx.fillText("일봉 MA10", pad.left + 19, 33);
   ctx.fillStyle = "#64746c";
   const dateIndexes = [0];
   for (let index = 1; index < series.length; index += 1) {
@@ -852,12 +852,12 @@ function drawDailyChart(series) {
 
   drawLine(ctx, chartSeries, "m5", "#34a853", 1.5, x, y);
   drawLine(ctx, chartSeries, "m10", "#d97706", 1.8, x, y);
-  drawLine(ctx, chartSeries, "m20", "#ba3f3f", 2.1, x, y);
+  drawLine(ctx, chartSeries, "m20", "#e53935", 2.1, x, y);
   drawLine(ctx, chartSeries, "m60", "#3167ad", 2.1, x, y);
   ctx.font = "11px Segoe UI";
   ctx.fillStyle = "#34a853"; ctx.fillRect(pad.left, 9, 14, 3); ctx.fillStyle = "#48574f"; ctx.fillText("MA5", pad.left + 19, 15);
   ctx.fillStyle = "#d97706"; ctx.fillRect(pad.left + 60, 9, 14, 3); ctx.fillStyle = "#48574f"; ctx.fillText("MA10", pad.left + 79, 15);
-  ctx.fillStyle = "#ba3f3f"; ctx.fillRect(pad.left + 132, 9, 14, 3); ctx.fillStyle = "#48574f"; ctx.fillText("MA20", pad.left + 151, 15);
+  ctx.fillStyle = "#e53935"; ctx.fillRect(pad.left + 132, 9, 14, 3); ctx.fillStyle = "#48574f"; ctx.fillText("MA20", pad.left + 151, 15);
   ctx.fillStyle = "#3167ad"; ctx.fillRect(pad.left + 204, 9, 14, 3); ctx.fillStyle = "#48574f"; ctx.fillText("MA60", pad.left + 223, 15);
 
   const labelStep = Math.max(1, Math.ceil(series.length / 5));
