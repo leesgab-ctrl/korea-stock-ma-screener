@@ -11,6 +11,7 @@ const state = {
   pendingExclusions: readPendingExclusions(),
   exclusionMessage: "",
   payload: null,
+  lastLoadedAt: 0,
   positions: null,
   filter: "all",
   keyword: "",
@@ -108,6 +109,7 @@ const filterLabels = {
 const formatter = new Intl.NumberFormat("ko-KR", { maximumFractionDigits: 2 });
 
 async function loadData() {
+  if (elements.refreshButton.disabled) return;
   clearTimeout(exclusionPollTimer);
   elements.refreshButton.disabled = true;
   try {
@@ -120,6 +122,7 @@ async function loadData() {
     state.payload = await response.json();
     applyPendingExclusions();
     state.positions = positionsResponse.ok ? await positionsResponse.json() : { positions: [] };
+    state.lastLoadedAt = Date.now();
     const candidates = (state.payload.candidates || []).filter((item) => !["excluded", "ineligible"].includes(item.status));
     if (state.selectedCode && !candidates.some((item) => item.code === state.selectedCode)) {
       state.selectedCode = null;
@@ -926,6 +929,17 @@ elements.clearGithubToken.addEventListener("click", () => {
 elements.positionDialog.addEventListener("click", (event) => {
   if (event.target === elements.positionDialog) closePositionDialog();
 });
+function refreshVisibleData(maxAge = 60000) {
+  if (document.visibilityState !== "visible" || document.querySelector("dialog[open]")) return;
+  if (Date.now() - state.lastLoadedAt >= maxAge) loadData();
+}
+
+document.addEventListener("visibilitychange", () => refreshVisibleData());
+window.addEventListener("pageshow", (event) => {
+  if (event.persisted) refreshVisibleData(0);
+});
+window.setInterval(() => refreshVisibleData(600000), 600000);
+
 window.addEventListener("resize", () => {
   if (!state.payload) return;
   renderDetail(state.payload.candidates.find((item) => item.code === state.selectedCode));
