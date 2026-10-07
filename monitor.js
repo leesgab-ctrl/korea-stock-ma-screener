@@ -16,6 +16,7 @@ const state = {
   view: "target",
   keyword: "",
   selectedCode: requestedCode && /^\d{6}$/.test(requestedCode) ? requestedCode : null,
+  selectedPositionCode: null,
   deepLinkPending: Boolean(requestedCode),
 };
 const GITHUB_TOKEN_KEY = "koreaStockMonitor.githubToken";
@@ -143,6 +144,7 @@ async function loadData() {
 }
 
 function render() {
+  restoreDetailPanel();
   const { summary = {}, validationSummary = {}, candidates = [], asOf, generatedAt } = state.payload;
   const activeCandidates = candidates;
   if (state.deepLinkPending) {
@@ -158,6 +160,9 @@ function render() {
   elements.signaledCount.textContent = summary.signalHistory ?? 0;
   elements.risingCount.textContent = summary.rising ?? 0;
   const openPositions = (state.positions?.positions || []).filter((item) => item.status === "open");
+  if (!openPositions.some((item) => item.code === state.selectedPositionCode)) {
+    state.selectedPositionCode = openPositions[0]?.code || null;
+  }
   elements.positionCount.textContent = openPositions.length;
   elements.detectedCount.textContent = validationSummary.totalDetected ?? candidates.length;
   elements.targetRate.textContent = `${formatter.format(validationSummary.reached5PctRate || 0)}%`;
@@ -177,12 +182,26 @@ function render() {
   if (candidateView) renderCandidates(activeCandidates);
   const closedPositions = (state.positions?.positions || []).filter((item) => item.status === "closed");
   renderPositions(openPositions, closedPositions);
-  renderDetail(activeCandidates.find((item) => item.code === state.selectedCode));
   placeDetailPanel();
+  renderSelectedDetail();
   if (state.deepLinkPending && state.selectedCode && candidateView) {
     state.deepLinkPending = false;
     requestAnimationFrame(() => elements.detailPanel.scrollIntoView({ behavior: "smooth", block: "start" }));
   }
+}
+
+function selectedDetailItem() {
+  if (state.view !== "positions") return state.payload?.candidates?.find((item) => item.code === state.selectedCode);
+  const position = state.positions?.positions?.find((item) => item.status === "open" && item.code === state.selectedPositionCode);
+  if (!position) return null;
+  const candidate = state.payload?.candidates?.find((item) => item.code === position.code);
+  return { ...(candidate || {}), ...position,
+    displayCharts: state.payload?.holdingCharts?.[position.code]?.displayCharts || candidate?.displayCharts,
+    positionDetail: true };
+}
+
+function renderSelectedDetail() {
+  renderDetail(selectedDetailItem());
 }
 
 function renderViewCounts(candidates, positions) {
@@ -234,8 +253,10 @@ function renderPositions(positions, closedPositions = []) {
       ? "손절폭이 목표수익률보다 큽니다. 매수·비중 재검토"
       : item.trendWeak ? "30분봉 추세약화 감지" : "목표가·손절가 감시 중";
     article.className = "position-item";
+    article.classList.toggle("selected", item.code === state.selectedPositionCode);
+    article.dataset.code = item.code;
     article.innerHTML = `
-      <header><strong></strong><span></span></header>
+      <header><button class="position-select" type="button"><strong></strong><span></span></button></header>
       <div class="position-values"><span class="position-price"></span><span class="position-return ${returnClass}"></span></div>
       <div class="position-values"><span class="position-quantity"></span><span class="position-value"></span></div>
       <div class="position-values"><span class="position-stop"></span><span class="position-target"></span></div>
@@ -243,6 +264,12 @@ function renderPositions(positions, closedPositions = []) {
       <div class="position-item-actions"><button class="position-edit" type="button">수정</button><button class="position-close" type="button">매도완료</button></div>`;
     article.querySelector("strong").textContent = item.name;
     article.querySelector("header span").textContent = item.code;
+    const selectButton = article.querySelector(".position-select");
+    selectButton.setAttribute("aria-pressed", String(item.code === state.selectedPositionCode));
+    selectButton.addEventListener("click", () => {
+      state.selectedPositionCode = item.code;
+      render();
+    });
     article.querySelector(".position-price").textContent = `매수 ${formatter.format(item.buyPrice)}원 · 현재 ${item.lastPrice ? formatter.format(item.lastPrice) : "-"}원`;
     article.querySelector(".position-return").textContent = returnPct == null ? "-" : `${returnPct >= 0 ? "+" : ""}${formatter.format(returnPct)}%`;
     article.querySelector(".position-quantity").textContent = item.quantity ? `${formatter.format(item.quantity)}주` : "수량 미입력";
@@ -394,6 +421,10 @@ function restoreDetailPanel() {
 }
 
 function placeDetailPanel() {
+  if (state.view === "positions") {
+    document.querySelector(".positions-panel").append(elements.detailPanel);
+    return;
+  }
   if (!window.matchMedia("(max-width: 850px)").matches) {
     restoreDetailPanel();
     return;
@@ -653,16 +684,20 @@ function renderDetail(item) {
   elements.naverLink.classList.remove("hidden");
   elements.naverLink.href = item.naverUrl;
   elements.detailName.textContent = item.name;
-  elements.detailMeta.textContent = `${item.code} · ${item.market} · ${tierLabels[item.candidateTier || "core"]} · ${statusLabels[item.status] || "확인 필요"}`;
-  elements.detailBadge.textContent = statusLabels[item.status] || "확인 필요";
+  elements.detailMeta.textContent = item.positionDetail
+    ? `${item.code} · 매수 ${formatter.format(item.buyPrice)}원 · ${formatter.format(item.quantity)}주 · 손절 ${formatter.format(item.stopPrice)}원`
+    : `${item.code} · ${item.market} · ${tierLabels[item.candidateTier || "core"]} · ${statusLabels[item.status] || "확인 필요"}`;
+  elements.detailBadge.textContent = item.positionDetail ? "보유 관리" : statusLabels[item.status] || "확인 필요";
   elements.detailBadge.className = `status-chip ${item.status}`;
   elements.detailProgress.textContent = `${Math.min(intraday.riseCount || 0, 5)} / 5`;
-  elements.dailySignal.textContent = item.dailySignalDate;
-  elements.remainingDays.textContent = `${item.tradingDaysRemaining}거래일`;
+  elements.dailySignal.textContent = item.dailySignalDate || "-";
+  elements.remainingDays.textContent = item.positionDetail ? "보유 중 계속 감시" : `${item.tradingDaysRemaining}거래일`;
   elements.signalMessage.className = `signal-message${item.status === "signal" ? " signal" : ""}`;
-  elements.signalMessage.textContent = signalCopy(item, intraday);
+  elements.signalMessage.textContent = item.positionDetail
+    ? `매수 ${formatter.format(item.buyPrice)}원 · 목표 ${formatter.format(item.targetPrice)}원 · 손절 ${formatter.format(item.stopPrice)}원 · ${item.returnPct == null ? "수익률 대기" : `현재 ${item.returnPct > 0 ? "+" : ""}${formatter.format(item.returnPct)}%`}`
+    : signalCopy(item, intraday);
   const recovery = intraday.sessionRecovery;
-  if (recovery?.matched) {
+  if (recovery?.matched && !item.positionDetail) {
     elements.detailBadge.textContent = "정배열 조정·회복 관찰";
     elements.detailBadge.style.backgroundColor = "#fff0a3";
     elements.signalMessage.textContent = `15:00 기준 정배열 조정·회복 관찰 · ${formatter.format(recovery.price)}원 · 전일 대비 ${recovery.changePct}% / 시가 대비 ${recovery.openChangePct}%`;
@@ -729,7 +764,7 @@ function drawChart(series, dailyMa10, recoveryHistory = {}) {
   const plotWidth = width - pad.left - pad.right;
   const slot = plotWidth / series.length;
   const x = (index) => pad.left + slot * (index + 0.5);
-  const phaseColors = { before: "#f1f3f5", pullback: "#fff7d1", fast: "#eef8d6", confirmed: "#dff2e7" };
+  const phaseColors = { before: "#e9edf0", pullback: "#fff7d1", fast: "#eef8d6", confirmed: "#dff2e7" };
   series.forEach((row, index) => {
     ctx.fillStyle = phaseColors[row.phase] || phaseColors.before;
     ctx.fillRect(pad.left + slot * index, pad.top, slot + 0.5, height - pad.top - pad.bottom);
@@ -779,6 +814,7 @@ function drawChart(series, dailyMa10, recoveryHistory = {}) {
   drawLine(ctx, series, "m20", "#e53935", 2.2, x, y);
   drawLine(ctx, series, "m40", "#9a641d", 2.2, x, y);
   drawLine(ctx, series, "m60", "#3167ad", 2.2, x, y);
+  drawVolumeDivider(ctx, pad.left, width - pad.right, volumeTop - 5);
   if (dailyMa10 != null) {
     ctx.strokeStyle = "#d97706"; ctx.lineWidth = 1.5; ctx.setLineDash([6, 4]);
     ctx.beginPath(); ctx.moveTo(pad.left, y(dailyMa10)); ctx.lineTo(width - pad.right, y(dailyMa10)); ctx.stroke(); ctx.setLineDash([]);
@@ -901,6 +937,7 @@ function drawDailyChart(series) {
   drawLine(ctx, chartSeries, "m10", "#d97706", 1.8, x, y);
   drawLine(ctx, chartSeries, "m20", "#e53935", 2.1, x, y);
   drawLine(ctx, chartSeries, "m60", "#3167ad", 2.1, x, y);
+  drawVolumeDivider(ctx, pad.left, width - pad.right, volumeTop - 22);
   ctx.font = "11px Segoe UI";
   ctx.fillStyle = "#34a853"; ctx.fillRect(pad.left, 9, 14, 3); ctx.fillStyle = "#48574f"; ctx.fillText("MA5", pad.left + 19, 15);
   ctx.fillStyle = "#d97706"; ctx.fillRect(pad.left + 60, 9, 14, 3); ctx.fillStyle = "#48574f"; ctx.fillText("MA10", pad.left + 79, 15);
@@ -915,6 +952,15 @@ function drawDailyChart(series) {
     ctx.fillStyle = "#64746c";
     ctx.fillText(label, Math.min(center, width - pad.right - ctx.measureText(label).width), height - 8);
   });
+}
+
+function drawVolumeDivider(ctx, left, right, top) {
+  ctx.save();
+  ctx.strokeStyle = "#89978f";
+  ctx.lineWidth = 2;
+  ctx.setLineDash([]);
+  ctx.beginPath(); ctx.moveTo(left, top); ctx.lineTo(right, top); ctx.stroke();
+  ctx.restore();
 }
 
 function drawLine(ctx, series, key, color, width, x, y) {
@@ -995,8 +1041,8 @@ window.setInterval(() => refreshVisibleData(600000), 600000);
 
 window.addEventListener("resize", () => {
   if (!state.payload) return;
-  renderDetail(state.payload.candidates.find((item) => item.code === state.selectedCode));
   placeDetailPanel();
+  renderSelectedDetail();
 });
 
 loadData();

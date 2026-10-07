@@ -551,7 +551,7 @@ def fetch_display_chart(
     }
 
 
-def refresh_display_charts(payload: dict[str, Any], current: dt.datetime) -> None:
+def refresh_display_charts(payload: dict[str, Any], current: dt.datetime, positions_path: Path | None = None) -> None:
     errors = 0
     for candidate in payload.get("candidates", []):
         charts = candidate.setdefault("displayCharts", {})
@@ -562,9 +562,30 @@ def refresh_display_charts(payload: dict[str, Any], current: dt.datetime) -> Non
             except (OSError, TimeoutError, ValueError, KeyError, TypeError) as exc:
                 errors += 1
                 charts[name] = {**previous, "dataStatus": "stale" if previous.get("series") else "error", "error": str(exc)}
+    positions_path = positions_path or ROOT / "data/positions.json"
+    positions = json.loads(positions_path.read_text(encoding="utf-8")).get("positions", []) if positions_path.exists() else []
+    previous_holdings = payload.get("holdingCharts", {})
+    holdings = {}
+    candidates_by_code = {candidate["code"]: candidate for candidate in payload.get("candidates", [])}
+    for position in positions:
+        if position.get("status") != "open":
+            continue
+        code = position["code"]
+        candidate = candidates_by_code.get(code)
+        charts = candidate["displayCharts"] if candidate else previous_holdings.get(code, {}).get("displayCharts", {})
+        if not candidate:
+            for name, timeframe in (("intraday", "minute30"), ("daily", "day")):
+                previous = charts.get(name, {})
+                try:
+                    charts[name] = fetch_display_chart(code, timeframe, current, previous)
+                except (OSError, TimeoutError, ValueError, KeyError, TypeError) as exc:
+                    errors += 1
+                    charts[name] = {**previous, "dataStatus": "stale" if previous.get("series") else "error", "error": str(exc)}
+        holdings[code] = {"code": code, "name": position.get("name", code), "displayCharts": charts}
+    payload["holdingCharts"] = holdings
     payload["displayChartSummary"] = {
         "updatedAt": current.isoformat(timespec="seconds"),
-        "candidateCount": len(payload.get("candidates", [])), "errors": errors,
+        "candidateCount": len(payload.get("candidates", [])), "holdingCount": len(holdings), "errors": errors,
     }
 
 

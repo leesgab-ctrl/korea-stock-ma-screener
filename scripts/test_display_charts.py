@@ -87,6 +87,22 @@ class DisplayChartTests(unittest.TestCase):
             refresh.assert_called_once()
             self.assertEqual(json.loads(path.read_text()), original)
 
+    def test_holdings_survive_candidate_expiry_and_do_not_change_positions(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "positions.json"
+            content = json.dumps({"positions": [{"code": "199800", "name": "held", "status": "open"},
+                                                {"code": "007810", "name": "closed", "status": "closed"}]})
+            path.write_text(content)
+            payload = {"candidates": []}
+            with mock.patch.object(monitor, "fetch_display_chart", return_value={"series": [{"c": 100}], "dataStatus": "ok"}) as fetch:
+                monitor.refresh_display_charts(payload, self.now, path)
+            self.assertEqual(fetch.call_count, 2)
+            self.assertEqual(list(payload["holdingCharts"]), ["199800"])
+            self.assertEqual(path.read_text(), content)
+            with mock.patch.object(monitor, "fetch_display_chart") as fetch:
+                monitor.refresh_display_charts({"candidates": [{"code": "199800"}]}, self.now, path)
+            self.assertEqual(fetch.call_count, 2)
+
     def test_phase_shallow_deep_and_new_cycle(self):
         def row(m20, m3, complete=True):
             return dict(m20=m20, m3=m3, m40=100, m60=90, complete=complete)

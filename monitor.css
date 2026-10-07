@@ -61,7 +61,7 @@ main { max-width: 1480px; margin: 0 auto; padding: 18px; display: grid; gap: 14p
 .chart-source { padding: 8px 0; }
 .phase-legend { display: flex; flex-wrap: wrap; gap: 8px 14px; font-size: 11px; color: var(--muted); margin: 4px 0 10px; }
 .phase-legend span::before { content: ""; display: inline-block; width: 12px; height: 12px; margin-right: 4px; vertical-align: -2px; border: 1px solid #d7e0db; }
-.phase-before::before { background: #f1f3f5; }
+.phase-before::before { background: #e9edf0; }
 .phase-pullback::before { background: #fff7d1; }
 .phase-fast::before { background: #eef8d6; }
 .phase-confirmed::before { background: #dff2e7; }
@@ -109,6 +109,11 @@ main { max-width: 1480px; margin: 0 auto; padding: 18px; display: grid; gap: 14p
 .position-group-title { grid-column: 1 / -1; min-height: 34px; padding: 5px 2px; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .position-group-title span { color: var(--muted); font-size: 12px; }
 .position-item { min-width: 0; padding: 12px; display: grid; gap: 8px; border: 1px solid var(--line); border-radius: 7px; }
+.position-item.selected { border-color: var(--green); background: #f4faf7; }
+.position-select { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; padding: 4px 0; border: 0; background: transparent; color: var(--ink); cursor: pointer; text-align: left; }
+.position-item header { width: 100%; }
+#positionManagerButton { white-space: nowrap; flex-shrink: 0; }
+.positions-panel > .detail-panel { border: 0; border-top: 2px solid var(--line); border-radius: 0; }
 .closed-position { background: #fafcfb; }
 .position-item header, .position-values { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .position-item header span, .position-values { color: var(--muted); font-size: 12px; }
