@@ -251,6 +251,12 @@ main { max-width: 1480px; margin: 0 auto; padding: 18px; display: grid; gap: 14p
 .chart-meta-line { min-height: 34px; padding: 4px 2px 9px; display: flex; align-items: center; gap: 18px; color: var(--muted); font-size: 12px; }
 .chart-meta-line strong { margin-left: 4px; color: var(--ink); font-size: 13px; }
 #maChart { display: block; width: 100%; height: 330px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.chart-controls { display: flex; gap: 5px; padding: 6px 0; }
+.chart-controls button { min-width: 38px; height: 30px; padding: 3px 8px; border: 1px solid var(--line); border-radius: 4px; background: white; color: var(--ink); cursor: pointer; }
+.chart-controls button[aria-pressed="true"] { background: var(--green); color: white; }
+#chartReset { margin-left: auto; font-size: 20px; }
+#maChart { touch-action: none; cursor: grab; }
+#maChart:active { cursor: grabbing; }
 .daily-chart-heading { min-height: 46px; padding: 11px 2px 8px; display: flex; align-items: end; justify-content: space-between; gap: 12px; }
 .daily-chart-heading strong { font-size: 14px; }
 .daily-chart-heading span { color: var(--muted); font-size: 11px; text-align: right; }

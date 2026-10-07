@@ -715,6 +715,13 @@ function renderDetail(item) {
     elements.detailBadge.style.backgroundColor = "";
   }
   const native = item.displayCharts?.intraday;
+  if (chartViewport.code !== item.code) {
+    chartViewport.code = item.code;
+    chartViewport.start = 0;
+    chartViewport.count = null;
+    chartViewport.days = 5;
+    chartPointers.clear();
+  }
   const daily = item.displayCharts?.daily;
   const rebound = native?.referenceRebounds?.filter((event) => event.start.slice(0, 10) >= (item.registeredAt || item.dailySignalDate || "").slice(0, 10)).at(-1);
   const nativeLast = native?.series?.filter((row) => row.complete !== false).at(-1);
@@ -751,7 +758,108 @@ function signalCopy(item, intraday) {
   return "MA20의 5회 상승을 관찰합니다. MA20이 MA40까지만 조정되면 MA3→MA40, MA60 아래까지 조정되면 MA3→MA60 돌파를 기다립니다. 일봉 MA10은 참고선입니다.";
 }
 
+const chartViewport = { code: null, start: 0, count: null, days: 5, series: [], dailyMa10: null, recoveryHistory: {} };
+const chartPointers = new Map();
+let chartGesture = null;
+
+function clampChartWindow() {
+  const total = chartViewport.series.length;
+  if (chartViewport.count == null) return;
+  chartViewport.count = Math.min(total, Math.max(Math.min(2, total), Math.round(chartViewport.count)));
+  chartViewport.start = Math.max(0, Math.min(total - chartViewport.count, Math.round(chartViewport.start)));
+}
+
+function redrawChartWindow() {
+  drawChart(chartViewport.series, chartViewport.dailyMa10, chartViewport.recoveryHistory);
+}
+
+function chooseChartDays(days) {
+  const series = chartViewport.series;
+  const dates = [...new Set(series.map((row) => row.t.slice(0, 10)))].slice(-days);
+  chartViewport.start = Math.max(0, series.findIndex((row) => dates.includes(row.t.slice(0, 10))));
+  chartViewport.count = days === 5 ? null : series.length - chartViewport.start;
+  chartViewport.days = days;
+  redrawChartWindow();
+}
+
+function chartPointerFraction(clientX) {
+  const rect = elements.chart.getBoundingClientRect();
+  return Math.max(0, Math.min(1, (clientX - rect.left - 45) / Math.max(1, rect.width - 48)));
+}
+
+function zoomChart(factor, clientX) {
+  const count = chartViewport.count ?? chartViewport.series.length;
+  const fraction = chartPointerFraction(clientX);
+  const anchor = chartViewport.start + count * fraction;
+  chartViewport.count = count * factor;
+  chartViewport.days = null;
+  clampChartWindow();
+  chartViewport.start = anchor - chartViewport.count * fraction;
+  clampChartWindow();
+  redrawChartWindow();
+}
+
+document.querySelectorAll('[data-chart-days]').forEach((button) => {
+  button.addEventListener('click', () => chooseChartDays(Number(button.dataset.chartDays)));
+});
+document.querySelector('#chartReset').addEventListener('click', () => chooseChartDays(5));
+elements.chart.addEventListener('wheel', (event) => {
+  if (chartViewport.series.length < 2) return;
+  event.preventDefault();
+  zoomChart(event.deltaY < 0 ? 0.8 : 1.25, event.clientX);
+}, { passive: false });
+
+function beginChartGesture() {
+  const points = [...chartPointers.values()];
+  if (!points.length) { chartGesture = null; return; }
+  const midpoint = points.reduce((sum, point) => sum + point.x, 0) / points.length;
+  const count = chartViewport.count ?? chartViewport.series.length;
+  chartGesture = { x: midpoint, count, start: chartViewport.start,
+    distance: points.length === 2 ? Math.hypot(points[0].x - points[1].x, points[0].y - points[1].y) : null,
+    anchor: chartViewport.start + count * chartPointerFraction(midpoint) };
+}
+
+elements.chart.addEventListener('pointerdown', (event) => {
+  if (event.pointerType === 'mouse' && event.button !== 0) return;
+  if (chartPointers.size >= 2) return;
+  chartPointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+  elements.chart.setPointerCapture(event.pointerId);
+  beginChartGesture();
+});
+elements.chart.addEventListener('pointermove', (event) => {
+  if (!chartPointers.has(event.pointerId) || !chartGesture) return;
+  chartPointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+  const points = [...chartPointers.values()];
+  const midpoint = points.reduce((sum, point) => sum + point.x, 0) / points.length;
+  chartViewport.days = null;
+  if (points.length === 2 && chartGesture.distance > 0) {
+    const distance = Math.hypot(points[0].x - points[1].x, points[0].y - points[1].y);
+    chartViewport.count = chartGesture.count * chartGesture.distance / Math.max(1, distance);
+    clampChartWindow();
+    chartViewport.start = chartGesture.anchor - chartViewport.count * chartPointerFraction(midpoint);
+  } else {
+    chartViewport.count = chartGesture.count;
+    chartViewport.start = chartGesture.start - (midpoint - chartGesture.x) * chartGesture.count / Math.max(1, elements.chart.clientWidth - 48);
+  }
+  clampChartWindow();
+  redrawChartWindow();
+});
+for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) {
+  elements.chart.addEventListener(type, (event) => {
+    chartPointers.delete(event.pointerId);
+    beginChartGesture();
+  });
+}
+
 function drawChart(series, dailyMa10, recoveryHistory = {}) {
+  chartViewport.series = series;
+  chartViewport.dailyMa10 = dailyMa10;
+  chartViewport.recoveryHistory = recoveryHistory;
+  clampChartWindow();
+  document.querySelectorAll('[data-chart-days]').forEach((button) => {
+    button.setAttribute('aria-pressed', String(Number(button.dataset.chartDays) === chartViewport.days));
+  });
+  if (chartViewport.count != null) series = series.slice(chartViewport.start, chartViewport.start + chartViewport.count);
   const canvas = elements.chart;
   const ratio = window.devicePixelRatio || 1;
   const width = canvas.clientWidth || 800;
