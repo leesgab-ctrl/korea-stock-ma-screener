@@ -726,9 +726,9 @@ function renderDetail(item) {
   const rebound = native?.referenceRebounds?.filter((event) => event.start.slice(0, 10) >= (item.registeredAt || item.dailySignalDate || "").slice(0, 10)).at(-1);
   const nativeLast = native?.series?.filter((row) => row.complete !== false).at(-1);
   if (!item.positionDetail && nativeLast?.referencePullback) {
-    elements.signalMessage.textContent = "MA10이 MA20 아래에서 조정 중입니다. MA20·MA40 밀착과 MA40·MA60 상승을 유지하는지 관찰합니다.";
+    elements.signalMessage.textContent = "MA10 하향 조정 이후 MA3 → MA20 상향 돌파를 기다립니다. MA20·MA40 밀착과 MA40·MA60 상승을 유지하는지 관찰합니다.";
   } else if (!item.positionDetail && rebound) {
-    elements.signalMessage.textContent = `밀착 후 재상승 · ${formatDateTime(rebound.time)} · 포착가격 ${formatter.format(rebound.price)}원 · MA10 → MA20 상향 돌파 (별도 관찰 신호)`;
+    elements.signalMessage.textContent = `밀착 후 재상승 · ${formatDateTime(rebound.time)} · 포착가격 ${formatter.format(rebound.price)}원 · MA10 조정 후 MA3 → MA20 상향 돌파 (별도 관찰 신호)`;
   }
   drawChart(native?.series || [], null, item.sessionRecoveryHistory || {});
   const dailySeries = daily?.series || [];

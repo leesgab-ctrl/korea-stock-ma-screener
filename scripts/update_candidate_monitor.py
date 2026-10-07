@@ -496,8 +496,8 @@ def apply_reference_rebound(series: list[dict[str, Any]]) -> list[dict[str, Any]
         previous_days = sorted(d for d in sessions if d < day)
         yesterday = sessions[previous_days[-1]] if previous_days else []
         previous = completed[-1] if completed else None
-        valid = all(row.get(f"m{w}") is not None for w in (10, 20, 40, 60))
-        previous_valid = previous and all(previous.get(f"m{w}") is not None for w in (10, 20, 40, 60))
+        valid = all(row.get(f"m{w}") is not None for w in (3, 10, 20, 40, 60))
+        previous_valid = previous and all(previous.get(f"m{w}") is not None for w in (3, 10, 20, 40, 60))
         if not valid or not previous_valid:
             active = None
         if active and active["day"] != day:
@@ -507,8 +507,8 @@ def apply_reference_rebound(series: list[dict[str, Any]]) -> list[dict[str, Any]
             structure = row["m20"] > row["m40"] and row["m40"] > previous["m40"] and row["m60"] > previous["m60"]
             if active and not structure:
                 active = None
-            if active and row["m10"] > row["m20"]:
-                if previous["m10"] <= previous["m20"] and gap <= 1:
+            if active and previous["m3"] <= previous["m20"] and row["m3"] > row["m20"]:
+                if gap <= 1:
                     event = {"time": row["t"], "price": row["c"], "start": active["start"], "gapPct": round(gap, 3)}
                     events.append(event)
                     row["referenceRebound"] = True
@@ -1242,7 +1242,7 @@ def notify_reference_rebounds(payload, current, no_notify=False):
             stamp = dt.datetime.fromisoformat(event["time"])
             registered = str(candidate.get("registeredAt") or candidate.get("dailySignalDate") or "")[:10]
             age = current - (stamp + dt.timedelta(minutes=30))
-            signature = f"reference-rebound|{candidate['code']}|{candidate['dailySignalDate']}|{event['time']}"
+            signature = f"reference-rebound-ma3|{candidate['code']}|{candidate['dailySignalDate']}|{event['time']}"
             if stamp.date() != current.date() or event["start"][:10] < registered or not dt.timedelta(0) <= age <= dt.timedelta(minutes=90) or signature in notified:
                 continue
             pending += 1
@@ -1250,7 +1250,7 @@ def notify_reference_rebounds(payload, current, no_notify=False):
                 continue
             body = json.dumps({
                 "topic": topic, "title": f"{candidate['name']} 참고종목 재상승",
-                "message": f"{candidate['name']}({candidate['code']})\nMA10 → MA20 재상승 확인\n확정봉: {event['time']}\n포착가격: {event['price']:,.0f}원\nMA20·MA40 밀착 / MA40·MA60 상승\n기존 매수신호와 별도인 관찰 알림입니다.",
+                "message": f"{candidate['name']}({candidate['code']})\nMA10 하향 조정 후 MA3 → MA20 상향 돌파\n확정봉: {event['time']}\n포착가격: {event['price']:,.0f}원\nMA20·MA40 밀착 / MA40·MA60 상승\n기존 매수신호와 별도인 관찰 알림입니다.",
                 "priority": 5, "tags": ["chart_with_upwards_trend"],
                 "click": f"{MONITOR_URL}?stock={candidate['code']}",
             }, ensure_ascii=False).encode("utf-8")

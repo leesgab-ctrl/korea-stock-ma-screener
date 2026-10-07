@@ -14,6 +14,7 @@ class ReferenceReboundTests(unittest.TestCase):
             m20 = 100 + index * 0.01
             rows.append({"t": f"{day}T{9 + slot // 2:02}:{(slot % 2) * 30:02}+09:00", "c": 101,
                          "m10": m20 + (0.1 if index not in (6, 7) else -0.1),
+                         "m3": m20 + (0.2 if index not in (6, 7) else -0.2),
                          "m20": m20, "m40": 99.7 + index * 0.01,
                          "m60": 102 + index * 0.01, "complete": True})
         return rows
@@ -36,6 +37,21 @@ class ReferenceReboundTests(unittest.TestCase):
         rows = self.rows()
         rows[7]["m20"] = rows[7]["m40"] - 1
         self.assertEqual(monitor.apply_reference_rebound(rows), [])
+
+    def test_ma3_can_signal_before_ma10_recovers(self):
+        rows = self.rows()
+        rows[7]["m3"] = rows[7]["m20"] + 0.2
+        events = monitor.apply_reference_rebound(rows)
+        self.assertEqual(events[0]["time"], rows[7]["t"])
+        self.assertLess(rows[7]["m10"], rows[7]["m20"])
+        self.assertFalse(rows[7]["referencePullback"])
+
+    def test_ma10_recovery_alone_does_not_signal(self):
+        rows = self.rows()
+        for row in rows[6:]:
+            row["m3"] = row["m20"] - 0.2
+        self.assertEqual(monitor.apply_reference_rebound(rows), [])
+        self.assertTrue(rows[-1]["referencePullback"])
 
     def test_gap_flatness_yesterday_and_incomplete(self):
         for change in ("gap", "flat", "yesterday", "incomplete"):
