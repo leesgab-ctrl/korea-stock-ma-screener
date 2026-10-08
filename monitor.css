@@ -278,7 +278,11 @@ main { max-width: 1480px; margin: 0 auto; padding: 18px; display: grid; gap: 14p
 .chart-meta-line { min-height: 34px; padding: 4px 2px 9px; display: flex; align-items: center; gap: 18px; color: var(--muted); font-size: 12px; }
 .chart-meta-line strong { margin-left: 4px; color: var(--ink); font-size: 13px; }
 #maChart { display: block; width: 100%; height: 330px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
-.chart-controls { display: flex; gap: 5px; padding: 6px 0; }
+.chart-controls { display: flex; flex-wrap: wrap; gap: 5px; padding: 6px 0; }
+.chart-end-controls { display: flex; gap: 4px; margin-left: 4px; }
+.chart-controls .chart-end-controls button { background: #edf2fb; color: #315d96; border-color: #bdcce2; }
+.chart-controls .chart-end-controls button[aria-pressed="true"] { background: #315d96; color: white; }
+@media (max-width: 540px) { .chart-controls button { min-width: 30px; padding: 3px 4px; font-size: 10px; } .chart-end-controls { gap: 3px; margin-left: 1px; } }
 .chart-controls button { min-width: 38px; height: 30px; padding: 3px 8px; border: 1px solid var(--line); border-radius: 4px; background: white; color: var(--ink); cursor: pointer; }
 .chart-controls button[aria-pressed="true"] { background: var(--green); color: white; }
 #chartReset { margin-left: auto; font-size: 20px; }

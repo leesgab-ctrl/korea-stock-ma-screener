@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#176b58">
     <title>A-G 30분봉 신호 감시</title>
-    <link rel="stylesheet" href="monitor.css?v=20261009-1">
+    <link rel="stylesheet" href="monitor.css?v=20261009-2">
   </head>
   <body>
     <header class="topbar">
@@ -114,6 +114,11 @@
               <button type="button" data-chart-days="2">2일</button>
               <button type="button" data-chart-days="3">3일</button>
               <button type="button" data-chart-days="5" aria-pressed="true">5일</button>
+              <span class="chart-end-controls" role="group" aria-label="마지막 거래일">
+                <button type="button" data-chart-offset="0" aria-pressed="true">최신</button>
+                <button type="button" data-chart-offset="1">1일 전</button>
+                <button type="button" data-chart-offset="2">2일 전</button>
+              </span>
               <button type="button" id="chartReset" title="전체 보기" aria-label="전체 보기">&#8634;</button>
             </div>
             <div class="daily-chart-wrap">
@@ -283,6 +288,6 @@
     <dialog id="excludedListDialog" class="position-dialog">
       <div class="position-form"><h2>사용자 선정 제외</h2><div id="excludedList"></div><button id="excludedListClose" type="button">닫기</button></div>
     </dialog>
-    <script src="monitor.js?v=20261009-1"></script>
+    <script src="monitor.js?v=20261009-2"></script>
   </body>
 </html>

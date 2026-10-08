@@ -827,6 +827,7 @@ function renderDetail(item) {
     chartViewport.start = 0;
     chartViewport.count = null;
     chartViewport.days = 5;
+    chartViewport.endOffset = 0;
     chartPointers.clear();
   }
   const daily = item.displayCharts?.daily;
@@ -876,7 +877,7 @@ function signalCopy(item, intraday) {
   return "MA20의 5회 상승을 관찰합니다. MA20이 MA40까지만 조정되면 MA3→MA40, MA60 아래까지 조정되면 MA3→MA60 돌파를 기다립니다. 일봉 MA10은 참고선입니다.";
 }
 
-const chartViewport = { code: null, start: 0, count: null, days: 5, series: [], dailyMa10: null, recoveryHistory: {} };
+const chartViewport = { code: null, start: 0, count: null, days: 5, endOffset: 0, series: [], dailyMa10: null, recoveryHistory: {} };
 const chartPointers = new Map();
 let chartGesture = null;
 
@@ -894,13 +895,17 @@ function redrawChartWindow() {
 function chooseChartDays(days) {
   const series = chartViewport.series;
   const dates = [...new Set(series.map((row) => row.t.slice(0, 10)))];
-  const completedDates = dates.slice(0, -1).slice(-days);
+  const offset = Math.min(chartViewport.endOffset, Math.max(0, dates.length - 1));
+  const endDate = dates[dates.length - 1 - offset];
+  const available = series.filter(row => row.t.slice(0, 10) <= endDate);
+  const availableDates = dates.slice(0, dates.length - offset);
+  const completedDates = availableDates.slice(0, -1).slice(-days);
   const count = completedDates.length
     ? series.filter((row) => completedDates.includes(row.t.slice(0, 10))).length
-    : series.length;
-  const lastFive = dates.slice(-5);
-  chartViewport.count = days === 5 ? series.filter(row => lastFive.includes(row.t.slice(0, 10))).length : Math.min(series.length, count);
-  chartViewport.start = series.length - chartViewport.count;
+    : available.length;
+  const lastFive = availableDates.slice(-5);
+  chartViewport.count = days === 5 ? available.filter(row => lastFive.includes(row.t.slice(0, 10))).length : Math.min(available.length, count);
+  chartViewport.start = available.length - chartViewport.count;
   chartViewport.days = days;
   redrawChartWindow();
 }
@@ -925,7 +930,13 @@ function zoomChart(factor, clientX) {
 document.querySelectorAll('[data-chart-days]').forEach((button) => {
   button.addEventListener('click', () => chooseChartDays(Number(button.dataset.chartDays)));
 });
-document.querySelector('#chartReset').addEventListener('click', () => chooseChartDays(5));
+document.querySelectorAll('[data-chart-offset]').forEach(button => {
+  button.addEventListener('click', () => {
+    chartViewport.endOffset = Number(button.dataset.chartOffset);
+    chooseChartDays(chartViewport.days || 5);
+  });
+});
+document.querySelector('#chartReset').addEventListener('click', () => { chartViewport.endOffset = 0; chooseChartDays(5); });
 elements.chart.addEventListener('wheel', (event) => {
   if (chartViewport.series.length < 2) return;
   event.preventDefault();
@@ -1009,6 +1020,13 @@ function drawChart(series, dailyMa10, recoveryHistory = {}) {
   chartViewport.dailyMa10 = dailyMa10;
   chartViewport.recoveryHistory = recoveryHistory;
   series = registrationPhases(series, chartViewport.registeredAt);
+  const storedDates = [...new Set(series.map(row => row.t.slice(0, 10)))];
+  document.querySelectorAll('[data-chart-offset]').forEach(button => {
+    const offset = Number(button.dataset.chartOffset);
+    button.disabled = offset >= storedDates.length;
+    button.setAttribute('aria-pressed', String(offset === chartViewport.endOffset));
+    button.title = storedDates[storedDates.length - 1 - offset] || '자료 없음';
+  });
   clampChartWindow();
   document.querySelectorAll('[data-chart-days]').forEach((button) => {
     button.setAttribute('aria-pressed', String(Number(button.dataset.chartDays) === chartViewport.days));
