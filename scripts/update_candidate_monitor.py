@@ -197,6 +197,25 @@ def restore_registration_baselines(payload: dict[str, Any]) -> None:
         if not record.get("registeredAt") and key in registrations:
             record["registeredAt"], record["registrationPrice"] = registrations[key]
             record["registrationSource"] = "first_persisted_snapshot"
+    correct_initial_registration_dates(payload)
+
+
+def correct_initial_registration_dates(payload: dict[str, Any]) -> int:
+    corrected = 0
+    for record in [*payload.get("candidates", []), *payload.get("history", [])]:
+        registered = str(record.get("registeredAt") or "")
+        signal_date = record.get("dailySignalDate")
+        if (record.get("registrationSource") != "first_persisted_snapshot"
+                or registered[:10] != "2026-10-04" or not signal_date or signal_date >= registered[:10]):
+            continue
+        record["originalRegisteredAt"] = registered
+        record["originalRegistrationPrice"] = record.get("registrationPrice")
+        record["registeredAt"] = f"{signal_date}T16:40:00+09:00"
+        record["registrationPrice"] = record.get("daily", {}).get("close") or record.get("agClose")
+        record["registrationSource"] = "initial_ag_date_correction"
+        record.pop("outcome", None)
+        corrected += 1
+    return corrected
 
 
 def refresh_history_outcomes(payload: dict[str, Any]) -> None:
@@ -238,6 +257,10 @@ def archive_candidate(candidate: dict[str, Any], archived_at: str, reason: str) 
         "registeredAt": candidate.get("registeredAt"),
         "registrationPrice": candidate.get("registrationPrice"),
         "registrationSource": candidate.get("registrationSource"),
+        "originalRegisteredAt": candidate.get("originalRegisteredAt"),
+        "originalRegistrationPrice": candidate.get("originalRegistrationPrice"),
+        "displayCharts": candidate.get("displayCharts", {}),
+        "dailyChart": candidate.get("dailyChart", {}),
         "registrationDayBars": candidate.get("registrationDayBars", []),
         "agValues": candidate.get("daily", {}).get("values", {}),
         "statusAtClose": candidate.get("status"),
@@ -392,7 +415,7 @@ def build_daily_candidates(stock_data: Path, previous: dict[str, Any]) -> dict[s
         if prior and prior.get("outcome", {}).get("ruleVersion") != OUTCOME_RULE_VERSION:
             prior["outcome"] = candidate_outcome(prior)
         registration = previous_registrations.get((stock["c"], signal_date), {})
-        for field in ("registeredAt", "registrationPrice", "registrationSource"):
+        for field in ("registeredAt", "registrationPrice", "registrationSource", "originalRegisteredAt", "originalRegistrationPrice"):
             if field in registration:
                 candidate[field] = registration[field]
         if not registration:

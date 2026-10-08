@@ -9,6 +9,19 @@ import update_candidate_monitor as monitor
 
 
 class CurrentSearchRegistrationTests(unittest.TestCase):
+    def test_initial_dates_corrected_once_without_touching_holdings(self):
+        old = {"code": "009830", "dailySignalDate": "2026-09-30", "registeredAt": "2026-10-04T12:00:00+09:00", "registrationPrice": 36100, "registrationSource": "first_persisted_snapshot", "daily": {"close": 33100}}
+        new = {"code": "001440", "dailySignalDate": "2026-10-08", "registeredAt": "2026-10-08T17:00:00+09:00", "registrationSource": "registration_reference_close"}
+        paper = {"positions": [{"code": "009830", "status": "open", "buyPrice": 35000}]}
+        payload = {"candidates": [old, new], "paperTrading": paper}
+        self.assertEqual(monitor.correct_initial_registration_dates(payload), 1)
+        self.assertEqual(old["registeredAt"], "2026-09-30T16:40:00+09:00")
+        self.assertEqual(old["registrationPrice"], 33100)
+        self.assertEqual(old["originalRegistrationPrice"], 36100)
+        self.assertEqual(monitor.correct_initial_registration_dates(payload), 0)
+        self.assertEqual(new["registeredAt"], "2026-10-08T17:00:00+09:00")
+        self.assertEqual(payload["paperTrading"], paper)
+
     def build(self, match_offset, previous=None, stale=False):
         today = dt.datetime(2026, 10, 8, 17, tzinfo=monitor.KST)
         dates = [(today.date() - dt.timedelta(days=30 - i)).isoformat() for i in range(31)]
