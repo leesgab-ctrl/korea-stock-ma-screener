@@ -98,9 +98,10 @@ const statusLabels = {
 };
 const statusPriority = { signal: 0, rising: 1, waiting60: 2, setup: 3, signaled: 4, watching: 5, insufficient: 6, ineligible: 7, excluded: 8 };
 const tierLabels = { core: "핵심 A-G", expanded: "확대 A-G" };
-const viewLabels = { target: "포착대상종목", reference: "참고종목", positions: "보유종목", operations: "운영관리" };
+const viewLabels = { target: "조정회복형", reference: "상승눌림형", positions: "보유종목", operations: "운영관리" };
 
 function chartGroup(item) {
+  if (item.paperStrategy) return item.paperStrategy.excludedReason ? "excluded" : item.paperStrategy.group;
   if (item.status === "insufficient") return "insufficient";
   const chart = item.displayCharts?.intraday;
   if (chart?.dataStatus !== "ok") return "insufficient";
@@ -127,6 +128,7 @@ async function loadData() {
     state.payload = await response.json();
     applyPendingExclusions();
     state.positions = positionsResponse.ok ? await positionsResponse.json() : { positions: [] };
+    state.positions.positions = [...(state.positions.positions || []), ...(state.payload.paperTrading?.positions || [])];
     state.lastLoadedAt = Date.now();
     const candidates = state.payload.candidates || [];
     if (state.selectedCode && !candidates.some((item) => item.code === state.selectedCode)) {
@@ -195,7 +197,7 @@ function selectedDetailItem() {
   if (state.view !== "positions") return state.payload?.candidates?.find((item) => item.code === state.selectedCode);
   const position = state.positions?.positions?.find((item) => item.status === "open" && item.code === state.selectedPositionCode);
   if (!position) return null;
-  const candidate = state.payload?.candidates?.find((item) => item.code === position.code);
+  const candidate = [...(state.payload?.candidates || []), ...(state.payload?.history || [])].find((item) => item.code === position.code);
   const quote = displayQuote(position);
   return { ...(candidate || {}), ...position,
     lastPrice: quote.price, lastPriceTime: quote.time,
@@ -219,6 +221,37 @@ function renderViewCounts(candidates, positions) {
 }
 
 function renderOperations(candidates) {
+  let examples = document.querySelector("#paperExamples");
+  if (!examples) {
+    examples = document.createElement("section");
+    examples.id = "paperExamples";
+    document.querySelector("#operationsPanel").append(examples);
+  }
+  examples.replaceChildren();
+  const title = document.createElement("h3");
+  title.textContent = "가상매매 · 과거 검토 사례";
+  examples.append(title);
+  for (const event of state.payload.paperTrading?.historicalExamples || []) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.textContent = `${event.name} · ${event.type === "recovery" ? "조정회복형" : "상승눌림형"} · ${formatDateTime(event.time)} · ${formatter.format(event.price)}원 · 저점 ${formatter.format(event.low)}원`;
+    button.addEventListener("click", () => {
+      state.selectedCode = event.code;
+      const item = state.payload.candidates.find(c => c.code === event.code);
+      if (!item) return;
+      examples.append(elements.detailPanel);
+      elements.detailPanel.classList.remove("hidden");
+      renderSelectedDetail();
+      const series = chartViewport.series;
+      const index = series.findIndex(row => row.t === event.time);
+      chartViewport.count = Math.min(series.length, 50);
+      chartViewport.start = Math.max(0, index - 35);
+      clampChartWindow();
+      redrawChartWindow();
+      elements.detailPanel.scrollIntoView({block: "center"});
+    });
+    examples.append(button);
+  }
   const insufficient = candidates.filter((item) => chartGroup(item) === "insufficient");
   const unclassified = candidates.filter((item) => chartGroup(item) === "unclassified");
   document.querySelector("#unclassifiedMeta").textContent = `자료부족 ${insufficient.length}종목 · 배열 확인 ${unclassified.length}종목`;
@@ -292,7 +325,10 @@ function renderPositions(positions, closedPositions = []) {
       <div class="position-values"><span class="position-stop"></span><span class="position-target"></span></div>
       <div class="position-warning"></div>
       <div class="position-item-actions"><button class="position-edit" type="button">수정</button><button class="position-close" type="button">매도완료</button></div>`;
-    article.querySelector("strong").textContent = item.name;
+    article.querySelector("strong").textContent = `${item.name} · ${item.mode === "virtual" ? "가상" : "실제"}`;
+    if (item.mode === "virtual") {
+      article.querySelector(".position-item-actions").hidden = true;
+    }
     article.querySelector(".position-code").textContent = item.code;
     article.querySelector(".position-quote").textContent = quoteText(quote);
     article.querySelector(".position-select").dataset.direction = quote.direction;
@@ -356,7 +392,7 @@ function renderClosedPosition(item) {
     <div class="position-values"><span class="position-quantity"></span><span class="position-profit"></span></div>
     <div class="position-values"><span class="position-cost-note">세금·수수료 전</span><span class="position-date"></span></div>
     <div class="position-item-actions"><button class="position-sell-edit" type="button"></button></div>`;
-  article.querySelector("strong").textContent = item.name;
+  article.querySelector("strong").textContent = `${item.name} · ${item.mode === "virtual" ? "가상" : "실제"}${item.exitReason === "ambiguous" ? " · 봉내 순서불명" : ""}`;
   article.querySelector("header span").textContent = item.code;
   const sellPrice = item.sellPrice == null ? "-" : `${formatter.format(item.sellPrice)}원`;
   article.querySelector(".position-price").textContent = `매수 ${formatter.format(item.buyPrice)}원 → 매도 ${sellPrice}`;
@@ -760,11 +796,22 @@ function renderDetail(item) {
   } else if (!item.positionDetail && rebound) {
     elements.signalMessage.textContent = `밀착 후 재상승 · ${formatDateTime(rebound.time)} · 포착가격 ${formatter.format(rebound.price)}원 · MA10 조정 후 MA3 → MA20 상향 돌파 (별도 관찰 신호)`;
   }
-  drawChart(native?.series || [], null, item.sessionRecoveryHistory || {});
+  const fullSeries = native?.series || [];
+  if (chartViewport.count == null && fullSeries.length) {
+    const dates = [...new Set(fullSeries.map(row => row.t.slice(0, 10)))].slice(-5);
+    chartViewport.start = fullSeries.findIndex(row => dates.includes(row.t.slice(0, 10)));
+    chartViewport.count = fullSeries.length - chartViewport.start;
+  }
+  drawChart(fullSeries, null, item.sessionRecoveryHistory || {});
+  if (item.paperStrategy && !item.positionDetail) {
+    elements.signalMessage.textContent = item.paperStrategy.excludedReason || (item.paperStrategy.group === "target"
+      ? "가상검증 · MA20 기준선 회복 후 다음 완성봉 유지·정배열 확인"
+      : "가상검증 · MA10 눌림 이후 MA3·MA10 모두 MA20 회복·정배열 확인");
+  }
   const dailySeries = daily?.series || [];
   const latest = native?.series?.at(-1);
   const incompleteWarmup = native?.series?.some((row) => row.m60 == null);
-  document.querySelector("#chartSource").textContent = `네이버 KRX 원본 · 최근 5거래일 · ${latest ? formatDateTime(latest.t) : "자료 대기"}${native?.dataStatus === "stale" ? " · 갱신 지연" : ""}${incompleteWarmup ? " · 초기 MA60 자료 부족" : ""} · 신호판정은 기존 정규장 기준`;
+  document.querySelector("#chartSource").textContent = `네이버 KRX 원본 · ${latest ? formatDateTime(latest.t) : "자료 대기"}${native?.dataStatus === "stale" ? " · 갱신 지연" : ""}${incompleteWarmup ? " · 초기 MA60 자료 부족" : ""} · 가상판정 동일 원본`;
   const latestDailyDate = dailySeries.at(-1)?.d;
   elements.dailyChartMeta.textContent = `${latestDailyDate || "일봉 대기"} · 네이버 일봉 · MA5 · MA10 · MA20 · MA60${daily?.dataStatus === "stale" ? " · 갱신 지연" : ""}`;
   drawDailyChart(dailySeries);
@@ -810,8 +857,9 @@ function chooseChartDays(days) {
   const count = completedDates.length
     ? series.filter((row) => completedDates.includes(row.t.slice(0, 10))).length
     : series.length;
-  chartViewport.count = days === 5 ? null : Math.min(series.length, count);
-  chartViewport.start = days === 5 ? 0 : series.length - chartViewport.count;
+  const lastFive = dates.slice(-5);
+  chartViewport.count = days === 5 ? series.filter(row => lastFive.includes(row.t.slice(0, 10))).length : Math.min(series.length, count);
+  chartViewport.start = series.length - chartViewport.count;
   chartViewport.days = days;
   redrawChartWindow();
 }

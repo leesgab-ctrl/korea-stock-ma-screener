@@ -116,6 +116,7 @@ def evaluate_ag(rows: list[dict[str, Any]], index: int) -> dict[str, Any] | None
         "spikeDate": rows[spike]["date"],
         "preSpikeDate": rows[pre_spike]["date"],
         "preSpikeClose": rows[pre_spike]["close"],
+        "preSpikeLow": rows[pre_spike].get("low"),
         "checks": checks,
         "coreChecks": core_checks,
         "values": {key: round(value, 2) for key, value in values.items()},
@@ -433,6 +434,7 @@ def build_daily_candidates(stock_data: Path, previous: dict[str, Any]) -> dict[s
         "summary": {},
         "candidates": candidates,
         "history": history,
+        "paperTrading": previous.get("paperTrading"),
         "notifiedSignals": previous.get("notifiedSignals", []),
     }
 
@@ -594,8 +596,6 @@ def fetch_display_chart(
             row["complete"] = current >= stamp + dt.timedelta(minutes=30)
         apply_display_phases(series)
         rebound_events = apply_reference_rebound(series)
-        visible_days = sorted({row["t"][:10] for row in rows})[-5:]
-        series = [row for row in series if row["t"][:10] in visible_days]
     else:
         series = series[-60:]
     return {
@@ -1450,13 +1450,37 @@ def main() -> None:
             payload.setdefault("notifiedSignals", [])
     current = dt.datetime.fromisoformat(args.now).astimezone(KST) if args.now else now_kst()
     alerts, pending = (0, 0) if args.mode == "charts" else enrich(
-        payload, current, args.minute_count, args.no_notify, refresh_daily_chart=True,
+        payload, current, args.minute_count, True, refresh_daily_chart=True,
     )
     refresh_display_charts(payload, current)
+    if payload.get("paperTrading"):
+        open_codes = {p["code"] for p in payload["paperTrading"]["positions"] if p["status"] == "open"}
+        active_codes = {c["code"] for c in payload.get("candidates", [])}
+        archived = [c for c in payload.get("history", []) if c["code"] in open_codes - active_codes]
+        if archived:
+            refresh_display_charts({"candidates": archived}, current)
     if args.mode != "charts":
-        rebound_alerts, rebound_pending = notify_reference_rebounds(payload, current, args.no_notify)
-        alerts += rebound_alerts
-        pending += rebound_pending
+        from paper_trading import update_paper
+        if payload.get("paperTrading") is None:
+            payload.pop("paperTrading", None)
+        def paper_notice(candidate, position):
+            topic = os.environ.get("NTFY_TOPIC")
+            if not topic or args.no_notify:
+                return
+            message = {"topic": topic, "title": f"{candidate['name']} 가상매수 등록",
+                       "message": f"포착가격 {position['buyPrice']:,.0f}원\n조정저점·제안 손절가 {position['stopPrice']:,.0f}원\n예상 손실률 {position['stopPct']}%\n목표가 {position['targetPrice']:,.0f}원\n실제 주문이 아닌 1주 가상기록입니다.",
+                       "click": monitor_link(candidate['code']), "priority": 4}
+            request = urllib.request.Request("https://ntfy.sh", data=json.dumps(message).encode(), headers={"Content-Type": "application/json"})
+            try:
+                urllib.request.urlopen(request, timeout=15).close()
+            except Exception as exc:
+                payload.setdefault("paperNotificationErrors", []).append(str(exc))
+        update_paper(payload, current, paper_notice)
+        payload.setdefault("summary", {}).update({
+            "active": sum(not c["paperStrategy"]["excludedReason"] for c in payload.get("candidates", [])),
+            "signals": 0, "signalHistory": 0, "newAlerts": 0, "pendingNotifications": 0,
+        })
+        alerts, pending = 0, 0
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
     write_github_output(args.github_output, alerts, pending)

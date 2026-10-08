@@ -39,7 +39,7 @@ class DisplayChartTests(unittest.TestCase):
                 stamp = dt.datetime(2026, 10, day, 9) + dt.timedelta(minutes=slot * 30)
                 rows.append(self.row(stamp.strftime("%Y%m%d%H%M%S")))
         chart = self.fetch(rows)
-        self.assertEqual(len({row["t"][:10] for row in chart["series"]}), 5)
+        self.assertEqual(len({row["t"][:10] for row in chart["series"]}), 7)
         self.assertEqual(chart["series"][-1]["m60"], 100)
         self.assertEqual(len(chart["history"]), len(rows))
 
