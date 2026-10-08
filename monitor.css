@@ -258,6 +258,9 @@ main { max-width: 1480px; margin: 0 auto; padding: 18px; display: grid; gap: 14p
 .candidate-stop { color: var(--muted); font-size: 11px; }
 .candidate-register { min-height: 28px; padding: 4px 9px; border: 1px solid var(--green); border-radius: 5px; background: #fff; color: var(--green); font-size: 11px; font-weight: 800; cursor: pointer; }
 .candidate-register:hover { background: var(--green); color: #fff; }
+.candidate { position: relative; }
+.candidate-top { padding-right: 76px; }
+.candidate > .candidate-register { position: absolute; top: 10px; right: 10px; }
 
 .detail-heading { min-height: 70px; }
 .external-link { min-height: 34px; padding: 7px 10px; font-size: 12px; }

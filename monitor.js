@@ -475,6 +475,8 @@ function renderCandidates(candidates) {
     node.querySelector(".candidate-rise").textContent = `${rise} / 5`;
     node.querySelector(".candidate-days").textContent = `A-G ${item.dailySignalDate} · ${item.tradingDaysRemaining}일 남음`;
     node.querySelector(".candidate-price").textContent = quoteTime ? `${quoteTime.slice(5, 10)} ${quoteTime.slice(11, 16)} ${intraday.quoteTime ? "수집가" : "완성봉"}` : "분봉 대기";
+    const status = node.querySelector(".candidate-status");
+    if (status.textContent.trim() === "관찰 중") status.hidden = true;
     const technicalStop = item.daily?.preSpikeClose;
     const maximumLossStop = intraday.lastPrice ? Math.round(intraday.lastPrice * 0.95) : null;
     const stopPrice = technicalStop && maximumLossStop ? Math.max(technicalStop, maximumLossStop) : technicalStop;
