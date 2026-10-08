@@ -255,7 +255,7 @@ function renderOperations(candidates) {
       chartViewport.start = Math.max(0, index - 35);
       clampChartWindow();
       redrawChartWindow();
-      elements.detailPanel.scrollIntoView({block: "center"});
+      elements.detailPanel.scrollIntoView({block: "start"});
     });
     examples.append(button);
   }
@@ -345,6 +345,7 @@ function renderPositions(positions, closedPositions = []) {
     selectButton.addEventListener("click", () => {
       state.selectedPositionCode = positionKey(item);
       render();
+      requestAnimationFrame(() => elements.detailPanel.scrollIntoView({ block: "start" }));
     });
     article.querySelector(".position-price").textContent = `매수 ${formatter.format(item.buyPrice)}원`;
     article.querySelector(".position-return").textContent = returnPct == null ? "-" : `보유수익 ${returnPct >= 0 ? "+" : ""}${formatter.format(returnPct)}%`;
@@ -487,6 +488,7 @@ function renderCandidates(candidates) {
       url.searchParams.set("stock", item.code);
       window.history.replaceState(null, "", url);
       render();
+      requestAnimationFrame(() => elements.detailPanel.scrollIntoView({ block: "start" }));
     });
     node.querySelector(".candidate-register").addEventListener("click", () => {
       const position = state.positions?.positions?.find((entry) => entry.code === item.code && entry.status === "open") || null;
@@ -1066,6 +1068,16 @@ function drawChart(series, dailyMa10, recoveryHistory = {}) {
     ctx.strokeStyle = "#d97706"; ctx.lineWidth = 1.5; ctx.setLineDash([6, 4]);
     ctx.beginPath(); ctx.moveTo(pad.left, y(dailyMa10)); ctx.lineTo(width - pad.right, y(dailyMa10)); ctx.stroke(); ctx.setLineDash([]);
   }
+  const priceRow = series[series.length - 1];
+  const pricePanel = document.getElementById("maPrices");
+  pricePanel.replaceChildren();
+  for (const [key, label, color] of [["m3", "MA3", "#34a853"], ["m10", "MA10", "#d97706"], ["m20", "MA20", "#e53935"], ["m40", "MA40", "#9a641d"], ["m60", "MA60", "#3167ad"]]) {
+    const span = document.createElement("span");
+    span.style.color = color;
+    span.textContent = `${label} ${Number.isFinite(priceRow?.[key]) ? formatter.format(priceRow[key]) + "원" : "-"}`;
+    pricePanel.append(span);
+  }
+  pricePanel.title = priceRow?.t ? `${formatDateTime(priceRow.t)} · 표시 범위 마지막 봉` : "";
   ctx.font = "11px Segoe UI";
   ctx.fillStyle = "#34a853"; ctx.fillRect(pad.left, 9, 14, 1.1); ctx.fillStyle = "#48574f"; ctx.fillText("MA3", pad.left + 19, 15);
   ctx.fillStyle = "#e53935"; ctx.fillRect(pad.left + 58, 9, 14, 3); ctx.fillStyle = "#48574f"; ctx.fillText("MA20", pad.left + 77, 15);

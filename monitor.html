@@ -96,16 +96,17 @@
           </div>
           <div id="emptyDetail" class="empty-detail">활성 후보의 30분봉 판정 결과가 여기에 표시됩니다.</div>
           <div id="detailContent" class="detail-content hidden">
-            <div class="signal-line">
+            <div class="signal-line" style="display:none">
               <span id="detailBadge" class="status-chip">관찰 중</span>
               <strong id="detailProgress">0 / 5</strong>
               <span>MA20 연속 상승</span>
             </div>
-            <div class="chart-meta-line">
+            <div class="chart-meta-line" style="display:none">
               <span>A-G 발생 <strong id="dailySignal">-</strong></span>
               <span>남은 기간 <strong id="remainingDays">-</strong></span>
             </div>
-            <p id="chartSource" class="chart-source"></p>
+            <p id="chartSource" class="chart-source" style="display:none"></p>
+            <div id="maPrices" style="display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12px;margin-bottom:8px" aria-live="polite"></div>
             <div class="phase-legend"><span class="phase-before">이전</span><span class="phase-pullback">MA20 하향</span><span class="phase-fast">MA3 돌파</span><span class="phase-confirmed">MA20 돌파</span></div>
             <div class="chart-controls" role="group" aria-label="30분봉 표시 기간">
               <button type="button" data-chart-days="1">1일</button>
@@ -273,6 +274,6 @@
     <dialog id="excludedListDialog" class="position-dialog">
       <div class="position-form"><h2>사용자 선정 제외</h2><div id="excludedList"></div><button id="excludedListClose" type="button">닫기</button></div>
     </dialog>
-    <script src="monitor.js?v=20261008-10"></script>
+    <script src="monitor.js?v=20261008-11"></script>
   </body>
 </html>
