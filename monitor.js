@@ -1016,7 +1016,7 @@ function drawChart(series, dailyMa10, recoveryHistory = {}) {
   const x = (index) => pad.left + slot * (index + 0.5);
   const phaseColors = { before: "#e9edf0", pullback: "#fff7d1", fast: "#eef8d6", confirmed: "#dff2e7" };
   series.forEach((row, index) => {
-    ctx.fillStyle = row.referencePullback ? "#fff7d1" : phaseColors[row.phase] || phaseColors.before;
+    ctx.fillStyle = row.referencePullback ? "#fce4ec" : phaseColors[row.phase] || phaseColors.before;
     ctx.fillRect(pad.left + slot * index, pad.top, slot + 0.5, height - pad.top - pad.bottom);
     if (Date.parse(row.t) >= Date.parse(chartViewport.registeredAt) && recoveryHistory[row.t.slice(0, 10)]?.matched) {
       ctx.fillStyle = "#e8c748";
@@ -1118,7 +1118,7 @@ function showMaTooltip(event) {
   for (const [key, label, color] of [["m3", "MA3", "#34a853"], ["m10", "MA10", "#d97706"], ["m20", "MA20", "#e53935"], ["m40", "MA40", "#9a641d"], ["m60", "MA60", "#3167ad"]]) {
     const line = document.createElement("div");
     line.style.color = color;
-    line.textContent = `${label} ${Number.isFinite(row[key]) ? formatter.format(row[key]) + "원" : "자료 없음"}`;
+    line.textContent = `${label} ${Number.isFinite(row[key]) ? formatter.format(Math.round(row[key])) + "원" : "자료 없음"}`;
     tooltip.append(line);
   }
   tooltip.hidden = false;
