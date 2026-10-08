@@ -323,8 +323,15 @@ def build_daily_candidates(stock_data: Path, previous: dict[str, Any]) -> dict[s
             continue
         rows = stock_rows(payload, stock)
         latest_match = None
+        # Only today's result can create a new candidate; retain existing cycles.
+        existing_dates = {
+            date for (code, date) in previous_candidates if code == stock["c"]
+        }
         for index in range(max(22, len(rows) - 14), len(rows)):
             if rows[index]["date"] not in active_dates:
+                continue
+            current_result = rows[index]["date"] == latest_date == now_kst().date().isoformat()
+            if not current_result and rows[index]["date"] not in existing_dates:
                 continue
             result = evaluate_ag(rows, index)
             if result:
