@@ -26,7 +26,7 @@ OUTCOME_RULE_VERSION = 3
 CORE_TIER = "core"
 EXPANDED_TIER = "expanded"
 STRATEGY = {
-    "candidateWindowTradingDays": 10,
+    "candidateWindowTradingDays": 5,
     "candidateTiers": {
         CORE_TIER: "기존 A-G(A 거래량 +200%, E 종가 +1%)",
         EXPANDED_TIER: "확대 A-G(A 거래량 +150%, E 종가 +0.5%)",
@@ -292,6 +292,28 @@ def update_validation_summary(payload: dict[str, Any]) -> None:
     }
 
 
+def registration_age(candidate: dict[str, Any], calendar: list[str], latest_date: str) -> int:
+    registered = str(candidate.get("registeredAt") or candidate.get("dailySignalDate") or "")[:10]
+    return sum(registered < day <= latest_date for day in calendar) if registered else 0
+
+
+def expire_registration_window(payload: dict[str, Any], calendar: list[str], latest_date: str) -> None:
+    active = []
+    history = {item["id"]: item for item in payload.get("history", []) if item.get("id")}
+    for candidate in payload.get("candidates", []):
+        age = registration_age(candidate, calendar, latest_date)
+        candidate["tradingDayAge"] = age
+        candidate["tradingDaysRemaining"] = max(0, 5 - age)
+        if age >= 5:
+            record = archive_candidate(candidate, latest_date, "window_completed")
+            history[record["id"]] = record
+        else:
+            active.append(candidate)
+    payload["candidates"] = active
+    payload["history"] = list(history.values())
+    payload.setdefault("strategy", {}).update({"candidateWindowTradingDays": 5})
+
+
 def build_daily_candidates(stock_data: Path, previous: dict[str, Any]) -> dict[str, Any]:
     restore_registration_baselines(previous)
     exclusion_path = ROOT / "data/candidate-exclusions.json"
@@ -304,7 +326,6 @@ def build_daily_candidates(stock_data: Path, previous: dict[str, Any]) -> dict[s
     if not any("v" in stock for stock in payload.get("stocks", [])):
         raise RuntimeError("stock-data.json에 거래량이 없습니다. generate_static_data.py를 먼저 실행하세요.")
 
-    active_dates = set(calendar[-10:])
     calendar_index = {date: index for index, date in enumerate(calendar)}
     latest_date = calendar[-1]
     candidates = []
@@ -327,9 +348,7 @@ def build_daily_candidates(stock_data: Path, previous: dict[str, Any]) -> dict[s
         existing_dates = {
             date for (code, date) in previous_candidates if code == stock["c"]
         }
-        for index in range(max(22, len(rows) - 14), len(rows)):
-            if rows[index]["date"] not in active_dates:
-                continue
+        for index in range(22, len(rows)):
             current_result = rows[index]["date"] == latest_date == now_kst().date().isoformat()
             if not current_result and rows[index]["date"] not in existing_dates:
                 continue
@@ -340,8 +359,9 @@ def build_daily_candidates(stock_data: Path, previous: dict[str, Any]) -> dict[s
             continue
         index, result = latest_match
         signal_date = rows[index]["date"]
-        age = calendar_index[latest_date] - calendar_index[signal_date]
-        if age >= 10:
+        registration = previous_registrations.get((stock["c"], signal_date), {})
+        age = registration_age(registration or {"registeredAt": now_kst().isoformat()}, calendar, latest_date)
+        if age >= 5:
             continue
         ma10_previous_by_date = {}
         for daily_index in range(max(10, len(rows) - 20), len(rows)):
@@ -357,7 +377,7 @@ def build_daily_candidates(stock_data: Path, previous: dict[str, Any]) -> dict[s
                 "candidateTier": result["candidateTier"],
                 "dailySignalDate": signal_date,
                 "tradingDayAge": age,
-                "tradingDaysRemaining": 10 - age,
+                "tradingDaysRemaining": 5 - age,
                 "daily": result,
                 "dailyReference": {
                     "close": rows[-1]["close"],
@@ -413,7 +433,7 @@ def build_daily_candidates(stock_data: Path, previous: dict[str, Any]) -> dict[s
             pass
         if target_completed_before(prior, latest_date):
             reason = "target_completed"
-        elif prior.get("tradingDaysRemaining", 0) <= 1:
+        elif registration_age(prior, calendar, latest_date) >= 5:
             reason = "window_completed"
         else:
             reason = "candidate_replaced"
@@ -442,6 +462,7 @@ def build_daily_candidates(stock_data: Path, previous: dict[str, Any]) -> dict[s
         "candidates": candidates,
         "history": history,
         "paperTrading": previous.get("paperTrading"),
+        "holdingCharts": previous.get("holdingCharts", {}),
         "notifiedSignals": previous.get("notifiedSignals", []),
     }
 
@@ -1460,6 +1481,17 @@ def main() -> None:
         payload, current, args.minute_count, True, refresh_daily_chart=True,
     )
     refresh_display_charts(payload, current)
+    if args.mode != "charts":
+        stock_path = ROOT / args.stock_data
+        calendar = json.loads(stock_path.read_text(encoding="utf-8")).get("dates", []) if stock_path.exists() else []
+        session_dates = {
+            row["t"][:10] for candidate in payload.get("candidates", [])
+            for row in candidate.get("displayCharts", {}).get("intraday", {}).get("history", [])
+            if row.get("t") and row["t"][:10] <= current.date().isoformat()
+        }
+        calendar = sorted(set(calendar) | session_dates)
+        if calendar:
+            expire_registration_window(payload, calendar, min(calendar[-1], current.date().isoformat()))
     if payload.get("paperTrading"):
         open_codes = {p["code"] for p in payload["paperTrading"]["positions"] if p["status"] == "open"}
         active_codes = {c["code"] for c in payload.get("candidates", [])}

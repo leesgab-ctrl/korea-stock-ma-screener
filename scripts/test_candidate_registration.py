@@ -39,6 +39,19 @@ class CurrentSearchRegistrationTests(unittest.TestCase):
         candidate = self.build(1, {"candidates": [old]})["candidates"][0]
         self.assertEqual(candidate["registeredAt"], old["registeredAt"])
 
+    def test_window_uses_registration_not_old_ag_date(self):
+        calendar = ["2026-10-01", "2026-10-02", "2026-10-06", "2026-10-07", "2026-10-08", "2026-10-09"]
+        candidate = {"code": "001440", "dailySignalDate": "2026-09-15", "registeredAt": "2026-10-01T17:00:00+09:00"}
+        position = {"code": "001440", "status": "open"}
+        payload = {"candidates": [candidate], "paperTrading": {"positions": [position]}}
+        monitor.expire_registration_window(payload, calendar, "2026-10-08")
+        self.assertEqual(candidate["tradingDaysRemaining"], 1)
+        self.assertEqual(len(payload["candidates"]), 1)
+        monitor.expire_registration_window(payload, calendar, "2026-10-09")
+        self.assertEqual(payload["candidates"], [])
+        self.assertEqual(payload["history"][0]["archiveReason"], "window_completed")
+        self.assertEqual(payload["paperTrading"]["positions"], [position])
+
 
 if __name__ == "__main__":
     unittest.main()
