@@ -243,7 +243,15 @@ function renderViewCounts(candidates, positions) {
   document.querySelectorAll(".view-tab").forEach((button) => {
     const view = button.dataset.view;
     const count = view === "positions" ? positions.length : candidates.filter((item) => view === "new" ? Boolean(newRegistrationLabel(item)) : chartGroup(item) === view).length;
-    button.textContent = `${viewLabels[view]}${view === "operations" ? "" : ` (${count})`}`;
+    button.replaceChildren();
+    const label = document.createElement("span");
+    label.textContent = viewLabels[view];
+    button.append(label);
+    if (view !== "operations") {
+      const countLabel = document.createElement("span");
+      countLabel.textContent = `(${count})`;
+      button.append(countLabel);
+    }
     button.classList.toggle("active", state.view === view);
     button.setAttribute("aria-selected", String(state.view === view));
   });

@@ -49,8 +49,9 @@ h2 { font-size: 17px; }
 .topbar .criteria-button { background: #fff; color: var(--green); }
 
 main { max-width: 1480px; margin: 0 auto; padding: 18px; display: grid; gap: 14px; }
-.main-tabs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-bottom: 1px solid var(--line); }
-.view-tab { min-width: 0; padding: 14px 6px; border: 0; border-bottom: 3px solid transparent; background: transparent; color: var(--muted); cursor: pointer; font-weight: 700; font-size: 14px; }
+.main-tabs { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); border: 1px solid var(--line); }
+.view-tab { min-width: 0; min-height: 52px; padding: 10px 4px; border: 0; border-right: 1px solid var(--line); border-bottom: 3px solid transparent; background: transparent; color: var(--muted); cursor: pointer; font-weight: 700; font-size: 14px; display: flex; justify-content: center; align-items: center; gap: 4px; }
+.view-tab:last-child { border-right: 0; }
 .view-tab.active { color: var(--green); border-bottom-color: var(--green); background: var(--green-soft); }
 .operation-links { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
 .operation-review { padding: 18px 0; display: grid; gap: 12px; }
@@ -66,7 +67,7 @@ main { max-width: 1480px; margin: 0 auto; padding: 18px; display: grid; gap: 14p
 .phase-reference::before { background: #fce4ec; }
 .phase-fast::before { background: #eef8d6; }
 .phase-confirmed::before { background: #dff2e7; }
-@media (max-width: 600px) { .view-tab { font-size: 12px; padding: 12px 3px; overflow-wrap: anywhere; } }
+@media (max-width: 600px) { .view-tab { font-size: 10px; padding: 6px 1px; flex-direction: column; gap: 2px; white-space: nowrap; } }
 .summary { display: grid; grid-template-columns: repeat(9, 1fr); background: var(--panel); border: 1px solid var(--line); border-radius: 7px; overflow: hidden; }
 .summary div { min-height: 78px; padding: 15px 18px; display: grid; align-content: center; gap: 3px; border-right: 1px solid var(--line); }
 .summary div:last-child { border-right: 0; }
