@@ -1526,7 +1526,7 @@ def main() -> None:
             payload.setdefault("candidates", [])
             payload.setdefault("notifiedSignals", [])
     current = dt.datetime.fromisoformat(args.now).astimezone(KST) if args.now else now_kst()
-    stock_path = ROOT / args.stock_data
+    stock_path = ROOT / (args.stock_data if isinstance(args.stock_data, str) else "data/stock-data.json")
     restore_calendar = json.loads(stock_path.read_text(encoding="utf-8")).get("dates", []) if stock_path.exists() else []
     restore_calendar = sorted(set(restore_calendar) | {
         row["d"] for candidate in payload.get("history", []) + payload.get("candidates", [])
