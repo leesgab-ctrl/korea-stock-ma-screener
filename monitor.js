@@ -969,6 +969,8 @@ function registrationPhases(series, registeredAt) {
 }
 
 function drawChart(series, dailyMa10, recoveryHistory = {}) {
+  hideMaTooltip();
+  maHover.pad = null;
   chartViewport.series = series;
   chartViewport.dailyMa10 = dailyMa10;
   chartViewport.recoveryHistory = recoveryHistory;
@@ -1010,6 +1012,7 @@ function drawChart(series, dailyMa10, recoveryHistory = {}) {
   const priceBottom = volumeTop - 10;
   const plotWidth = width - pad.left - pad.right;
   const slot = plotWidth / series.length;
+  Object.assign(maHover, { series, pad, slot });
   const x = (index) => pad.left + slot * (index + 0.5);
   const phaseColors = { before: "#e9edf0", pullback: "#fff7d1", fast: "#eef8d6", confirmed: "#dff2e7" };
   series.forEach((row, index) => {
@@ -1068,16 +1071,6 @@ function drawChart(series, dailyMa10, recoveryHistory = {}) {
     ctx.strokeStyle = "#d97706"; ctx.lineWidth = 1.5; ctx.setLineDash([6, 4]);
     ctx.beginPath(); ctx.moveTo(pad.left, y(dailyMa10)); ctx.lineTo(width - pad.right, y(dailyMa10)); ctx.stroke(); ctx.setLineDash([]);
   }
-  const priceRow = series[series.length - 1];
-  const pricePanel = document.getElementById("maPrices");
-  pricePanel.replaceChildren();
-  for (const [key, label, color] of [["m3", "MA3", "#34a853"], ["m10", "MA10", "#d97706"], ["m20", "MA20", "#e53935"], ["m40", "MA40", "#9a641d"], ["m60", "MA60", "#3167ad"]]) {
-    const span = document.createElement("span");
-    span.style.color = color;
-    span.textContent = `${label} ${Number.isFinite(priceRow?.[key]) ? formatter.format(priceRow[key]) + "원" : "-"}`;
-    pricePanel.append(span);
-  }
-  pricePanel.title = priceRow?.t ? `${formatDateTime(priceRow.t)} · 표시 범위 마지막 봉` : "";
   ctx.font = "11px Segoe UI";
   ctx.fillStyle = "#34a853"; ctx.fillRect(pad.left, 9, 14, 1.1); ctx.fillStyle = "#48574f"; ctx.fillText("MA3", pad.left + 19, 15);
   ctx.fillStyle = "#e53935"; ctx.fillRect(pad.left + 58, 9, 14, 3); ctx.fillStyle = "#48574f"; ctx.fillText("MA20", pad.left + 77, 15);
@@ -1104,6 +1097,38 @@ function drawChart(series, dailyMa10, recoveryHistory = {}) {
   drawRegistrationMarker(ctx, series, "t", chartViewport.registeredAt, x, pad, width, height);
   drawTradeMarkers(ctx, series, x, pad, width, height);
 }
+
+const maHover = { series: [], pad: null, slot: 0 };
+function hideMaTooltip() {
+  document.getElementById("maPriceTooltip").hidden = true;
+}
+function showMaTooltip(event) {
+  const { series, pad, slot } = maHover;
+  if (!pad || !slot || !series.length || chartPointers.size > 1) return hideMaTooltip();
+  const rect = elements.chart.getBoundingClientRect();
+  const localX = event.clientX - rect.left;
+  const localY = event.clientY - rect.top;
+  if (localX < pad.left || localX > rect.width - pad.right || localY < pad.top || localY > rect.height - pad.bottom) return hideMaTooltip();
+  const row = series[Math.min(series.length - 1, Math.floor((localX - pad.left) / slot))];
+  const tooltip = document.getElementById("maPriceTooltip");
+  tooltip.replaceChildren();
+  const date = document.createElement("strong");
+  date.textContent = formatDateTime(row.t);
+  tooltip.append(date);
+  for (const [key, label, color] of [["m3", "MA3", "#34a853"], ["m10", "MA10", "#d97706"], ["m20", "MA20", "#e53935"], ["m40", "MA40", "#9a641d"], ["m60", "MA60", "#3167ad"]]) {
+    const line = document.createElement("div");
+    line.style.color = color;
+    line.textContent = `${label} ${Number.isFinite(row[key]) ? formatter.format(row[key]) + "원" : "자료 없음"}`;
+    tooltip.append(line);
+  }
+  tooltip.hidden = false;
+  tooltip.style.left = `${Math.max(4, Math.min(localX + 12, rect.width - tooltip.offsetWidth - 4))}px`;
+  tooltip.style.top = `${Math.max(4, Math.min(localY + 12, rect.height - tooltip.offsetHeight - 4))}px`;
+}
+elements.chart.addEventListener("pointermove", showMaTooltip);
+elements.chart.addEventListener("pointerdown", showMaTooltip);
+elements.chart.addEventListener("pointerleave", event => { if (event.pointerType !== "touch") hideMaTooltip(); });
+document.addEventListener("pointerdown", event => { if (event.target !== elements.chart) hideMaTooltip(); });
 
 const dailyHover = { series: [], history: [], pad: null, slot: 0 };
 function hideDailyTooltip() {

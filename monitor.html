@@ -106,7 +106,6 @@
               <span>남은 기간 <strong id="remainingDays">-</strong></span>
             </div>
             <p id="chartSource" class="chart-source" style="display:none"></p>
-            <div id="maPrices" style="display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12px;margin-bottom:8px" aria-live="polite"></div>
             <div class="phase-legend"><span class="phase-before">이전</span><span class="phase-pullback">MA20 하향</span><span class="phase-fast">MA3 돌파</span><span class="phase-confirmed">MA20 돌파</span></div>
             <div class="chart-controls" role="group" aria-label="30분봉 표시 기간">
               <button type="button" data-chart-days="1">1일</button>
@@ -115,7 +114,10 @@
               <button type="button" data-chart-days="5" aria-pressed="true">5일</button>
               <button type="button" id="chartReset" title="전체 보기" aria-label="전체 보기">&#8634;</button>
             </div>
-            <canvas id="maChart" width="900" height="360" aria-label="30분봉 캔들, 거래량과 이동평균선"></canvas>
+            <div class="daily-chart-wrap">
+              <canvas id="maChart" width="900" height="360" aria-label="30분봉 캔들, 거래량과 이동평균선"></canvas>
+              <div id="maPriceTooltip" class="daily-price-tooltip" role="tooltip" hidden></div>
+            </div>
             <div class="daily-chart-heading">
               <strong>일봉 흐름</strong>
               <span id="dailyChartMeta">장중 현재가 포함 · MA5 · MA10 · MA20 · MA60</span>
@@ -274,6 +276,6 @@
     <dialog id="excludedListDialog" class="position-dialog">
       <div class="position-form"><h2>사용자 선정 제외</h2><div id="excludedList"></div><button id="excludedListClose" type="button">닫기</button></div>
     </dialog>
-    <script src="monitor.js?v=20261008-11"></script>
+    <script src="monitor.js?v=20261008-12"></script>
   </body>
 </html>
