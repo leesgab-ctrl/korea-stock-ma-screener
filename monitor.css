@@ -278,6 +278,12 @@ main { max-width: 1480px; margin: 0 auto; padding: 18px; display: grid; gap: 14p
 .daily-chart-heading strong { font-size: 14px; }
 .daily-chart-heading span { color: var(--muted); font-size: 11px; text-align: right; }
 #dailyChart { display: block; width: 100%; height: 290px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.daily-chart-wrap { position: relative; }
+.daily-price-tooltip { position: absolute; z-index: 2; pointer-events: none; background: rgba(255,255,255,.97); border: 1px solid #89978f; border-radius: 4px; padding: 8px 10px; font-size: 12px; line-height: 1.6; white-space: nowrap; max-width: calc(100% - 8px); box-shadow: 0 2px 6px rgba(0,0,0,.12); }
+.daily-price-tooltip strong { display: block; }
+.daily-price-tooltip .price-up { color: #c62828; }
+.daily-price-tooltip .price-down { color: #2457ad; }
+.daily-price-tooltip .price-flat { color: #187257; }
 .metrics { margin: 14px 0 0; display: grid; grid-template-columns: repeat(4, 1fr); border: 1px solid var(--line); }
 .metrics div { min-height: 68px; padding: 12px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
 .metrics div:nth-child(4n) { border-right: 0; }

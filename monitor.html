@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#176b58">
     <title>A-G 30분봉 신호 감시</title>
-    <link rel="stylesheet" href="monitor.css?v=20261008-4">
+    <link rel="stylesheet" href="monitor.css?v=20261008-5">
   </head>
   <body>
     <header class="topbar">
@@ -119,7 +119,10 @@
               <strong>일봉 흐름</strong>
               <span id="dailyChartMeta">장중 현재가 포함 · MA5 · MA10 · MA20 · MA60</span>
             </div>
-            <canvas id="dailyChart" width="900" height="320" aria-label="일봉 캔들, 거래량과 이동평균선"></canvas>
+            <div class="daily-chart-wrap">
+              <canvas id="dailyChart" width="900" height="320" aria-label="일봉 캔들, 거래량과 이동평균선"></canvas>
+              <div id="dailyPriceTooltip" class="daily-price-tooltip" role="tooltip" hidden></div>
+            </div>
             <div id="signalMessage" class="signal-message"></div>
           </div>
         </section>
@@ -270,6 +273,6 @@
     <dialog id="excludedListDialog" class="position-dialog">
       <div class="position-form"><h2>사용자 선정 제외</h2><div id="excludedList"></div><button id="excludedListClose" type="button">닫기</button></div>
     </dialog>
-    <script src="monitor.js?v=20261008-7"></script>
+    <script src="monitor.js?v=20261008-8"></script>
   </body>
 </html>

@@ -1060,7 +1060,50 @@ function drawChart(series, dailyMa10, recoveryHistory = {}) {
   drawRegistrationMarker(ctx, series, "t", chartViewport.registeredAt, x, pad, width, height);
 }
 
+const dailyHover = { series: [], history: [], pad: null, slot: 0 };
+function hideDailyTooltip() {
+  document.querySelector("#dailyPriceTooltip").hidden = true;
+}
+function showDailyTooltip(event) {
+  const { series, history, pad, slot } = dailyHover;
+  if (!pad || !slot || !series.length) return hideDailyTooltip();
+  const canvas = elements.dailyChart;
+  const rect = canvas.getBoundingClientRect();
+  const localX = event.clientX - rect.left;
+  const localY = event.clientY - rect.top;
+  if (localX < pad.left || localX > rect.width - pad.right || localY < pad.top || localY > rect.height - pad.bottom) return hideDailyTooltip();
+  const index = Math.min(series.length - 1, Math.floor((localX - pad.left) / slot));
+  const row = series[index];
+  const prior = history.filter(bar => bar.d < row.d).at(-1) || series[index - 1];
+  const tooltip = document.querySelector("#dailyPriceTooltip");
+  tooltip.replaceChildren();
+  const date = document.createElement("strong");
+  date.textContent = row.d;
+  tooltip.append(date);
+  for (const [key, label] of [["o", "시가"], ["h", "고가"], ["l", "저가"], ["c", "종가"]]) {
+    const value = Number(row[key]);
+    const pct = prior?.c > 0 ? (value / prior.c - 1) * 100 : null;
+    const line = document.createElement("div");
+    line.className = pct == null ? "" : pct > 0 ? "price-up" : pct < 0 ? "price-down" : "price-flat";
+    line.textContent = `${label} ${formatter.format(value)}원 (${pct == null ? "기준자료 없음" : `${pct >= 0 ? "+" : ""}${pct.toFixed(2)}%`})`;
+    tooltip.append(line);
+  }
+  tooltip.hidden = false;
+  const left = Math.max(4, Math.min(localX + 12, rect.width - tooltip.offsetWidth - 4));
+  const top = Math.max(4, Math.min(localY + 12, rect.height - tooltip.offsetHeight - 4));
+  tooltip.style.left = `${left}px`;
+  tooltip.style.top = `${top}px`;
+}
+elements.dailyChart.addEventListener("pointermove", showDailyTooltip);
+elements.dailyChart.addEventListener("pointerdown", showDailyTooltip);
+elements.dailyChart.addEventListener("pointerleave", event => { if (event.pointerType !== "touch") hideDailyTooltip(); });
+document.addEventListener("pointerdown", event => { if (event.target !== elements.dailyChart) hideDailyTooltip(); });
+
 function drawDailyChart(series) {
+  hideDailyTooltip();
+  dailyHover.series = series;
+  dailyHover.history = selectedDetailItem()?.displayCharts?.daily?.history || [];
+  dailyHover.pad = null;
   const canvas = elements.dailyChart;
   const ratio = window.devicePixelRatio || 1;
   const width = canvas.clientWidth || 800;
@@ -1105,6 +1148,8 @@ function drawDailyChart(series) {
   const priceBottom = volumeTop - 24;
   const plotWidth = width - pad.left - pad.right;
   const slot = plotWidth / chartSeries.length;
+  dailyHover.pad = pad;
+  dailyHover.slot = slot;
   const x = (index) => pad.left + slot * (index + 0.5);
   const y = (value) => pad.top + ((priceMax - value) / spread) * (priceBottom - pad.top);
 
