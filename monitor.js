@@ -949,7 +949,7 @@ function registrationPhases(series, registeredAt) {
   return series.map(original => {
     const row = {...original, phase: "before", referencePullback: false};
     if (!Number.isFinite(start) || Date.parse(row.t) < start) return row;
-    if (row.complete === false) { row.phase = phase; row.referencePullback = reference; return row; }
+    if (row.complete === false) { row.phase = phase; row.referencePullback = previous?.referencePullback || false; return row; }
     if (previous) {
       if (previous.m20 >= previous.m40 && row.m20 < row.m40) { recovery = true; phase = "pullback"; deep = false; }
       if (recovery) {
@@ -962,7 +962,10 @@ function registrationPhases(series, registeredAt) {
       if (reference && (row.m20 <= row.m40 || row.m40 <= previous.m40 || (row.m3 > row.m20 && row.m10 > row.m20))) reference = false;
     }
     row.phase = phase;
-    row.referencePullback = reference;
+    row.referencePullback = reference && row.m10 < row.m20 && row.m20 > row.m40
+      && row.m20 > 0 && row.m40 > 0
+      && (row.m20 - row.m10) / row.m20 < 0.01
+      && (row.m20 - row.m40) / row.m40 < 0.01;
     previous = row;
     return row;
   });
