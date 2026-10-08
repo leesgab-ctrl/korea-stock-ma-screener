@@ -58,7 +58,7 @@ def evaluate(candidate):
                         and q["m20"] <= q[target] and p["m20"] > p[target]
                         and b["m20"] > b[target] and rising and rise_count >= 5
                         and b["c"] > b[target] and b["m20"] > b["m40"] > b["m60"]):
-                    events.append({"time": b["t"], "type": "recovery", "target": target.upper(),
+                    events.append({"time": b["t"], "type": "recovery", "target": "MA60" if deepest else "MA40",
                                    "price": b["c"], "low": bottom})
                     crossed = None
                     attempt = False
