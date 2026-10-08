@@ -1006,7 +1006,7 @@ function drawChart(series, dailyMa10, recoveryHistory = {}) {
   const spread = priceMax - priceMin;
   const mobile = window.innerWidth <= 540;
   ctx.font = mobile ? "10px Segoe UI" : "11px Segoe UI";
-  const priceLabel = (value) => mobile ? formatter.format(Math.round(value)) : formatter.format(value);
+  const priceLabel = (value) => formatter.format(Math.round(value));
   const labelWidth = Math.max(...[priceMin, priceMax].map((value) => ctx.measureText(priceLabel(value)).width));
   const pad = { left: mobile ? Math.ceil(labelWidth) + 5 : 54, right: mobile ? 3 : 12, top: 42, bottom: 28 };
   const volumeHeight = Math.max(44, Math.round(height * 0.2));
@@ -1438,7 +1438,7 @@ function drawTradeMarkers(ctx, series, x, pad, width, height) {
   const markers = new Map();
   for (const event of candidate?.paperStrategy?.events || []) {
     if (!candidate.registeredAt || Date.parse(event.time) < Date.parse(candidate.registeredAt)) continue;
-    markers.set(`signal|${event.time}`, {time: event.time, color: "#263b46", label: `신호 ${formatter.format(event.price)}`});
+    markers.set(`signal|${event.time}`, {time: event.time, color: "#263b46", label: `신호 ${formatter.format(Math.round(event.price))}`});
   }
   for (const position of state.positions?.positions || []) {
     if (position.code !== item.code) continue;
@@ -1446,13 +1446,13 @@ function drawTradeMarkers(ctx, series, x, pad, width, height) {
     const time = virtual ? position.signalTime : position.openedAt;
     if (virtual && (!candidate?.registeredAt || Date.parse(time) < Date.parse(candidate.registeredAt))) continue;
     if (time) markers.set(`${virtual ? "signal" : "buy"}|${time}`, {
-      time, color: "#263b46", label: `${virtual ? "가상매수" : "실제매수"} ${formatter.format(position.buyPrice)}`,
+      time, color: "#263b46", label: `${virtual ? "가상매수" : "실제매수"} ${formatter.format(Math.round(position.buyPrice))}`,
     });
     if (position.status === "closed" && position.closedAt && position.sellPrice != null) {
       const profit = position.sellPrice >= position.buyPrice;
       markers.set(`sell|${position.closedAt}|${position.id || position.openedAt}`, {
         time: position.closedAt, color: profit ? "#d32f2f" : "#245cc2", labelOffset: 18,
-        label: `${virtual ? "가상" : ""}${profit ? "수익" : "손실"}매도 ${formatter.format(position.sellPrice)}`,
+        label: `${virtual ? "가상" : ""}${profit ? "수익" : "손실"}매도 ${formatter.format(Math.round(position.sellPrice))}`,
       });
     }
   }
