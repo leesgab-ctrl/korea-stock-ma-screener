@@ -1075,6 +1075,16 @@ function drawChart(series, dailyMa10, recoveryHistory = {}) {
     ctx.beginPath(); ctx.moveTo(pad.left, y(dailyMa10)); ctx.lineTo(width - pad.right, y(dailyMa10)); ctx.stroke(); ctx.setLineDash([]);
   }
   ctx.font = "11px Segoe UI";
+  if (mobile) {
+    let legendX = 0;
+    for (const [label, color] of [["MA3", "#34a853"], ["MA10", "#d97706"], ["MA20", "#e53935"], ["MA40", "#9a641d"], ["MA60", "#3167ad"]]) {
+      ctx.fillStyle = color;
+      ctx.fillRect(legendX, 9, 10, label === "MA3" ? 1.1 : 2);
+      ctx.fillStyle = "#48574f";
+      ctx.fillText(label, legendX + 14, 15);
+      legendX += 14 + ctx.measureText(label).width + 9;
+    }
+  } else {
   ctx.fillStyle = "#34a853"; ctx.fillRect(pad.left, 9, 14, 1.1); ctx.fillStyle = "#48574f"; ctx.fillText("MA3", pad.left + 19, 15);
   ctx.fillStyle = "#e53935"; ctx.fillRect(pad.left + 58, 9, 14, 3); ctx.fillStyle = "#48574f"; ctx.fillText("MA20", pad.left + 77, 15);
   ctx.fillStyle = "#9a641d"; ctx.fillRect(pad.left + 126, 9, 14, 3); ctx.fillStyle = "#48574f"; ctx.fillText("MA40", pad.left + 145, 15);
@@ -1083,6 +1093,7 @@ function drawChart(series, dailyMa10, recoveryHistory = {}) {
     ctx.fillStyle = "#d97706"; ctx.fillRect(pad.left, 27, 14, 3); ctx.fillStyle = "#48574f"; ctx.fillText("일봉 MA10", pad.left + 19, 33);
   } else {
     ctx.fillStyle = "#d97706"; ctx.fillRect(pad.left, 27, 14, 2); ctx.fillStyle = "#48574f"; ctx.fillText("MA10", pad.left + 19, 33);
+  }
   }
   ctx.fillStyle = "#64746c";
   const dateIndexes = [0];
