@@ -10,6 +10,8 @@ def evaluate(candidate):
     sessions = sorted({b["t"][:10] for b in bars if b["t"][:10] > spike}
                       | {b["d"] for b in candidate.get("displayCharts", {}).get("daily", {}).get("history", []) if b["d"] > spike})
     low = daily.get("preSpikeLow")
+    registered = candidate.get("registeredAt")
+    registration_time = dt.datetime.fromisoformat(registered) if registered else None
     if low is None:
         prior = next((b for b in candidate.get("displayCharts", {}).get("daily", {}).get("history", [])
                       if b["d"] == daily.get("preSpikeDate")), None)
@@ -24,7 +26,7 @@ def evaluate(candidate):
     events = []
     reason = None
     for i, b in enumerate(bars):
-        if i == 0 or b["t"][:10] <= spike:
+        if i == 0 or b["t"][:10] <= spike or registration_time is None or dt.datetime.fromisoformat(b["t"]) < registration_time:
             continue
         p = bars[i - 1]
         if not all(isinstance(x.get(k), (int, float)) for x in (p, b) for k in ("m3", "m10", "m20", "m40", "m60")):
@@ -32,9 +34,12 @@ def evaluate(candidate):
         if low and b["m60"] > low and b["c"] < low:
             reason = "대량거래 전일 저가 이탈"
             break
+        if dt.datetime.fromisoformat(p["t"]) < registration_time:
+            continue
         down = p["m20"] >= p["m40"] and b["m20"] < b["m40"]
         if down and crossed is None:
-            if sessions.index(b["t"][:10]) >= 4:
+            coverage_start = bars[0]["t"][:10] if bars else ""
+            if sessions.index(b["t"][:10]) >= 4 and coverage_start <= spike and registration_time.date().isoformat() <= spike:
                 reason = "4거래일 이후 조정 시작"
                 break
             crossed = i
@@ -84,11 +89,18 @@ def evaluate(candidate):
                 events.append({"time": b["t"], "type": "pullback", "target": "MA20",
                                "price": b["c"], "low": pullback["low"]})
                 pullback = None
+    patterns = events
+    events = [event for event in patterns if registration_time is not None
+              and dt.datetime.fromisoformat(event["time"]) >= registration_time]
     last = bars[-1] if bars else {}
-    if not all(isinstance(last.get(k), (int, float)) for k in ("m20", "m40", "m60")):
-        return {"group": "insufficient", "excludedReason": reason, "events": events, "preSpikeLow": low}
-    group = "target" if crossed is not None else "reference" if last.get("m20", 0) > last.get("m40", 0) > last.get("m60", 0) else "insufficient"
-    return {"group": group, "excludedReason": reason, "events": events, "preSpikeLow": low}
+    if (registration_time is None or not last or dt.datetime.fromisoformat(last["t"]) < registration_time
+            or not all(isinstance(last.get(k), (int, float)) for k in ("m20", "m40"))):
+        return {"group": "insufficient", "excludedReason": reason, "events": events, "historicalPatterns": patterns, "preSpikeLow": low}
+    recent = [b for b in bars if dt.datetime.fromisoformat(b["t"]) >= registration_time][-4:]
+    rising_structure = (len(recent) == 4 and all(b.get("m20") is not None and b.get("m40") is not None and b["m20"] > b["m40"] for b in recent)
+                        and all(recent[i]["m40"] > recent[i - 1]["m40"] for i in range(1, 4)))
+    group = "target" if crossed is not None and last["m20"] < last["m40"] else "reference" if rising_structure else "unclassified"
+    return {"group": group, "excludedReason": reason, "events": events, "historicalPatterns": patterns, "preSpikeLow": low}
 
 
 def update_paper(payload, current, notify=None):
@@ -162,6 +174,6 @@ def update_paper(payload, current, notify=None):
     }
     paper["historicalExamples"] = [
         {"code": c["code"], "name": c["name"], "label": "과거 검토", **event}
-        for c in payload.get("candidates", []) for event in c.get("paperStrategy", {}).get("events", [])
+        for c in payload.get("candidates", []) for event in c.get("paperStrategy", {}).get("historicalPatterns", [])
         if dt.datetime.fromisoformat(event["time"]) + dt.timedelta(minutes=30) <= baseline
     ]

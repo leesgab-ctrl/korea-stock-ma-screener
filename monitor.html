@@ -22,7 +22,7 @@
     <main>
       <nav class="main-tabs" aria-label="감시 메뉴" role="tablist">
         <button class="view-tab active" data-view="target" type="button" role="tab" aria-selected="true">조정회복형</button>
-        <button class="view-tab" data-view="reference" type="button" role="tab" aria-selected="false">상승눌림형</button>
+        <button class="view-tab" data-view="reference" type="button" role="tab" aria-selected="false">상승조정형</button>
         <button class="view-tab" data-view="positions" type="button" role="tab" aria-selected="false">보유종목</button>
         <button class="view-tab" data-view="operations" type="button" role="tab" aria-selected="false">운영관리</button>
       </nav>
@@ -181,7 +181,7 @@
 
         <section>
           <div class="criteria-section-heading"><strong>화면 분류·차트 표시</strong></div>
-          <p>조정회복형 / 상승눌림형 / 보유종목 / 운영관리. 실제와 가상 보유는 구분하며 실제 주문을 실행하지 않습니다. 최근 5거래일 차트에서 오른쪽으로 끌면 저장된 과거 봉을 확인할 수 있습니다.</p>
+          <p>상승조정형은 등록 이후 최근 4개 완성봉에서 MA20이 MA40 위를 유지하고 MA40이 3회 연속 상승한 종목입니다. 조정회복형은 등록 이후 MA20이 MA40 아래로 실제 하향 교차하고 아직 아래인 종목입니다. 나머지는 분류 대기입니다. 등록 이전 봉은 이평선 계산에만 사용하며 상태 배경과 매수신호를 표시하지 않습니다.</p>
           <p>차트 배경은 이전 구간 회색 → MA20 하향 진입 노란색 → MA3 상향 돌파 연두색 → MA20 상향 돌파 초록색입니다. MA60 아래까지 조정되면 MA60, 그 외는 MA40을 돌파 기준으로 사용합니다. 배경은 원본 차트의 완성봉 기준이며, 기존 정규장 매수 판정·알림과 별도로 표시합니다.</p>
         </section>
 
@@ -273,6 +273,6 @@
     <dialog id="excludedListDialog" class="position-dialog">
       <div class="position-form"><h2>사용자 선정 제외</h2><div id="excludedList"></div><button id="excludedListClose" type="button">닫기</button></div>
     </dialog>
-    <script src="monitor.js?v=20261008-9"></script>
+    <script src="monitor.js?v=20261008-10"></script>
   </body>
 </html>

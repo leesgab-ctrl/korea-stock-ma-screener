@@ -9,7 +9,7 @@ class PaperTests(unittest.TestCase):
                 "m3": 100, "m10": 100, "m20": 102, "m40": 101, "m60": 100, **values}
 
     def candidate(self, bars):
-        return {"code": "000001", "name": "test", "dailySignalDate": "2026-10-01",
+        return {"code": "000001", "name": "test", "dailySignalDate": "2026-10-01", "registeredAt": "2026-10-01T15:30:00+09:00",
                 "daily": {"spikeDate": "2026-10-01", "preSpikeLow": 90},
                 "displayCharts": {"intraday": {"dataStatus": "ok", "series": bars, "history": bars}}}
 
@@ -22,6 +22,14 @@ class PaperTests(unittest.TestCase):
         result = evaluate(self.candidate(bars))
         self.assertIsNone(result["excludedReason"])
         self.assertEqual(result["group"], "target")
+
+    def test_group_uses_ma20_ma40_not_ma60(self):
+        bars = [self.bar(f"2026-10-02T{9+i//2:02d}:{30*(i%2):02d}:00+09:00", m20=105, m40=101+i, m60=120-i) for i in range(4)]
+        self.assertEqual(evaluate(self.candidate(bars))["group"], "reference")
+        bars[-1].update(m20=100, m40=101, m60=80)
+        self.assertEqual(evaluate(self.candidate(bars))["group"], "target")
+        bars[-1]["m20"] = 101
+        self.assertEqual(evaluate(self.candidate(bars))["group"], "unclassified")
 
     def test_bootstrap_does_not_buy(self):
         now = dt.datetime.fromisoformat("2026-10-08T15:00:00+09:00")
@@ -38,6 +46,13 @@ class PaperTests(unittest.TestCase):
         self.assertEqual(len(events), 1)
         self.assertEqual(events[0]["time"], bars[-1]["t"])
         self.assertEqual(events[0]["type"], "recovery")
+        candidate = self.candidate(bars)
+        candidate["registeredAt"] = "2026-10-02T14:00:00+09:00"
+        result = evaluate(candidate)
+        self.assertEqual(result["events"], [])
+        self.assertEqual(len(result["historicalPatterns"]), 0)
+        candidate.pop("registeredAt")
+        self.assertEqual(evaluate(candidate)["events"], [])
 
     def test_pullback_waits_for_both_lines(self):
         stamps = ["2026-10-07T09:00:00+09:00", "2026-10-07T09:30:00+09:00", "2026-10-08T09:00:00+09:00",

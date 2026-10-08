@@ -98,19 +98,23 @@ const statusLabels = {
 };
 const statusPriority = { signal: 0, rising: 1, waiting60: 2, setup: 3, signaled: 4, watching: 5, insufficient: 6, ineligible: 7, excluded: 8 };
 const tierLabels = { core: "핵심 A-G", expanded: "확대 A-G" };
-const viewLabels = { target: "조정회복형", reference: "상승눌림형", positions: "보유종목", operations: "운영관리" };
+const viewLabels = { target: "조정회복형", reference: "상승조정형", positions: "보유종목", operations: "운영관리" };
 const positionKey = item => item?.id || item?.code;
 
 function chartGroup(item) {
-  if (item.paperStrategy) return item.paperStrategy.excludedReason ? "excluded" : item.paperStrategy.group;
+  if (item.paperStrategy?.excludedReason) return "excluded";
   if (item.status === "insufficient") return "insufficient";
   const chart = item.displayCharts?.intraday;
   if (chart?.dataStatus !== "ok") return "insufficient";
   const last = chart.series?.filter((row) => row.complete !== false).at(-1);
-  if (!last || ![last.m20, last.m40, last.m60].every(Number.isFinite)) return "insufficient";
-  if (last.m20 > last.m40 && last.referenceQualified) return "reference";
-  if (last.m20 < last.m40 || last.m20 < last.m60) return "target";
-  if (last.m20 > last.m40 && last.m40 > last.m60) return "reference";
+  if (!last || !item.registeredAt || Date.parse(last.t) < Date.parse(item.registeredAt)
+      || ![last.m20, last.m40].every(Number.isFinite)) return "insufficient";
+  const rows = chart.series.filter(row => row.complete !== false && Date.parse(row.t) >= Date.parse(item.registeredAt));
+  const recent = rows.slice(-4);
+  if (recent.length === 4 && recent.every(row => row.m20 > row.m40)
+      && recent.slice(1).every((row, i) => row.m40 > recent[i].m40)) return "reference";
+  const crossed = rows.some((row, i) => i > 0 && rows[i - 1].m20 >= rows[i - 1].m40 && row.m20 < row.m40);
+  if (crossed && last.m20 < last.m40) return "target";
   return "unclassified";
 }
 const formatter = new Intl.NumberFormat("ko-KR", { maximumFractionDigits: 2 });
@@ -235,7 +239,9 @@ function renderOperations(candidates) {
   for (const event of state.payload.paperTrading?.historicalExamples || []) {
     const button = document.createElement("button");
     button.type = "button";
-    button.textContent = `${event.name} · ${event.type === "recovery" ? "조정회복형" : "상승눌림형"} · ${formatDateTime(event.time)} · ${formatter.format(event.price)}원 · 저점 ${formatter.format(event.low)}원`;
+    const candidate = state.payload.candidates.find(c => c.code === event.code);
+    const beforeRegistration = !candidate?.registeredAt || Date.parse(event.time) < Date.parse(candidate.registeredAt);
+    button.textContent = `${event.name} · ${event.type === "recovery" ? "조정회복형" : "상승조정형"} · ${formatDateTime(event.time)} · ${formatter.format(event.price)}원 · 저점 ${formatter.format(event.low)}원${beforeRegistration ? " · 등록 전 형태참고(매수신호 아님)" : " · 과거 검토"}`;
     button.addEventListener("click", () => {
       state.selectedCode = event.code;
       const item = state.payload.candidates.find(c => c.code === event.code);
@@ -423,7 +429,7 @@ function renderCandidates(candidates) {
     (statusPriority[a.status] ?? 99) - (statusPriority[b.status] ?? 99)
     || a.name.localeCompare(b.name, "ko")
   );
-  elements.candidateMeta.textContent = `${visible.length}종목 · ${state.view === "target" ? "MA20 < MA40 또는 MA60" : "정배열 · 밀착 후 재상승"}`;
+  elements.candidateMeta.textContent = `${visible.length}종목 · ${state.view === "target" ? "등록 이후 MA20 < MA40" : "등록 이후 MA20 > MA40"}`;
   elements.candidateList.innerHTML = "";
   if (!visible.length) {
     elements.candidateList.innerHTML = '<div class="empty-list">현재 조건에 해당하는 후보가 없습니다.</div>';
@@ -935,10 +941,36 @@ for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) {
   });
 }
 
+function registrationPhases(series, registeredAt) {
+  const start = Date.parse(registeredAt);
+  let previous = null, phase = "before", deep = false, recovery = false, reference = false;
+  return series.map(original => {
+    const row = {...original, phase: "before", referencePullback: false};
+    if (!Number.isFinite(start) || Date.parse(row.t) < start) return row;
+    if (row.complete === false) { row.phase = phase; row.referencePullback = reference; return row; }
+    if (previous) {
+      if (previous.m20 >= previous.m40 && row.m20 < row.m40) { recovery = true; phase = "pullback"; deep = false; }
+      if (recovery) {
+        deep ||= row.m20 < row.m60;
+        const target = deep ? "m60" : "m40";
+        if (previous.m3 <= previous[target] && row.m3 > row[target]) phase = "fast";
+        if (previous.m20 <= previous[target] && row.m20 > row[target]) { phase = "confirmed"; recovery = false; }
+      }
+      if (row.m20 > row.m40 && row.m40 > previous.m40 && previous.m10 >= previous.m20 && row.m10 < row.m20) reference = true;
+      if (reference && (row.m20 <= row.m40 || row.m40 <= previous.m40 || (row.m3 > row.m20 && row.m10 > row.m20))) reference = false;
+    }
+    row.phase = phase;
+    row.referencePullback = reference;
+    previous = row;
+    return row;
+  });
+}
+
 function drawChart(series, dailyMa10, recoveryHistory = {}) {
   chartViewport.series = series;
   chartViewport.dailyMa10 = dailyMa10;
   chartViewport.recoveryHistory = recoveryHistory;
+  series = registrationPhases(series, chartViewport.registeredAt);
   clampChartWindow();
   document.querySelectorAll('[data-chart-days]').forEach((button) => {
     button.setAttribute('aria-pressed', String(Number(button.dataset.chartDays) === chartViewport.days));
@@ -981,7 +1013,7 @@ function drawChart(series, dailyMa10, recoveryHistory = {}) {
   series.forEach((row, index) => {
     ctx.fillStyle = row.referencePullback ? "#fff7d1" : phaseColors[row.phase] || phaseColors.before;
     ctx.fillRect(pad.left + slot * index, pad.top, slot + 0.5, height - pad.top - pad.bottom);
-    if (recoveryHistory[row.t.slice(0, 10)]?.matched) {
+    if (Date.parse(row.t) >= Date.parse(chartViewport.registeredAt) && recoveryHistory[row.t.slice(0, 10)]?.matched) {
       ctx.fillStyle = "#e8c748";
       ctx.fillRect(pad.left + slot * index, volumeTop - 4, slot + 0.5, 3);
     }
@@ -1268,12 +1300,14 @@ function drawTradeMarkers(ctx, series, x, pad, width, height) {
   const candidate = [...(state.payload?.candidates || []), ...(state.payload?.history || [])].find(row => row.code === item.code);
   const markers = new Map();
   for (const event of candidate?.paperStrategy?.events || []) {
+    if (!candidate.registeredAt || Date.parse(event.time) < Date.parse(candidate.registeredAt)) continue;
     markers.set(`signal|${event.time}`, {time: event.time, color: "#263b46", label: `신호 ${formatter.format(event.price)}`});
   }
   for (const position of state.positions?.positions || []) {
     if (position.code !== item.code) continue;
     const virtual = position.mode === "virtual";
     const time = virtual ? position.signalTime : position.openedAt;
+    if (virtual && (!candidate?.registeredAt || Date.parse(time) < Date.parse(candidate.registeredAt))) continue;
     if (time) markers.set(`${virtual ? "signal" : "buy"}|${time}`, {
       time, color: "#263b46", label: `${virtual ? "가상매수" : "실제매수"} ${formatter.format(position.buyPrice)}`,
     });
