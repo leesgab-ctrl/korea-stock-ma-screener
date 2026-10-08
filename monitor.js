@@ -782,6 +782,7 @@ function renderDetail(item) {
     elements.detailBadge.style.backgroundColor = "";
   }
   const native = item.displayCharts?.intraday;
+  chartViewport.registeredAt = item.registeredAt || null;
   if (chartViewport.code !== item.code) {
     chartViewport.code = item.code;
     chartViewport.start = 0;
@@ -1056,6 +1057,7 @@ function drawChart(series, dailyMa10, recoveryHistory = {}) {
     ctx.fillStyle = "#64746c";
     ctx.fillText(label, Math.min(center + 3, width - pad.right - ctx.measureText(label).width), height - 8);
   });
+  drawRegistrationMarker(ctx, series, "t", chartViewport.registeredAt, x, pad, width, height);
 }
 
 function drawDailyChart(series) {
@@ -1173,6 +1175,44 @@ function drawDailyChart(series) {
     ctx.fillStyle = "#64746c";
     ctx.fillText(label, Math.min(center, width - pad.right - ctx.measureText(label).width), height - 8);
   });
+  drawRegistrationMarker(ctx, chartSeries, "d", chartViewport.registeredAt, x, pad, width, height);
+}
+
+function drawRegistrationMarker(ctx, series, key, registeredAt, x, pad, width, height) {
+  if (!registeredAt || !series.length) return;
+  const stamp = key === "d" ? registeredAt.slice(0, 10) : registeredAt;
+  const time = value => Date.parse(key === "d" ? `${value}T00:00:00+09:00` : value);
+  const target = time(stamp);
+  if (!Number.isFinite(target)) return;
+  const first = time(series[0][key]);
+  const last = time(series.at(-1)[key]);
+  if (target < first || target > last + (key === "t" ? 30 * 60000 : 0)) return;
+  let index = series.findIndex(row => time(row[key]) >= target);
+  let center;
+  if (index < 0) center = x(series.length - 1);
+  else if (time(series[index][key]) === target || index === 0) center = x(index);
+  else {
+    const previous = time(series[index - 1][key]);
+    const next = time(series[index][key]);
+    // Market closures occupy a boundary, not a fabricated candle.
+    const fraction = next - previous > 30 * 60000 ? .5 : (target - previous) / (next - previous);
+    center = x(index - 1) + (x(index) - x(index - 1)) * fraction;
+  }
+  ctx.save();
+  ctx.strokeStyle = "#53616d";
+  ctx.lineWidth = 1.5;
+  ctx.setLineDash([4, 4]);
+  ctx.beginPath(); ctx.moveTo(center, pad.top); ctx.lineTo(center, height - pad.bottom); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.font = '11px "Malgun Gothic"';
+  const label = `등록 ${registeredAt.slice(5, 10)}`;
+  const labelWidth = ctx.measureText(label).width;
+  const left = Math.max(pad.left, Math.min(center + 4, width - pad.right - labelWidth - 4));
+  ctx.fillStyle = "rgba(255,255,255,.92)";
+  ctx.fillRect(left - 2, pad.top + 2, labelWidth + 4, 16);
+  ctx.fillStyle = "#384651";
+  ctx.fillText(label, left, pad.top + 14);
+  ctx.restore();
 }
 
 function drawVolumeDivider(ctx, left, right, top) {
