@@ -54,7 +54,8 @@ function renderHistory() {
   const records = state.history.filter((item) => {
     if (!keyword) return true;
     return String(item.name || "").toLowerCase().includes(keyword) || String(item.code || "").includes(keyword);
-  });
+  }).sort((a, b) => String(b.dailySignalDate || "").localeCompare(String(a.dailySignalDate || ""))
+    || String(a.name || a.code).localeCompare(String(b.name || b.code), "ko"));
   elements.historyMeta.textContent = keyword
     ? `전체 ${state.history.length}종목 중 ${records.length}종목`
     : `종료 후보 ${state.history.length}종목 · 사용자 선정 제외 ${state.excludedCodes.size}종목 (달성률 집계 제외)`;
@@ -95,6 +96,33 @@ function renderHistory() {
       <td class="${returnClass(outcome.finalReturnPct)}">${formatReturn(outcome.finalReturnPct)}</td>
       <td>${escapeHtml(item.archivedAt || outcome.finalDate || "-")}</td>`;
     body.append(row);
+    const name = row.querySelector("strong");
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "history-stock-button";
+    button.textContent = item.name || item.code;
+    button.setAttribute("aria-expanded", "false");
+    name.replaceWith(button);
+    button.addEventListener("click", () => {
+      const existing = row.nextElementSibling;
+      if (existing?.classList.contains("history-chart-row")) {
+        existing.remove(); button.setAttribute("aria-expanded", "false"); return;
+      }
+      const detail = document.createElement("tr");
+      detail.className = "history-chart-row";
+      const cell = document.createElement("td"); cell.colSpan = 12;
+      const frame = document.createElement("iframe");
+      frame.title = `${item.name || item.code} 30분봉과 일봉 전체 이력`;
+      frame.src = `monitor.html?historyChart=1&stock=${encodeURIComponent(item.code)}`;
+      cell.append(frame); detail.append(cell); row.after(detail);
+      frame.addEventListener("load", () => {
+        const resize = () => { frame.style.height = `${frame.contentDocument?.body.scrollHeight || 1100}px`; };
+        const observer = new ResizeObserver(resize);
+        if (frame.contentDocument?.body) observer.observe(frame.contentDocument.body);
+        resize();
+      });
+      button.setAttribute("aria-expanded", "true");
+    });
   });
   elements.historyList.append(table);
 }

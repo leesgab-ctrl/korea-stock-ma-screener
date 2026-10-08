@@ -1,4 +1,5 @@
 const requestedCode = new URLSearchParams(window.location.search).get("stock");
+const historyChartMode = new URLSearchParams(window.location.search).get("historyChart") === "1";
 const PENDING_EXCLUSION_KEY = "koreaStockMonitor.pendingExclusions";
 function readPendingExclusions() {
   try {
@@ -131,6 +132,16 @@ async function loadData() {
     ]);
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     state.payload = await response.json();
+    if (historyChartMode) {
+      const archived = (state.payload.history || []).find(item => item.code === requestedCode);
+      state.payload.candidates = archived ? [archived] : [];
+      state.selectedCode = archived?.code || null;
+      document.body.classList.add("history-chart-mode");
+      document.body.append(elements.detailPanel);
+      if (archived) renderDetail(archived);
+      else elements.detailPanel.textContent = "저장된 차트 자료가 없습니다.";
+      return;
+    }
     applyPendingExclusions();
     state.positions = positionsResponse.ok ? await positionsResponse.json() : { positions: [] };
     state.positions.positions = [...(state.positions.positions || []), ...(state.payload.paperTrading?.positions || [])];
@@ -807,7 +818,7 @@ function renderDetail(item) {
   }
   const fullSeries = native?.series || [];
   if (chartViewport.count == null && fullSeries.length) {
-    const dates = [...new Set(fullSeries.map(row => row.t.slice(0, 10)))].slice(-5);
+    const dates = [...new Set(fullSeries.map(row => row.t.slice(0, 10)))].slice(historyChartMode ? 0 : -5);
     chartViewport.start = fullSeries.findIndex(row => dates.includes(row.t.slice(0, 10)));
     chartViewport.count = fullSeries.length - chartViewport.start;
   }
@@ -1259,9 +1270,9 @@ function drawDailyChart(series, preserveWindow = false) {
     dailyViewport.series = [...new Map([...history, ...series].map(row => [row.d, row])).values()].sort((a, b) => a.d.localeCompare(b.d));
     if (dailyViewport.code !== code) {
       dailyViewport.code = code;
-      dailyViewport.initialCount = series.length;
-      dailyViewport.count = series.length;
-      dailyViewport.start = dailyViewport.series.length - series.length;
+      dailyViewport.initialCount = historyChartMode ? dailyViewport.series.length : series.length;
+      dailyViewport.count = dailyViewport.initialCount;
+      dailyViewport.start = dailyViewport.series.length - dailyViewport.count;
     }
   }
   series = dailyViewport.series;

@@ -357,3 +357,9 @@ main { max-width: 1480px; margin: 0 auto; padding: 18px; display: grid; gap: 14p
 #exclusionForm h2 { margin: 0; font-size: 20px; }
 #exclusionForm footer button, .manual-exclusion-row button, #excludedListClose { padding: 10px 16px; border: 1px solid var(--line); border-radius: 4px; background: white; color: var(--ink); cursor: pointer; }
 #exclusionForm footer button[type="submit"] { background: var(--accent, #176b58); color: white; }
+body.history-chart-mode > :not(.detail-panel) { display: none !important; }
+body.history-chart-mode { background: white; margin: 0; }
+body.history-chart-mode > .detail-panel { margin: 0; width: 100%; box-sizing: border-box; }
+.history-stock-button { color: #176b58; background: none; border: 0; padding: 0; font: inherit; font-weight: 700; cursor: pointer; }
+.history-chart-row td { padding: 0; }
+.history-chart-row iframe { display: block; width: min(100%, 100vw - 40px); height: 1100px; border: 0; }
