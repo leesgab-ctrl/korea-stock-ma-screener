@@ -96,6 +96,7 @@
           </div>
           <div id="emptyDetail" class="empty-detail">활성 후보의 30분봉 판정 결과가 여기에 표시됩니다.</div>
           <div id="detailContent" class="detail-content hidden">
+            <div class="daily-chart-heading"><strong>30분봉</strong></div>
             <div class="signal-line" style="display:none">
               <span id="detailBadge" class="status-chip">관찰 중</span>
               <strong id="detailProgress">0 / 5</strong>
@@ -120,13 +121,13 @@
             </div>
             <div class="daily-chart-heading">
               <strong>일봉 흐름</strong>
-              <span id="dailyChartMeta">장중 현재가 포함 · MA5 · MA10 · MA20 · MA60</span>
+              <span id="dailyChartMeta" hidden></span>
             </div>
             <div class="daily-chart-wrap">
               <canvas id="dailyChart" width="900" height="320" aria-label="일봉 캔들, 거래량과 이동평균선"></canvas>
               <div id="dailyPriceTooltip" class="daily-price-tooltip" role="tooltip" hidden></div>
             </div>
-            <div id="signalMessage" class="signal-message"></div>
+            <div id="signalMessage" class="signal-message" hidden></div>
           </div>
         </section>
       </section>
@@ -276,6 +277,6 @@
     <dialog id="excludedListDialog" class="position-dialog">
       <div class="position-form"><h2>사용자 선정 제외</h2><div id="excludedList"></div><button id="excludedListClose" type="button">닫기</button></div>
     </dialog>
-    <script src="monitor.js?v=20261008-15"></script>
+    <script src="monitor.js?v=20261008-16"></script>
   </body>
 </html>
