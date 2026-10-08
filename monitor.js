@@ -1184,6 +1184,11 @@ function showMaTooltip(event) {
     const valid = Number.isFinite(row[key]) && Number.isFinite(row[base]) && row[base] > 0;
     const difference = valid ? Number(((row[key] / row[base] - 1) * 100).toFixed(1)) : null;
     line.textContent = `${label} ${valid ? (difference > 0 ? "+" : "") + difference.toFixed(1) + "%" : "자료 없음"}`;
+    line.style.padding = "3px 6px";
+    if (valid && difference < 0) {
+      line.style.backgroundColor = color;
+      line.style.color = "#ffffff";
+    }
     tooltip.append(line);
   }
   tooltip.hidden = false;
