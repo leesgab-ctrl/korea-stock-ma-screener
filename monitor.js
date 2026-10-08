@@ -442,7 +442,6 @@ function renderCandidates(candidates) {
   for (const item of visible) {
     const node = elements.template.content.firstElementChild.cloneNode(true);
     const intraday = item.intraday || {};
-    const rise = Math.min(intraday.riseCount || 0, 5);
     node.dataset.status = item.status;
     node.dataset.tier = item.candidateTier || "core";
     node.dataset.code = item.code;
@@ -471,8 +470,6 @@ function renderCandidates(candidates) {
       node.querySelector(".candidate-status").textContent = `밀착 후 재상승 ${formatDateTime(rebound.time)}`;
     }
     node.querySelector(".candidate-tier").textContent = tierLabels[item.candidateTier || "core"];
-    node.querySelector(".candidate-progress i").style.width = `${(rise / 5) * 100}%`;
-    node.querySelector(".candidate-rise").textContent = `${rise} / 5`;
     node.querySelector(".candidate-days").textContent = `A-G ${item.dailySignalDate} · ${item.tradingDaysRemaining}일 남음`;
     node.querySelector(".candidate-price").textContent = quoteTime ? `${quoteTime.slice(5, 10)} ${quoteTime.slice(11, 16)} ${intraday.quoteTime ? "수집가" : "완성봉"}` : "분봉 대기";
     const status = node.querySelector(".candidate-status");
