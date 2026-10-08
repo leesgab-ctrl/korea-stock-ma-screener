@@ -1076,6 +1076,7 @@ function drawChart(series, dailyMa10, recoveryHistory = {}) {
     }
   });
   const y = (value) => pad.top + ((priceMax - value) / spread) * (priceBottom - pad.top);
+
   ctx.strokeStyle = "#e2e8e4";
   ctx.lineWidth = 1;
   for (let step = 0; step <= 4; step += 1) {
@@ -1394,6 +1395,18 @@ function drawDailyChart(series, preserveWindow = false) {
   const slot = plotWidth / chartSeries.length;
   dailyHover.pad = pad;
   dailyHover.slot = slot;
+  const item = selectedDetailItem();
+  const dailyPhases = new Map();
+  for (const row of registrationPhases(item?.displayCharts?.intraday?.series || [], item?.registeredAt)) {
+    if (row.complete !== false) dailyPhases.set(row.t.slice(0, 10), row);
+  }
+  const backgroundColors = { before: "#e9edf0", pullback: "#fff7d1", fast: "#eef8d6", confirmed: "#dff2e7" };
+  chartSeries.forEach((row, index) => {
+    const phase = dailyPhases.get(row.d);
+    if (!phase) return;
+    ctx.fillStyle = phase.referencePullback ? "#fce4ec" : backgroundColors[phase.phase] || "#e9edf0";
+    ctx.fillRect(pad.left + slot * index, pad.top, slot + 0.5, height - pad.top - pad.bottom);
+  });
   const x = (index) => pad.left + slot * (index + 0.5);
   const y = (value) => pad.top + ((priceMax - value) / spread) * (priceBottom - pad.top);
 
