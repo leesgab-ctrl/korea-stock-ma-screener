@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#176b58">
     <title>A-G 30분봉 신호 감시</title>
-    <link rel="stylesheet" href="monitor.css?v=20261008-7">
+    <link rel="stylesheet" href="monitor.css?v=20261008-8">
   </head>
   <body>
     <header class="topbar">
@@ -122,6 +122,12 @@
             <div class="daily-chart-heading">
               <strong>일봉 흐름</strong>
               <span id="dailyChartMeta" hidden></span>
+            </div>
+            <div class="chart-controls" role="group" aria-label="일봉 표시 개수">
+              <button type="button" data-daily-bars="10">10봉</button>
+              <button type="button" data-daily-bars="20">20봉</button>
+              <button type="button" data-daily-bars="60">60봉</button>
+              <button type="button" id="dailyChartReset" title="기본 보기" aria-label="일봉 기본 보기">&#8634;</button>
             </div>
             <div class="daily-chart-wrap">
               <canvas id="dailyChart" width="900" height="320" aria-label="일봉 캔들, 거래량과 이동평균선"></canvas>
@@ -277,6 +283,6 @@
     <dialog id="excludedListDialog" class="position-dialog">
       <div class="position-form"><h2>사용자 선정 제외</h2><div id="excludedList"></div><button id="excludedListClose" type="button">닫기</button></div>
     </dialog>
-    <script src="monitor.js?v=20261008-18"></script>
+    <script src="monitor.js?v=20261008-19"></script>
   </body>
 </html>

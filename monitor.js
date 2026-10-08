@@ -1147,6 +1147,76 @@ elements.chart.addEventListener("pointerleave", event => { if (event.pointerType
 document.addEventListener("pointerdown", event => { if (event.target !== elements.chart) hideMaTooltip(); });
 
 const dailyHover = { series: [], history: [], pad: null, slot: 0 };
+const dailyViewport = { code: null, series: [], initialCount: 60, start: 0, count: 60 };
+const dailyPointers = new Map();
+let dailyGesture = null;
+function clampDailyWindow() {
+  const total = dailyViewport.series.length;
+  dailyViewport.count = Math.min(total, Math.max(Math.min(2, total), Math.round(dailyViewport.count)));
+  dailyViewport.start = Math.max(0, Math.min(total - dailyViewport.count, Math.round(dailyViewport.start)));
+}
+function redrawDailyWindow() { drawDailyChart(dailyViewport.series, true); }
+function dailyFraction(clientX) {
+  const rect = elements.dailyChart.getBoundingClientRect();
+  const pad = dailyHover.pad || { left: 54, right: 12 };
+  return Math.max(0, Math.min(1, (clientX - rect.left - pad.left) / Math.max(1, rect.width - pad.left - pad.right)));
+}
+function beginDailyGesture() {
+  const points = [...dailyPointers.values()];
+  if (!points.length) { dailyGesture = null; return; }
+  const x = points.reduce((sum, p) => sum + p.x, 0) / points.length;
+  dailyGesture = { x, start: dailyViewport.start, count: dailyViewport.count,
+    anchor: dailyViewport.start + dailyViewport.count * dailyFraction(x),
+    distance: points.length === 2 ? Math.hypot(points[0].x - points[1].x, points[0].y - points[1].y) : 0 };
+}
+document.querySelectorAll('[data-daily-bars]').forEach(button => button.addEventListener('click', () => {
+  dailyViewport.count = Number(button.dataset.dailyBars);
+  clampDailyWindow();
+  dailyViewport.start = dailyViewport.series.length - dailyViewport.count;
+  redrawDailyWindow();
+}));
+document.getElementById('dailyChartReset').addEventListener('click', () => {
+  dailyViewport.count = dailyViewport.initialCount;
+  clampDailyWindow();
+  dailyViewport.start = dailyViewport.series.length - dailyViewport.count;
+  redrawDailyWindow();
+});
+elements.dailyChart.addEventListener('wheel', event => {
+  if (dailyViewport.series.length < 2) return;
+  event.preventDefault();
+  const fraction = dailyFraction(event.clientX);
+  const anchor = dailyViewport.start + dailyViewport.count * fraction;
+  dailyViewport.count *= event.deltaY < 0 ? 0.8 : 1.25;
+  clampDailyWindow();
+  dailyViewport.start = anchor - dailyViewport.count * fraction;
+  clampDailyWindow();
+  redrawDailyWindow();
+}, { passive: false });
+elements.dailyChart.addEventListener('pointerdown', event => {
+  if ((event.pointerType === 'mouse' && event.button !== 0) || dailyPointers.size >= 2) return;
+  dailyPointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+  elements.dailyChart.setPointerCapture(event.pointerId);
+  beginDailyGesture();
+});
+elements.dailyChart.addEventListener('pointermove', event => {
+  if (!dailyPointers.has(event.pointerId) || !dailyGesture) return;
+  dailyPointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+  const points = [...dailyPointers.values()];
+  const x = points.reduce((sum, p) => sum + p.x, 0) / points.length;
+  if (points.length === 2 && dailyGesture.distance > 0) {
+    const distance = Math.hypot(points[0].x - points[1].x, points[0].y - points[1].y);
+    dailyViewport.count = dailyGesture.count * dailyGesture.distance / Math.max(1, distance);
+    clampDailyWindow();
+    dailyViewport.start = dailyGesture.anchor - dailyViewport.count * dailyFraction(x);
+  } else {
+    dailyViewport.start = dailyGesture.start - (x - dailyGesture.x) * dailyGesture.count / Math.max(1, elements.dailyChart.clientWidth - 60);
+  }
+  clampDailyWindow();
+  redrawDailyWindow();
+});
+for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) {
+  elements.dailyChart.addEventListener(type, event => { dailyPointers.delete(event.pointerId); beginDailyGesture(); });
+}
 function hideDailyTooltip() {
   document.querySelector("#dailyPriceTooltip").hidden = true;
 }
@@ -1185,7 +1255,20 @@ elements.dailyChart.addEventListener("pointerdown", showDailyTooltip);
 elements.dailyChart.addEventListener("pointerleave", event => { if (event.pointerType !== "touch") hideDailyTooltip(); });
 document.addEventListener("pointerdown", event => { if (event.target !== elements.dailyChart) hideDailyTooltip(); });
 
-function drawDailyChart(series) {
+function drawDailyChart(series, preserveWindow = false) {
+  if (!preserveWindow) {
+    const code = selectedDetailItem()?.code;
+    const history = selectedDetailItem()?.displayCharts?.daily?.history || [];
+    dailyViewport.series = [...new Map([...history, ...series].map(row => [row.d, row])).values()].sort((a, b) => a.d.localeCompare(b.d));
+    if (dailyViewport.code !== code) {
+      dailyViewport.code = code;
+      dailyViewport.initialCount = series.length;
+      dailyViewport.count = series.length;
+      dailyViewport.start = dailyViewport.series.length - series.length;
+    }
+  }
+  series = dailyViewport.series;
+  clampDailyWindow();
   hideDailyTooltip();
   dailyHover.series = series;
   dailyHover.history = selectedDetailItem()?.displayCharts?.daily?.history || [];
@@ -1211,9 +1294,13 @@ function drawDailyChart(series) {
     if (index < 9) return null;
     return closes.slice(index - 9, index + 1).reduce((sum, value) => sum + value, 0) / 10;
   });
-  const chartSeries = series.map((row, index) => ({ ...row, m10: row.m10 ?? ma10[index] }));
+  const allChartSeries = series.map((row, index) => ({ ...row, m10: row.m10 ?? ma10[index] }));
+  const chartSeries = allChartSeries.slice(dailyViewport.start, dailyViewport.start + dailyViewport.count);
+  dailyHover.series = chartSeries;
+  dailyHover.history = allChartSeries;
+  document.querySelectorAll('[data-daily-bars]').forEach(button => button.setAttribute('aria-pressed', String(Number(button.dataset.dailyBars) === dailyViewport.count)));
   const observationDate = state.payload?.generatedAt?.slice(0, 10);
-  const completedSessions = chartSeries.filter((row) => !observationDate || row.d < observationDate).slice(-20);
+  const completedSessions = allChartSeries.filter((row) => !observationDate || row.d < observationDate).slice(-20);
   const averageVolume = completedSessions.length === 20 && completedSessions.every((row) => Number.isFinite(Number(row.v)))
     ? completedSessions.reduce((sum, row) => sum + Number(row.v), 0) / 20
     : null;
