@@ -133,6 +133,12 @@
               <button type="button" data-daily-bars="10">10봉</button>
               <button type="button" data-daily-bars="20">20봉</button>
               <button type="button" data-daily-bars="60">60봉</button>
+              <span class="chart-end-controls" role="group" aria-label="일봉 마지막 거래일">
+                <button type="button" data-daily-offset="0" aria-pressed="true">최신</button>
+                <button type="button" data-daily-offset="1">1일 전</button>
+                <button type="button" data-daily-offset="2">2일 전</button>
+                <button type="button" data-daily-offset="3">3일 전</button>
+              </span>
               <button type="button" id="dailyChartReset" title="기본 보기" aria-label="일봉 기본 보기">&#8634;</button>
             </div>
             <div class="daily-chart-wrap">
@@ -288,6 +294,6 @@
     <dialog id="excludedListDialog" class="position-dialog">
       <div class="position-form"><h2>사용자 선정 제외</h2><div id="excludedList"></div><button id="excludedListClose" type="button">닫기</button></div>
     </dialog>
-    <script src="monitor.js?v=20261009-3"></script>
+    <script src="monitor.js?v=20261009-4"></script>
   </body>
 </html>

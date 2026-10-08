@@ -1201,7 +1201,7 @@ elements.chart.addEventListener("pointerleave", event => { if (event.pointerType
 document.addEventListener("pointerdown", event => { if (event.target !== elements.chart) hideMaTooltip(); });
 
 const dailyHover = { series: [], history: [], pad: null, slot: 0 };
-const dailyViewport = { code: null, series: [], initialCount: 60, start: 0, count: 60 };
+const dailyViewport = { code: null, series: [], initialCount: 60, start: 0, count: 60, endOffset: 0 };
 const dailyPointers = new Map();
 let dailyGesture = null;
 function clampDailyWindow() {
@@ -1210,6 +1210,12 @@ function clampDailyWindow() {
   dailyViewport.start = Math.max(0, Math.min(total - dailyViewport.count, Math.round(dailyViewport.start)));
 }
 function redrawDailyWindow() { drawDailyChart(dailyViewport.series, true); }
+function chooseDailyEnd() {
+  const end = Math.max(0, dailyViewport.series.length - dailyViewport.endOffset);
+  dailyViewport.count = Math.min(dailyViewport.count, end);
+  dailyViewport.start = Math.max(0, end - dailyViewport.count);
+  redrawDailyWindow();
+}
 function dailyFraction(clientX) {
   const rect = elements.dailyChart.getBoundingClientRect();
   const pad = dailyHover.pad || { left: 54, right: 12 };
@@ -1226,10 +1232,14 @@ function beginDailyGesture() {
 document.querySelectorAll('[data-daily-bars]').forEach(button => button.addEventListener('click', () => {
   dailyViewport.count = Number(button.dataset.dailyBars);
   clampDailyWindow();
-  dailyViewport.start = dailyViewport.series.length - dailyViewport.count;
-  redrawDailyWindow();
+  chooseDailyEnd();
+}));
+document.querySelectorAll('[data-daily-offset]').forEach(button => button.addEventListener('click', () => {
+  dailyViewport.endOffset = Number(button.dataset.dailyOffset);
+  chooseDailyEnd();
 }));
 document.getElementById('dailyChartReset').addEventListener('click', () => {
+  dailyViewport.endOffset = 0;
   dailyViewport.count = dailyViewport.initialCount;
   clampDailyWindow();
   dailyViewport.start = dailyViewport.series.length - dailyViewport.count;
@@ -1316,6 +1326,7 @@ function drawDailyChart(series, preserveWindow = false) {
     dailyViewport.series = [...new Map([...history, ...series].map(row => [row.d, row])).values()].sort((a, b) => a.d.localeCompare(b.d));
     if (dailyViewport.code !== code) {
       dailyViewport.code = code;
+      dailyViewport.endOffset = 0;
       dailyViewport.initialCount = historyChartMode ? dailyViewport.series.length : series.length;
       dailyViewport.count = dailyViewport.initialCount;
       dailyViewport.start = dailyViewport.series.length - dailyViewport.count;
@@ -1353,6 +1364,12 @@ function drawDailyChart(series, preserveWindow = false) {
   dailyHover.series = chartSeries;
   dailyHover.history = allChartSeries;
   document.querySelectorAll('[data-daily-bars]').forEach(button => button.setAttribute('aria-pressed', String(Number(button.dataset.dailyBars) === dailyViewport.count)));
+  document.querySelectorAll('[data-daily-offset]').forEach(button => {
+    const offset = Number(button.dataset.dailyOffset);
+    button.disabled = offset >= dailyViewport.series.length;
+    button.setAttribute('aria-pressed', String(offset === dailyViewport.endOffset));
+    button.title = dailyViewport.series[dailyViewport.series.length - 1 - offset]?.d || '자료 없음';
+  });
   const observationDate = state.payload?.generatedAt?.slice(0, 10);
   const completedSessions = allChartSeries.filter((row) => !observationDate || row.d < observationDate).slice(-20);
   const averageVolume = completedSessions.length === 20 && completedSessions.every((row) => Number.isFinite(Number(row.v)))
