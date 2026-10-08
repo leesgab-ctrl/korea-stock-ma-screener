@@ -196,7 +196,10 @@ function selectedDetailItem() {
   const position = state.positions?.positions?.find((item) => item.status === "open" && item.code === state.selectedPositionCode);
   if (!position) return null;
   const candidate = state.payload?.candidates?.find((item) => item.code === position.code);
+  const quote = displayQuote(position);
   return { ...(candidate || {}), ...position,
+    lastPrice: quote.price, lastPriceTime: quote.time,
+    returnPct: quote.price && position.buyPrice ? 100 * (quote.price / position.buyPrice - 1) : position.returnPct,
     displayCharts: state.payload?.holdingCharts?.[position.code]?.displayCharts || candidate?.displayCharts,
     positionDetail: true };
 }
@@ -239,6 +242,31 @@ function renderOperations(candidates) {
   document.querySelector("#operationExclude").disabled = !candidates.length;
 }
 
+function displayQuote(item) {
+  const candidate = state.payload?.candidates?.find((entry) => entry.code === item.code) || item;
+  const intraday = candidate.intraday || {};
+  const charts = state.payload?.holdingCharts?.[item.code]?.displayCharts || candidate.displayCharts || {};
+  const last = charts.intraday?.series?.at(-1);
+  const samples = [
+    { price: intraday.quotePrice, time: intraday.quoteTime },
+    { price: item.lastPrice, time: item.lastPriceTime },
+    { price: last?.c, time: last?.t },
+    { price: intraday.lastPrice, time: intraday.lastBarTime },
+  ].filter((quote) => Number.isFinite(quote.price) && quote.price > 0 && quote.time)
+    .sort((a, b) => String(b.time).localeCompare(String(a.time)));
+  const quote = samples[0] || { price: item.lastPrice || intraday.lastPrice, time: null };
+  const date = quote.time?.slice(0, 10);
+  const daily = charts.daily?.series?.length ? charts.daily.series : candidate.dailyChart?.series || [];
+  const previous = daily.filter((row) => date && row.d < date).at(-1)?.c;
+  const baseline = previous ?? (date === intraday.quoteTime?.slice(0, 10) ? intraday.quotePreviousClose : null);
+  const change = baseline ? 100 * (quote.price / baseline - 1) : null;
+  return { ...quote, change, direction: change == null ? "" : change > 0 ? "up" : change < 0 ? "down" : "flat" };
+}
+
+function quoteText(quote) {
+  return quote.price ? `${formatter.format(quote.price)}원 (${quote.change == null ? "등락률 대기" : `${quote.change > 0 ? "+" : ""}${formatter.format(quote.change)}%`})` : "가격 대기";
+}
+
 function renderPositions(positions, closedPositions = []) {
   elements.positionList.innerHTML = "";
   if (!positions.length && !closedPositions.length) {
@@ -248,7 +276,8 @@ function renderPositions(positions, closedPositions = []) {
   if (positions.length) appendPositionGroupTitle("보유 중", `${positions.length}종목`);
   for (const item of positions) {
     const article = document.createElement("article");
-    const returnPct = item.returnPct;
+    const quote = displayQuote(item);
+    const returnPct = quote.price && item.buyPrice ? 100 * (quote.price / item.buyPrice - 1) : item.returnPct;
     const returnClass = returnPct == null ? "" : returnPct >= 0 ? "positive" : "negative";
     const warning = item.riskWarning
       ? "손절폭이 목표수익률보다 큽니다. 매수·비중 재검토"
@@ -257,25 +286,28 @@ function renderPositions(positions, closedPositions = []) {
     article.classList.toggle("selected", item.code === state.selectedPositionCode);
     article.dataset.code = item.code;
     article.innerHTML = `
-      <header><button class="position-select" type="button"><strong></strong><span></span></button></header>
+      <header><button class="position-select" type="button"><strong></strong><span class="position-code"></span><span class="position-quote"></span></button></header>
       <div class="position-values"><span class="position-price"></span><span class="position-return ${returnClass}"></span></div>
       <div class="position-values"><span class="position-quantity"></span><span class="position-value"></span></div>
       <div class="position-values"><span class="position-stop"></span><span class="position-target"></span></div>
       <div class="position-warning"></div>
       <div class="position-item-actions"><button class="position-edit" type="button">수정</button><button class="position-close" type="button">매도완료</button></div>`;
     article.querySelector("strong").textContent = item.name;
-    article.querySelector("header span").textContent = item.code;
+    article.querySelector(".position-code").textContent = item.code;
+    article.querySelector(".position-quote").textContent = quoteText(quote);
+    article.querySelector(".position-select").dataset.direction = quote.direction;
+    article.querySelector(".position-quote").title = quote.time ? `${formatDateTime(quote.time)} 수집 기준` : "수집 대기";
     const selectButton = article.querySelector(".position-select");
     selectButton.setAttribute("aria-pressed", String(item.code === state.selectedPositionCode));
     selectButton.addEventListener("click", () => {
       state.selectedPositionCode = item.code;
       render();
     });
-    article.querySelector(".position-price").textContent = `매수 ${formatter.format(item.buyPrice)}원 · 현재 ${item.lastPrice ? formatter.format(item.lastPrice) : "-"}원`;
-    article.querySelector(".position-return").textContent = returnPct == null ? "-" : `${returnPct >= 0 ? "+" : ""}${formatter.format(returnPct)}%`;
+    article.querySelector(".position-price").textContent = `매수 ${formatter.format(item.buyPrice)}원`;
+    article.querySelector(".position-return").textContent = returnPct == null ? "-" : `보유수익 ${returnPct >= 0 ? "+" : ""}${formatter.format(returnPct)}%`;
     article.querySelector(".position-quantity").textContent = item.quantity ? `${formatter.format(item.quantity)}주` : "수량 미입력";
     const investedAmount = item.investedAmount ?? (item.quantity ? item.buyPrice * item.quantity : null);
-    const currentValue = item.quantity && item.lastPrice ? item.quantity * item.lastPrice : null;
+    const currentValue = item.quantity && quote.price ? item.quantity * quote.price : null;
     article.querySelector(".position-value").textContent = currentValue == null
       ? `매수금액 ${investedAmount == null ? "-" : `${formatter.format(investedAmount)}원`}`
       : `평가금액 ${formatter.format(currentValue)}원`;
@@ -372,15 +404,13 @@ function renderCandidates(candidates) {
     node.dataset.code = item.code;
     node.classList.toggle("selected", item.code === state.selectedCode);
     node.querySelector(".candidate-name").textContent = item.name;
-    const quotePrice = intraday.quotePrice ?? intraday.lastPrice;
-    const quoteTime = intraday.quoteTime ?? intraday.lastBarTime;
-    const quoteDate = quoteTime?.slice(0, 10);
-    const previousDay = (item.dailyChart?.series || []).filter((row) => quoteDate && row.d < quoteDate).at(-1);
-    const referencePrice = intraday.quotePreviousClose ?? previousDay?.c;
-    const change = intraday.quoteChangePct ?? (quotePrice && referencePrice ? 100 * (quotePrice / referencePrice - 1) : null);
-    const direction = change == null ? "" : quotePrice > referencePrice ? "up" : quotePrice < referencePrice ? "down" : "flat";
+    const quote = displayQuote(item);
+    const quotePrice = quote.price;
+    const quoteTime = quote.time;
+    const direction = quote.direction;
     node.querySelector(".candidate-title").dataset.direction = direction;
-    node.querySelector(".candidate-quote").textContent = quotePrice ? `${formatter.format(quotePrice)}원 (${change == null ? "등락률 대기" : `${change > 0 ? "+" : ""}${formatter.format(change)}%`})` : "가격 대기";
+    node.querySelector(".candidate-quote").textContent = quoteText(quote);
+    node.querySelector(".candidate-quote").title = quote.time ? `${formatDateTime(quote.time)} 수집 기준` : "수집 대기";
     node.querySelector(".candidate-status").textContent = statusLabels[item.status] || "확인 필요";
     if (intraday.sessionRecovery?.matched) {
       node.querySelector(".candidate-status").textContent = "정배열 조정·회복";

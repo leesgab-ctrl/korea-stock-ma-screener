@@ -105,11 +105,28 @@ main { max-width: 1480px; margin: 0 auto; padding: 18px; display: grid; gap: 14p
 .history-page .notice.error { border-left-color: var(--red); }
 
 .positions-panel { background: var(--panel); border: 1px solid var(--line); border-radius: 7px; overflow: hidden; }
-.position-list { padding: 10px; display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 8px; }
+.position-list { padding: 10px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; }
 .position-group-title { grid-column: 1 / -1; min-height: 34px; padding: 5px 2px; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .position-group-title span { color: var(--muted); font-size: 12px; }
 .position-item { min-width: 0; padding: 12px; display: grid; gap: 8px; border: 1px solid var(--line); border-radius: 7px; }
 .position-item.selected { border-color: var(--green); background: #f4faf7; }
+.position-item { grid-template-columns: minmax(180px, 1.3fr) repeat(3, minmax(140px, 1fr)) auto; align-items: center; }
+.position-item .position-select { flex-wrap: wrap; justify-content: flex-start; gap: 4px 8px; }
+.position-quote { flex-basis: 100%; font-weight: 700; }
+.position-code { color: var(--muted); }
+.position-select[data-direction="up"], .position-select[data-direction="up"] .position-quote { color: #d9363e; }
+.position-select[data-direction="down"], .position-select[data-direction="down"] .position-quote { color: #2464c8; }
+.position-select[data-direction="flat"], .position-select[data-direction="flat"] .position-quote { color: #198449; }
+.position-item .position-values { flex-wrap: wrap; justify-content: flex-start; }
+.position-warning { grid-column: 2 / 5; grid-row: 2; }
+.position-item-actions { grid-column: 5; grid-row: 1 / 3; }
+@media (max-width: 850px) {
+  .position-item { grid-template-columns: minmax(0, 1fr) auto; gap: 6px; }
+  .position-item header { grid-column: 1 / -1; }
+  .position-item .position-values { grid-column: 1; }
+  .position-warning { grid-column: 1 / -1; grid-row: auto; }
+  .position-item-actions { grid-column: 2; grid-row: 2 / 5; flex-direction: column; }
+}
 .position-select { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; padding: 4px 0; border: 0; background: transparent; color: var(--ink); cursor: pointer; text-align: left; }
 .position-item header { width: 100%; }
 #positionManagerButton { white-space: nowrap; flex-shrink: 0; }

@@ -8,7 +8,7 @@ import urllib.request
 from pathlib import Path
 from typing import Any
 
-from update_candidate_monitor import KST, MONITOR_URL, ROOT, USER_AGENT, aggregate_30m, fetch_minute_rows, now_kst
+from update_candidate_monitor import KST, MONITOR_URL, ROOT, USER_AGENT, aggregate_30m, fetch_minute_rows, now_kst, monitor_link
 
 
 DEFAULT_PATH = ROOT / "data" / "positions.json"
@@ -168,7 +168,7 @@ def send_alert(topic: str, position: dict[str, Any], event: str) -> None:
             "message": message,
             "priority": 5,
             "tags": ["warning"],
-            "click": f"{MONITOR_URL}?stock={position['code']}",
+            "click": monitor_link(position["code"]),
         },
         ensure_ascii=False,
     ).encode("utf-8")

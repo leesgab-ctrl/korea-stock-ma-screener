@@ -17,6 +17,10 @@ ROOT = Path(__file__).resolve().parents[1]
 KST = ZoneInfo("Asia/Seoul")
 USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124 Safari/537.36"
 MONITOR_URL = "https://leesgab-ctrl.github.io/korea-stock-ma-screener/monitor.html"
+
+
+def monitor_link(code):
+    return f"{MONITOR_URL}?stock={code}&alert={int(dt.datetime.now(dt.timezone.utc).timestamp())}"
 TRACKING_RULE_VERSION = 5
 OUTCOME_RULE_VERSION = 3
 CORE_TIER = "core"
@@ -1191,11 +1195,15 @@ def analyze_intraday(candidate: dict[str, Any], current: dt.datetime, count: int
 
 def notify_ntfy(topic: str, candidate: dict[str, Any], recovery=None) -> None:
     intraday = candidate["intraday"]
+    signal_start = dt.datetime.fromisoformat(intraday["signalTime"]) if not recovery else None
+    signal_complete = (signal_start + dt.timedelta(minutes=1 if signal_start.time() == dt.time(15, 30) else 30)) if signal_start else None
     tier_label = "핵심 후보" if candidate.get("candidateTier") == CORE_TIER else "확대 후보"
     message = "" if recovery else (
         f"{candidate['name']}({candidate['code']})\n"
         f"후보등급: {tier_label}\n"
-        f"확정봉 {intraday['signalTime']}\n"
+        f"신호봉 시작: {intraday['signalTime']}\n"
+        f"봉 완성시각: {signal_complete.isoformat(timespec='minutes')}\n"
+        f"알림 검사시각: {now_kst().isoformat(timespec='minutes')}\n"
         f"매수 포착가격: {intraday['signalPrice']:,}원\n"
         f"MA3 {intraday['signalMa3']:,.2f} → {intraday['signalTarget']} 돌파\n"
         f"MA20 {intraday['signalMa20']:,.2f} / MA40 {intraday['signalMa40']:,.2f} / MA60 {intraday['signalMa60']:,.2f}\n"
@@ -1214,7 +1222,7 @@ def notify_ntfy(topic: str, candidate: dict[str, Any], recovery=None) -> None:
             "message": message,
             "priority": 5,
             "tags": ["chart_with_upwards_trend"],
-            "click": f"{MONITOR_URL}?stock={candidate['code']}",
+            "click": monitor_link(candidate["code"]),
         },
         ensure_ascii=False,
     ).encode("utf-8")
@@ -1252,7 +1260,7 @@ def notify_reference_rebounds(payload, current, no_notify=False):
                 "topic": topic, "title": f"{candidate['name']} 참고종목 재상승",
                 "message": f"{candidate['name']}({candidate['code']})\nMA10 하향 조정 후 MA3 → MA20 상향 돌파\n확정봉: {event['time']}\n포착가격: {event['price']:,.0f}원\nMA20·MA40 밀착 / MA40·MA60 상승\n기존 매수신호와 별도인 관찰 알림입니다.",
                 "priority": 5, "tags": ["chart_with_upwards_trend"],
-                "click": f"{MONITOR_URL}?stock={candidate['code']}",
+                "click": monitor_link(candidate["code"]),
             }, ensure_ascii=False).encode("utf-8")
             request = urllib.request.Request("https://ntfy.sh", data=body, headers={"Content-Type": "application/json", "User-Agent": USER_AGENT})
             with urllib.request.urlopen(request, timeout=20) as response:
