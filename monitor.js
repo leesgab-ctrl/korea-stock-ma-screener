@@ -1160,10 +1160,12 @@ function showMaTooltip(event) {
   const date = document.createElement("strong");
   date.textContent = formatDateTime(row.t);
   tooltip.append(date);
-  for (const [key, label, color] of [["m3", "MA3", "#34a853"], ["m10", "MA10", "#d97706"], ["m20", "MA20", "#e53935"], ["m40", "MA40", "#9a641d"], ["m60", "MA60", "#3167ad"]]) {
+  for (const [key, base, label, color] of [["m3", "m20", "MA3~MA20", "#34a853"], ["m10", "m20", "MA10~MA20", "#d97706"], ["m20", "m40", "MA20~MA40", "#9a641d"], ["m20", "m60", "MA20~MA60", "#3167ad"]]) {
     const line = document.createElement("div");
     line.style.color = color;
-    line.textContent = `${label} ${Number.isFinite(row[key]) ? formatter.format(Math.round(row[key])) + "원" : "자료 없음"}`;
+    const valid = Number.isFinite(row[key]) && Number.isFinite(row[base]) && row[base] > 0;
+    const difference = valid ? Number(((row[key] / row[base] - 1) * 100).toFixed(1)) : null;
+    line.textContent = `${label} ${valid ? (difference > 0 ? "+" : "") + difference.toFixed(1) + "%" : "자료 없음"}`;
     tooltip.append(line);
   }
   tooltip.hidden = false;

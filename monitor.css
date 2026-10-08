@@ -60,7 +60,9 @@ main { max-width: 1480px; margin: 0 auto; padding: 18px; display: grid; gap: 14p
 .operation-review select { padding: 10px; max-width: 100%; border: 1px solid var(--line); background: #fff; }
 .operation-review button { justify-self: start; }
 .chart-source { padding: 8px 0; }
-.phase-legend { display: flex; flex-wrap: wrap; gap: 8px 14px; font-size: 11px; color: var(--muted); margin: 4px 0 10px; }
+.phase-legend { display: flex; flex-wrap: nowrap; justify-content: space-between; gap: 4px; font-size: 11px; color: var(--muted); margin: 4px 0 10px; }
+.phase-legend span { white-space: nowrap; }
+@media (max-width: 540px) { .phase-legend { font-size: 9px; gap: 2px; } .phase-legend span::before { width: 8px; height: 8px; margin-right: 2px; } }
 .phase-legend span::before { content: ""; display: inline-block; width: 12px; height: 12px; margin-right: 4px; vertical-align: -2px; border: 1px solid #d7e0db; }
 .phase-before::before { background: #e9edf0; }
 .phase-pullback::before { background: #fff7d1; }
