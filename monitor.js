@@ -1185,13 +1185,23 @@ function showMaTooltip(event) {
     const valid = Number.isFinite(row[key]) && Number.isFinite(row[base]) && row[base] > 0;
     const difference = valid ? Number(((row[key] / row[base] - 1) * 100).toFixed(1)) : null;
     line.textContent = `${label} ${valid ? (difference > 0 ? "+" : "") + difference.toFixed(1) + "%" : "자료 없음"}`;
-    line.style.padding = "3px 6px";
+    line.style.padding = "1px 6px";
+    line.style.lineHeight = "1.3";
     if (valid && difference < 0) {
       line.style.backgroundColor = color;
       line.style.color = "#ffffff";
     }
     tooltip.append(line);
   }
+  const averages = [row.m3, row.m10, row.m20, row.m40, row.m60];
+  const spread = document.createElement("div");
+  spread.style.padding = "1px 6px";
+  spread.style.lineHeight = "1.3";
+  spread.style.fontWeight = "700";
+  spread.textContent = averages.every(value => Number.isFinite(value) && value > 0)
+    ? `최대 간격 ${((Math.max(...averages) / Math.min(...averages) - 1) * 100).toFixed(1)}%`
+    : "최대 간격 자료 없음";
+  tooltip.append(spread);
   tooltip.hidden = false;
   tooltip.style.left = `${Math.max(4, Math.min(localX + 12, rect.width - tooltip.offsetWidth - 4))}px`;
   tooltip.style.top = `${Math.max(4, Math.min(localY + 12, rect.height - tooltip.offsetHeight - 4))}px`;
