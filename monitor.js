@@ -99,6 +99,7 @@ const statusLabels = {
 const statusPriority = { signal: 0, rising: 1, waiting60: 2, setup: 3, signaled: 4, watching: 5, insufficient: 6, ineligible: 7, excluded: 8 };
 const tierLabels = { core: "핵심 A-G", expanded: "확대 A-G" };
 const viewLabels = { target: "조정회복형", reference: "상승눌림형", positions: "보유종목", operations: "운영관리" };
+const positionKey = item => item?.id || item?.code;
 
 function chartGroup(item) {
   if (item.paperStrategy) return item.paperStrategy.excludedReason ? "excluded" : item.paperStrategy.group;
@@ -163,8 +164,8 @@ function render() {
   elements.signaledCount.textContent = summary.signalHistory ?? 0;
   elements.risingCount.textContent = summary.rising ?? 0;
   const openPositions = (state.positions?.positions || []).filter((item) => item.status === "open");
-  if (!openPositions.some((item) => item.code === state.selectedPositionCode)) {
-    state.selectedPositionCode = openPositions[0]?.code || null;
+  if (!openPositions.some((item) => positionKey(item) === state.selectedPositionCode)) {
+    state.selectedPositionCode = positionKey(openPositions[0]) || null;
   }
   elements.positionCount.textContent = openPositions.length;
   elements.detectedCount.textContent = validationSummary.totalDetected ?? candidates.length;
@@ -195,7 +196,7 @@ function render() {
 
 function selectedDetailItem() {
   if (state.view !== "positions") return state.payload?.candidates?.find((item) => item.code === state.selectedCode);
-  const position = state.positions?.positions?.find((item) => item.status === "open" && item.code === state.selectedPositionCode);
+  const position = state.positions?.positions?.find((item) => item.status === "open" && positionKey(item) === state.selectedPositionCode);
   if (!position) return null;
   const candidate = [...(state.payload?.candidates || []), ...(state.payload?.history || [])].find((item) => item.code === position.code);
   const quote = displayQuote(position);
@@ -316,7 +317,7 @@ function renderPositions(positions, closedPositions = []) {
       ? "손절폭이 목표수익률보다 큽니다. 매수·비중 재검토"
       : item.trendWeak ? "30분봉 추세약화 감지" : "목표가·손절가 감시 중";
     article.className = "position-item";
-    article.classList.toggle("selected", item.code === state.selectedPositionCode);
+    article.classList.toggle("selected", positionKey(item) === state.selectedPositionCode);
     article.dataset.code = item.code;
     article.innerHTML = `
       <header><button class="position-select" type="button"><strong></strong><span class="position-code"></span><span class="position-quote"></span></button></header>
@@ -334,9 +335,9 @@ function renderPositions(positions, closedPositions = []) {
     article.querySelector(".position-select").dataset.direction = quote.direction;
     article.querySelector(".position-quote").title = quote.time ? `${formatDateTime(quote.time)} 수집 기준` : "수집 대기";
     const selectButton = article.querySelector(".position-select");
-    selectButton.setAttribute("aria-pressed", String(item.code === state.selectedPositionCode));
+    selectButton.setAttribute("aria-pressed", String(positionKey(item) === state.selectedPositionCode));
     selectButton.addEventListener("click", () => {
-      state.selectedPositionCode = item.code;
+      state.selectedPositionCode = positionKey(item);
       render();
     });
     article.querySelector(".position-price").textContent = `매수 ${formatter.format(item.buyPrice)}원`;

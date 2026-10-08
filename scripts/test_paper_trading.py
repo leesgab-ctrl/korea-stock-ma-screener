@@ -39,6 +39,18 @@ class PaperTests(unittest.TestCase):
         self.assertEqual(events[0]["time"], bars[-1]["t"])
         self.assertEqual(events[0]["type"], "recovery")
 
+    def test_pullback_waits_for_both_lines(self):
+        stamps = ["2026-10-07T09:00:00+09:00", "2026-10-07T09:30:00+09:00", "2026-10-08T09:00:00+09:00",
+                  "2026-10-08T09:30:00+09:00", "2026-10-08T10:00:00+09:00", "2026-10-08T10:30:00+09:00"]
+        bars = [self.bar(t, m20=101.6 if i == 0 else 101.65 if i == 1 else 101.7,
+                         m40=101+i*.01, m60=100+i*.01, m3=102, m10=102) for i,t in enumerate(stamps)]
+        bars[3].update(m10=101.4, m3=101.4)
+        bars[4].update(m10=101.5)
+        self.assertEqual(evaluate(self.candidate(bars[:-1]))["events"], [])
+        events = evaluate(self.candidate(bars))["events"]
+        self.assertEqual(len(events), 1)
+        self.assertEqual(events[0]["type"], "pullback")
+
     def test_ambiguous_is_conservative(self):
         now = dt.datetime.fromisoformat("2026-10-08T15:00:00+09:00")
         bars = [self.bar("2026-10-08T10:00:00+09:00", h=106, l=94)]
