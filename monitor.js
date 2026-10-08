@@ -1013,6 +1013,22 @@ function registrationPhases(series, registeredAt) {
   });
 }
 
+function phaseBackground(row) {
+  const palettes = {
+    before: ["#e9edf0", "#e9edf0", "#e9edf0"],
+    pullback: ["#fff7d1", "#ffedaa", "#ffe17a"],
+    fast: ["#eef8d6", "#dfefb3", "#cde58c"],
+    confirmed: ["#dff2e7", "#c3e6d2", "#a5d8bb"],
+    reference: ["#fce4ec", "#f8cbdc", "#f2abc6"],
+  };
+  const palette = palettes[row.referencePullback ? "reference" : row.phase] || palettes.before;
+  if (row.phase === "before" && !row.referencePullback) return palette[0];
+  const values = [row.m3, row.m10, row.m20, row.m40, row.m60];
+  if (!values.every((value) => Number.isFinite(value) && value > 0)) return palette[0];
+  const spread = (Math.max(...values) - Math.min(...values)) / Math.min(...values) * 100;
+  return palette[spread <= 0.5 ? 2 : spread < 1 ? 1 : 0];
+}
+
 function drawChart(series, dailyMa10, recoveryHistory = {}) {
   hideMaTooltip();
   maHover.pad = null;
@@ -1066,9 +1082,8 @@ function drawChart(series, dailyMa10, recoveryHistory = {}) {
   const slot = plotWidth / series.length;
   Object.assign(maHover, { series, pad, slot });
   const x = (index) => pad.left + slot * (index + 0.5);
-  const phaseColors = { before: "#e9edf0", pullback: "#fff7d1", fast: "#eef8d6", confirmed: "#dff2e7" };
   series.forEach((row, index) => {
-    ctx.fillStyle = row.referencePullback ? "#fce4ec" : phaseColors[row.phase] || phaseColors.before;
+    ctx.fillStyle = phaseBackground(row);
     ctx.fillRect(pad.left + slot * index, pad.top, slot + 0.5, height - pad.top - pad.bottom);
     if (Date.parse(row.t) >= Date.parse(chartViewport.registeredAt) && recoveryHistory[row.t.slice(0, 10)]?.matched) {
       ctx.fillStyle = "#e8c748";
@@ -1410,11 +1425,10 @@ function drawDailyChart(series, preserveWindow = false) {
   for (const row of registrationPhases(item?.displayCharts?.intraday?.series || [], item?.registeredAt)) {
     if (row.complete !== false) dailyPhases.set(row.t.slice(0, 10), row);
   }
-  const backgroundColors = { before: "#e9edf0", pullback: "#fff7d1", fast: "#eef8d6", confirmed: "#dff2e7" };
   chartSeries.forEach((row, index) => {
     const phase = dailyPhases.get(row.d);
     if (!phase) return;
-    ctx.fillStyle = phase.referencePullback ? "#fce4ec" : backgroundColors[phase.phase] || "#e9edf0";
+    ctx.fillStyle = phaseBackground(phase);
     ctx.fillRect(pad.left + slot * index, pad.top, slot + 0.5, height - pad.top - pad.bottom);
   });
   const x = (index) => pad.left + slot * (index + 0.5);
