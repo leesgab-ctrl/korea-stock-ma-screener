@@ -99,7 +99,20 @@ const statusLabels = {
 };
 const statusPriority = { signal: 0, rising: 1, waiting60: 2, setup: 3, signaled: 4, watching: 5, insufficient: 6, ineligible: 7, excluded: 8 };
 const tierLabels = { core: "핵심 A-G", expanded: "확대 A-G" };
-const viewLabels = { target: "조정회복형", reference: "상승조정형", positions: "보유종목", operations: "운영관리" };
+const viewLabels = { new: "신규종목", target: "조정회복형", reference: "상승조정형", positions: "보유종목", operations: "운영관리" };
+function newRegistrationLabel(item) {
+  const today = new Intl.DateTimeFormat("en-CA", {timeZone: "Asia/Seoul", year: "numeric", month: "2-digit", day: "2-digit"}).format(new Date());
+  const records = [...(state.payload?.candidates || []), ...(state.payload?.history || [])];
+  const dates = records.flatMap(record => [
+    ...(record.displayCharts?.daily?.history || []).map(row => row.d),
+    ...(record.displayCharts?.daily?.series || []).map(row => row.d),
+    ...(record.displayCharts?.intraday?.series || []).map(row => row.t.slice(0, 10)),
+  ]).filter(day => day && day < today).sort();
+  const registered = item.registeredAt?.slice(0, 10);
+  if (registered === today) return "오늘 등록";
+  if (registered && registered === dates.at(-1)) return "직전 거래일 등록";
+  return "";
+}
 const positionKey = item => item?.id || item?.code;
 
 function chartGroup(item) {
@@ -191,7 +204,7 @@ function render() {
   elements.pushState.textContent = summary.pushConfigured ? "휴대폰 푸시 연결" : "푸시 연결 대기";
   elements.pushState.className = `status-chip${summary.pushConfigured ? "" : " rising"}`;
   renderViewCounts(activeCandidates, openPositions);
-  const candidateView = ["target", "reference"].includes(state.view);
+  const candidateView = ["new", "target", "reference"].includes(state.view);
   document.querySelector(".workspace").classList.toggle("hidden", !candidateView);
   document.querySelector(".toolbar").classList.toggle("hidden", !candidateView);
   document.querySelector(".positions-panel").classList.toggle("hidden", state.view !== "positions");
@@ -229,7 +242,7 @@ function renderSelectedDetail() {
 function renderViewCounts(candidates, positions) {
   document.querySelectorAll(".view-tab").forEach((button) => {
     const view = button.dataset.view;
-    const count = view === "positions" ? positions.length : candidates.filter((item) => chartGroup(item) === view).length;
+    const count = view === "positions" ? positions.length : candidates.filter((item) => view === "new" ? Boolean(newRegistrationLabel(item)) : chartGroup(item) === view).length;
     button.textContent = `${viewLabels[view]}${view === "operations" ? "" : ` (${count})`}`;
     button.classList.toggle("active", state.view === view);
     button.setAttribute("aria-selected", String(state.view === view));
@@ -429,7 +442,7 @@ function renderClosedPosition(item) {
 function filteredCandidates(candidates) {
   const keyword = state.keyword.trim().toLowerCase();
   return candidates.filter((item) => {
-    const statusMatch = chartGroup(item) === state.view;
+    const statusMatch = state.view === "new" ? Boolean(newRegistrationLabel(item)) : chartGroup(item) === state.view;
     const keywordMatch = !keyword || item.name.toLowerCase().includes(keyword) || item.code.includes(keyword);
     return statusMatch && keywordMatch;
   });
@@ -441,7 +454,7 @@ function renderCandidates(candidates) {
     (statusPriority[a.status] ?? 99) - (statusPriority[b.status] ?? 99)
     || a.name.localeCompare(b.name, "ko")
   );
-  elements.candidateMeta.textContent = `${visible.length}종목 · ${state.view === "target" ? "등록 이후 MA20 < MA40" : "등록 이후 MA20 > MA40"}`;
+  elements.candidateMeta.textContent = `${visible.length}종목 · ${state.view === "new" ? "오늘·직전 거래일 등록" : state.view === "target" ? "등록 이후 MA20 < MA40" : "등록 이후 MA20 > MA40"}`;
   elements.candidateList.innerHTML = "";
   if (!visible.length) {
     elements.candidateList.innerHTML = '<div class="empty-list">현재 조건에 해당하는 후보가 없습니다.</div>';
@@ -480,9 +493,9 @@ function renderCandidates(candidates) {
     } else if (rebound && rebound.time.slice(0, 10) === nativeLast?.t.slice(0, 10)) {
       node.querySelector(".candidate-status").textContent = `밀착 후 재상승 ${formatDateTime(rebound.time)}`;
     }
-    node.querySelector(".candidate-tier").textContent = tierLabels[item.candidateTier || "core"];
+    node.querySelector(".candidate-tier").textContent = [tierLabels[item.candidateTier || "core"], newRegistrationLabel(item)].filter(Boolean).join(" · ");
     node.querySelector(".candidate-days").textContent = `A-G ${item.dailySignalDate} · ${item.tradingDaysRemaining}일 남음`;
-    node.querySelector(".candidate-price").textContent = quoteTime ? `${quoteTime.slice(5, 10)} ${quoteTime.slice(11, 16)} ${intraday.quoteTime ? "수집가" : "완성봉"}` : "분봉 대기";
+    node.querySelector(".candidate-price").textContent = quoteTime ? `${quoteTime.slice(5, 10)} ${quoteTime.slice(11, 16)} ${intraday.quoteTime ? "수집가" : "30분봉 종가"}` : "분봉 대기";
     const status = node.querySelector(".candidate-status");
     if (status.textContent.trim() === "관찰 중") status.hidden = true;
     const technicalStop = item.daily?.preSpikeClose;
