@@ -1158,7 +1158,7 @@ function drawChart(series, dailyMa10, recoveryHistory = {}) {
     ctx.fillStyle = "#64746c";
     ctx.fillText(label, Math.min(center + 3, width - pad.right - ctx.measureText(label).width), height - 8);
   });
-  drawRegistrationMarker(ctx, series, "t", chartViewport.registeredAt, x, pad, width, height);
+  drawRegistrationMarker(ctx, series, "t", chartViewport.registeredAt, x, pad, width, height, { labelOffset: priceBottom - pad.top - 20 });
   drawTradeMarkers(ctx, series, x, pad, width, height);
 }
 
