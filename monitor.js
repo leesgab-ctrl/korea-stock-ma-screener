@@ -1058,6 +1058,7 @@ function drawChart(series, dailyMa10, recoveryHistory = {}) {
     ctx.fillText(label, Math.min(center + 3, width - pad.right - ctx.measureText(label).width), height - 8);
   });
   drawRegistrationMarker(ctx, series, "t", chartViewport.registeredAt, x, pad, width, height);
+  drawTradeMarkers(ctx, series, x, pad, width, height);
 }
 
 const dailyHover = { series: [], history: [], pad: null, slot: 0 };
@@ -1223,7 +1224,7 @@ function drawDailyChart(series) {
   drawRegistrationMarker(ctx, chartSeries, "d", chartViewport.registeredAt, x, pad, width, height);
 }
 
-function drawRegistrationMarker(ctx, series, key, registeredAt, x, pad, width, height) {
+function drawRegistrationMarker(ctx, series, key, registeredAt, x, pad, width, height, options = {}) {
   if (!registeredAt || !series.length) return;
   const stamp = key === "d" ? registeredAt.slice(0, 10) : registeredAt;
   const time = value => Date.parse(key === "d" ? `${value}T00:00:00+09:00` : value);
@@ -1244,20 +1245,49 @@ function drawRegistrationMarker(ctx, series, key, registeredAt, x, pad, width, h
     center = x(index - 1) + (x(index) - x(index - 1)) * fraction;
   }
   ctx.save();
-  ctx.strokeStyle = "#53616d";
+  ctx.strokeStyle = options.color || "#53616d";
   ctx.lineWidth = 1.5;
-  ctx.setLineDash([4, 4]);
+  ctx.setLineDash(options.solid ? [] : [4, 4]);
   ctx.beginPath(); ctx.moveTo(center, pad.top); ctx.lineTo(center, height - pad.bottom); ctx.stroke();
   ctx.setLineDash([]);
   ctx.font = '11px "Malgun Gothic"';
-  const label = `등록 ${registeredAt.slice(5, 10)}`;
+  const label = options.label || `등록 ${registeredAt.slice(5, 10)}`;
   const labelWidth = ctx.measureText(label).width;
   const left = Math.max(pad.left, Math.min(center + 4, width - pad.right - labelWidth - 4));
   ctx.fillStyle = "rgba(255,255,255,.92)";
-  ctx.fillRect(left - 2, pad.top + 2, labelWidth + 4, 16);
-  ctx.fillStyle = "#384651";
-  ctx.fillText(label, left, pad.top + 14);
+  const labelTop = pad.top + (options.labelOffset || 0);
+  ctx.fillRect(left - 2, labelTop + 2, labelWidth + 4, 16);
+  ctx.fillStyle = options.color || "#384651";
+  ctx.fillText(label, left, labelTop + 14);
   ctx.restore();
+}
+
+function drawTradeMarkers(ctx, series, x, pad, width, height) {
+  const item = selectedDetailItem();
+  if (!item) return;
+  const candidate = [...(state.payload?.candidates || []), ...(state.payload?.history || [])].find(row => row.code === item.code);
+  const markers = new Map();
+  for (const event of candidate?.paperStrategy?.events || []) {
+    markers.set(`signal|${event.time}`, {time: event.time, color: "#263b46", label: `신호 ${formatter.format(event.price)}`});
+  }
+  for (const position of state.positions?.positions || []) {
+    if (position.code !== item.code) continue;
+    const virtual = position.mode === "virtual";
+    const time = virtual ? position.signalTime : position.openedAt;
+    if (time) markers.set(`${virtual ? "signal" : "buy"}|${time}`, {
+      time, color: "#263b46", label: `${virtual ? "가상매수" : "실제매수"} ${formatter.format(position.buyPrice)}`,
+    });
+    if (position.status === "closed" && position.closedAt && position.sellPrice != null) {
+      const profit = position.sellPrice >= position.buyPrice;
+      markers.set(`sell|${position.closedAt}|${position.id || position.openedAt}`, {
+        time: position.closedAt, color: profit ? "#d32f2f" : "#245cc2", labelOffset: 18,
+        label: `${virtual ? "가상" : ""}${profit ? "수익" : "손실"}매도 ${formatter.format(position.sellPrice)}`,
+      });
+    }
+  }
+  for (const marker of markers.values()) {
+    drawRegistrationMarker(ctx, series, "t", marker.time, x, pad, width, height, {...marker, solid: true});
+  }
 }
 
 function drawVolumeDivider(ctx, left, right, top) {
