@@ -805,9 +805,13 @@ function redrawChartWindow() {
 
 function chooseChartDays(days) {
   const series = chartViewport.series;
-  const dates = [...new Set(series.map((row) => row.t.slice(0, 10)))].slice(-days);
-  chartViewport.start = Math.max(0, series.findIndex((row) => dates.includes(row.t.slice(0, 10))));
-  chartViewport.count = days === 5 ? null : series.length - chartViewport.start;
+  const dates = [...new Set(series.map((row) => row.t.slice(0, 10)))];
+  const completedDates = dates.slice(0, -1).slice(-days);
+  const count = completedDates.length
+    ? series.filter((row) => completedDates.includes(row.t.slice(0, 10))).length
+    : series.length;
+  chartViewport.count = days === 5 ? null : Math.min(series.length, count);
+  chartViewport.start = days === 5 ? 0 : series.length - chartViewport.count;
   chartViewport.days = days;
   redrawChartWindow();
 }
