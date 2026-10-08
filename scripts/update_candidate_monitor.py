@@ -26,7 +26,7 @@ OUTCOME_RULE_VERSION = 3
 CORE_TIER = "core"
 EXPANDED_TIER = "expanded"
 STRATEGY = {
-    "candidateWindowTradingDays": 5,
+    "candidateWindowTradingDays": 10,
     "candidateTiers": {
         CORE_TIER: "기존 A-G(A 거래량 +200%, E 종가 +1%)",
         EXPANDED_TIER: "확대 A-G(A 거래량 +150%, E 종가 +0.5%)",
@@ -326,15 +326,41 @@ def expire_registration_window(payload: dict[str, Any], calendar: list[str], lat
     for candidate in payload.get("candidates", []):
         age = registration_age(candidate, calendar, latest_date)
         candidate["tradingDayAge"] = age
-        candidate["tradingDaysRemaining"] = max(0, 5 - age)
-        if age >= 5:
+        candidate["tradingDaysRemaining"] = max(0, 10 - age)
+        if age >= 10:
             record = archive_candidate(candidate, latest_date, "window_completed")
             history[record["id"]] = record
         else:
             active.append(candidate)
     payload["candidates"] = active
     payload["history"] = list(history.values())
-    payload.setdefault("strategy", {}).update({"candidateWindowTradingDays": 5})
+    payload.setdefault("strategy", {}).update({"candidateWindowTradingDays": 10})
+
+
+def restore_ten_day_candidates(payload, calendar, latest_date):
+    excluded = {item["code"] for item in payload.get("manualExclusions", [])}
+    exclusion_path = ROOT / "data/candidate-exclusions.json"
+    if exclusion_path.exists():
+        excluded.update(item["code"] for item in json.loads(exclusion_path.read_text(encoding="utf-8")).get("excluded", []))
+    active = payload.setdefault("candidates", [])
+    ids = {item.get("id") for item in active}
+    retained = []
+    for item in payload.get("history", []):
+        if (item.get("archiveReason") == "window_completed" and item.get("registeredAt")
+                and item["code"] not in excluded and registration_age(item, calendar, latest_date) < 10
+                and item.get("id") not in ids):
+            restored = dict(item)
+            for key in ("archiveReason", "archivedAt", "outcome"):
+                restored.pop(key, None)
+            restored["status"] = "watching"
+            restored["restoreClassificationPending"] = True
+            restored["tradingDaysRemaining"] = 10 - registration_age(item, calendar, latest_date)
+            active.append(restored)
+            ids.add(item.get("id"))
+        else:
+            retained.append(item)
+    payload["history"] = retained
+    payload.setdefault("strategy", {})["candidateWindowTradingDays"] = 10
 
 
 def build_daily_candidates(stock_data: Path, previous: dict[str, Any]) -> dict[str, Any]:
@@ -384,7 +410,7 @@ def build_daily_candidates(stock_data: Path, previous: dict[str, Any]) -> dict[s
         signal_date = rows[index]["date"]
         registration = previous_registrations.get((stock["c"], signal_date), {})
         age = registration_age(registration or {"registeredAt": now_kst().isoformat()}, calendar, latest_date)
-        if age >= 5:
+        if age >= 10:
             continue
         ma10_previous_by_date = {}
         for daily_index in range(max(10, len(rows) - 20), len(rows)):
@@ -400,7 +426,7 @@ def build_daily_candidates(stock_data: Path, previous: dict[str, Any]) -> dict[s
                 "candidateTier": result["candidateTier"],
                 "dailySignalDate": signal_date,
                 "tradingDayAge": age,
-                "tradingDaysRemaining": 5 - age,
+                "tradingDaysRemaining": 10 - age,
                 "daily": result,
                 "dailyReference": {
                     "close": rows[-1]["close"],
@@ -456,7 +482,7 @@ def build_daily_candidates(stock_data: Path, previous: dict[str, Any]) -> dict[s
             pass
         if target_completed_before(prior, latest_date):
             reason = "target_completed"
-        elif registration_age(prior, calendar, latest_date) >= 5:
+        elif registration_age(prior, calendar, latest_date) >= 10:
             reason = "window_completed"
         else:
             reason = "candidate_replaced"
@@ -1500,10 +1526,23 @@ def main() -> None:
             payload.setdefault("candidates", [])
             payload.setdefault("notifiedSignals", [])
     current = dt.datetime.fromisoformat(args.now).astimezone(KST) if args.now else now_kst()
+    stock_path = ROOT / args.stock_data
+    restore_calendar = json.loads(stock_path.read_text(encoding="utf-8")).get("dates", []) if stock_path.exists() else []
+    restore_calendar = sorted(set(restore_calendar) | {
+        row["d"] for candidate in payload.get("history", []) + payload.get("candidates", [])
+        for row in candidate.get("displayCharts", {}).get("daily", {}).get("history", [])
+        if row.get("d") and row["d"] <= current.date().isoformat()
+    })
+    if restore_calendar:
+        restore_ten_day_candidates(payload, restore_calendar, min(restore_calendar[-1], current.date().isoformat()))
     alerts, pending = (0, 0) if args.mode == "charts" else enrich(
         payload, current, args.minute_count, True, refresh_daily_chart=True,
     )
     refresh_display_charts(payload, current)
+    from paper_trading import evaluate as evaluate_paper_candidate
+    for candidate in payload.get("candidates", []):
+        if candidate.pop("restoreClassificationPending", False):
+            candidate["paperStrategy"] = evaluate_paper_candidate(candidate)
     if args.mode != "charts":
         stock_path = ROOT / args.stock_data
         calendar = json.loads(stock_path.read_text(encoding="utf-8")).get("dates", []) if stock_path.exists() else []

@@ -53,17 +53,27 @@ class CurrentSearchRegistrationTests(unittest.TestCase):
         self.assertEqual(candidate["registeredAt"], old["registeredAt"])
 
     def test_window_uses_registration_not_old_ag_date(self):
-        calendar = ["2026-10-01", "2026-10-02", "2026-10-06", "2026-10-07", "2026-10-08", "2026-10-09"]
+        calendar = ["2026-10-01", "2026-10-02", "2026-10-06", "2026-10-07", "2026-10-08", "2026-10-12", "2026-10-13", "2026-10-14", "2026-10-15", "2026-10-16", "2026-10-19"]
         candidate = {"code": "001440", "dailySignalDate": "2026-09-15", "registeredAt": "2026-10-01T17:00:00+09:00"}
         position = {"code": "001440", "status": "open"}
         payload = {"candidates": [candidate], "paperTrading": {"positions": [position]}}
         monitor.expire_registration_window(payload, calendar, "2026-10-08")
-        self.assertEqual(candidate["tradingDaysRemaining"], 1)
+        self.assertEqual(candidate["tradingDaysRemaining"], 6)
         self.assertEqual(len(payload["candidates"]), 1)
-        monitor.expire_registration_window(payload, calendar, "2026-10-09")
+        monitor.expire_registration_window(payload, calendar, "2026-10-19")
         self.assertEqual(payload["candidates"], [])
         self.assertEqual(payload["history"][0]["archiveReason"], "window_completed")
         self.assertEqual(payload["paperTrading"]["positions"], [position])
+
+    def test_restore_only_window_completed_and_preserve_manual_exclusions(self):
+        records = [{"id": str(i), "code": str(i).zfill(6), "registeredAt": "2026-10-01T17:00+09:00", "archiveReason": reason}
+                   for i, reason in enumerate(["window_completed", "manual_excluded", "target_reached"])]
+        payload = {"candidates": [], "history": records}
+        monitor.restore_ten_day_candidates(payload, ["2026-10-01", "2026-10-02"], "2026-10-02")
+        self.assertEqual([c["id"] for c in payload["candidates"]], ["0"])
+        self.assertEqual(len(payload["history"]), 2)
+        monitor.restore_ten_day_candidates(payload, ["2026-10-01", "2026-10-02"], "2026-10-02")
+        self.assertEqual(len(payload["candidates"]), 1)
 
 
 if __name__ == "__main__":
