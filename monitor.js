@@ -1033,8 +1033,8 @@ function phaseBackground(row) {
     : row.referencePullback ? "reference"
     : row.phase === "pullback" ? "before" : row.phase;
   const palette = palettes[backgroundPhase] || palettes.before;
-  if (backgroundPhase === "before") return palette[0];
   const spread = maximumMaSpread(row, true, backgroundPhase !== "reference");
+  if (backgroundPhase === "before") return spread !== null && spread <= 0.5 ? "#d0d8de" : palette[0];
   if (spread === null) return palette[0];
   return palette[spread <= 0.5 ? 2 : spread < 1 ? 1 : 0];
 }
