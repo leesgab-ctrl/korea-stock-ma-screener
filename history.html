@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#176b58">
     <title>A-G 후보 검증 이력</title>
-    <link rel="stylesheet" href="monitor.css?v=20261010-8">
+    <link rel="stylesheet" href="monitor.css?v=20261010-10">
   </head>
   <body>
     <header class="topbar">
@@ -22,20 +22,21 @@
     </header>
 
     <main class="history-page">
-      <section class="summary" aria-label="종료 후보 요약">
-        <div><strong id="completedCount">-</strong><span>종료 후보</span></div>
-        <div><strong id="evaluatedCount">-</strong><span>평가 완료</span></div>
-        <div><strong id="reachedCount">-</strong><span>+5% 달성</span></div>
-        <div><strong id="reachedRate">-</strong><span>종료 후보 달성률</span></div>
+      <section aria-label="종료 후보 요약">
+        <table class="history-summary-table">
+          <thead><tr><th>종목수</th><th>5% 달성수</th><th>달성률</th></tr></thead>
+          <tbody><tr><td id="completedCount">-</td><td id="reachedCount">-</td><td id="reachedRate">-</td></tr></tbody>
+        </table>
+        <p id="evaluationNote" class="history-evaluation-note"></p>
       </section>
 
 
       <section class="history-panel" aria-label="A-G 종료 후보">
         <div class="section-heading">
           <div>
-            <h2>종료 후보 목록</h2>
-            <p>시스템 등록 시점 가격 기준 · 종료일까지 일봉 종가로 평가 · 실제 매매수익과 다릅니다.</p>
+            <h2>세부리스트</h2>
           </div>
+          <strong class="history-target">목표 +5%</strong>
         </div>
         <div class="history-toolbar">
           <p id="historyMeta">종료된 후보부터 이력이 쌓입니다.</p>
@@ -50,6 +51,6 @@
       </section>
     </main>
 
-    <script src="history.js?v=20261010-9"></script>
+    <script src="history.js?v=20261010-10"></script>
   </body>
 </html>

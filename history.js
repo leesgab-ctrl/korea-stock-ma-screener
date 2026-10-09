@@ -2,7 +2,7 @@ const state = { history: [], keyword: "", excludedCodes: new Set() };
 const formatter = new Intl.NumberFormat("ko-KR", { maximumFractionDigits: 2 });
 const elements = {
   completedCount: document.querySelector("#completedCount"),
-  evaluatedCount: document.querySelector("#evaluatedCount"),
+  evaluationNote: document.querySelector("#evaluationNote"),
   reachedCount: document.querySelector("#reachedCount"),
   reachedRate: document.querySelector("#reachedRate"),
   historyNotice: document.querySelector("#historyNotice"),
@@ -45,11 +45,19 @@ function historyEvaluation(item) {
   const chart = item.displayCharts?.daily;
   const daily = (chart?.history?.length ? chart.history : chart?.series || []).filter(row => row.complete !== false && row.c > 0).sort((a, b) => a.d.localeCompare(b.d));
   const baseline = Number.isFinite(item.registrationPrice) && item.registrationPrice > 0 ? item.registrationPrice : null;
+  const prices = [
+    ...(item.displayCharts?.intraday?.series || []).map(row => ({time: row.t, price: row.c})),
+    {time: item.intraday?.quoteTime, price: item.intraday?.quotePrice},
+    {time: item.lastPriceTime, price: item.lastPrice},
+    ...daily.map(row => ({time: `${row.d}T15:30:00+09:00`, price: row.c})),
+  ].filter(row => row.price > 0 && Date.parse(row.time) >= Date.parse(item.registeredAt) && row.time.slice(0, 10) <= end)
+    .sort((a, b) => Date.parse(a.time) - Date.parse(b.time));
+  const finalPrice = prices.at(-1)?.price ?? null;
   const rows = daily.filter(row => Date.parse(`${row.d}T15:30:00+09:00`) >= Date.parse(item.registeredAt) && row.d <= end);
-  if (!baseline || !end || !rows.length) return {valid: false, registered, end, baseline};
+  if (!baseline || !end || !rows.length) return {valid: false, registered, end, baseline, finalPrice};
   const hit = rows.find(row => row.c >= baseline * 1.05);
   const peak = Math.max(baseline, ...rows.map(row => row.c));
-  return {valid: true, registered, end, baseline, peak, peakReturn: (peak / baseline - 1) * 100,
+  return {valid: true, registered, end, baseline, finalPrice, peak, peakReturn: (peak / baseline - 1) * 100,
     targetDate: hit?.d, duration: hit ? new Set([registered, ...daily.filter(row => row.d >= registered && row.d <= hit.d).map(row => row.d)]).size - 1 : null};
 }
 
@@ -58,9 +66,9 @@ function renderSummary() {
   const reached = evaluated.filter((item) => historyEvaluation(item).targetDate);
   const rate = evaluated.length ? (100 * reached.length) / evaluated.length : 0;
   elements.completedCount.textContent = formatter.format(state.history.length);
-  elements.evaluatedCount.textContent = formatter.format(evaluated.length);
+  elements.evaluationNote.textContent = `달성률 평가 대상 ${evaluated.length}종목 · 자료 부족·사용자 제외는 집계 제외 · 등록 당시 가격 기준`;
   elements.reachedCount.textContent = formatter.format(reached.length);
-  elements.reachedRate.textContent = `${formatter.format(rate)}%`;
+  elements.reachedRate.textContent = evaluated.length ? `${formatter.format(rate)}%` : "평가 대기";
 }
 
 function renderHistory() {
@@ -81,20 +89,20 @@ function renderHistory() {
 
   const table = document.createElement("table");
   table.className = "history-table";
-  table.innerHTML = "<thead><tr><th>종목</th><th>등록일</th><th>등록가</th><th>최고가(종가)</th><th>5% 목표달성일</th><th>5% 달성기간</th><th>최고수익률</th><th>종료일</th></tr></thead><tbody></tbody>";
+  table.innerHTML = "<thead><tr><th>종목명</th><th>등록일</th><th>등록가</th><th>최종가</th><th>목표달성일</th><th>달성기간</th><th>최고수익률</th><th>종료일</th></tr></thead><tbody></tbody>";
   const body = table.querySelector("tbody");
   records.forEach((item) => {
     const result = historyEvaluation(item);
     const row = document.createElement("tr");
     row.innerHTML = `
       <td><strong>${escapeHtml(item.name || "-")}</strong><span>${escapeHtml(item.code || "")}</span>${item.archiveReason === "manual_excluded" ? '<span>사용자 선정 제외</span>' : ""}</td>
-      <td>${escapeHtml(result.registered || "기록 없음")}</td>
+      <td title="${escapeHtml(result.registered || "")}">${escapeHtml(result.registered?.slice(5) || "기록 없음")}</td>
       <td>${formatPrice(result.baseline)}</td>
-      <td>${formatPrice(result.peak)}</td>
-      <td>${escapeHtml(result.targetDate || (result.valid ? "미달" : "자료 부족"))}</td>
+      <td>${formatPrice(result.finalPrice)}</td>
+      <td title="${escapeHtml(result.targetDate || "")}">${escapeHtml(result.targetDate?.slice(5) || (result.valid ? "미달" : "자료 부족"))}</td>
       <td>${formatDuration(result.duration)}</td>
       <td class="${returnClass(result.peakReturn)}">${formatReturn(result.peakReturn)}</td>
-      <td>${escapeHtml(result.end || "-")}</td>`;
+      <td title="${escapeHtml(result.end || "")}">${escapeHtml(result.end?.slice(5) || "-")}</td>`;
     body.append(row);
     row.querySelectorAll("td").forEach((cell, index) => {
       cell.dataset.label = table.querySelectorAll("th")[index].textContent;
