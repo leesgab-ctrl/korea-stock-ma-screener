@@ -777,11 +777,11 @@ function watchReturns(item, quote) {
   const complete = daily.filter(row => row.complete !== false && (row.d < nowDay || (row.d === quote.time?.slice(0, 10) && quote.time.slice(11, 16) >= "15:30")));
   const provisional = false;
   const baseline = Number.isFinite(item.registrationPrice) && item.registrationPrice > 0 ? item.registrationPrice : null;
-  const closes = complete.filter(row => row.d >= registered && row.c > 0).map(row => row.c);
+  const closes = complete.filter(row => Date.parse(`${row.d}T15:30:00+09:00`) >= Date.parse(item.registeredAt) && row.c > 0).map(row => row.c);
   const dates = new Set([...daily.map(row => row.d), ...(item.displayCharts?.intraday?.series || []).map(row => row.t.slice(0, 10))].filter(day => day >= registered && day <= quote.time?.slice(0, 10)));
   return {days: registered && quote.time ? dates.size : null, provisional, baseline,
-    maximum: baseline && closes.length ? (Math.max(...closes) / baseline - 1) * 100 : null,
-    current: baseline && quote.price ? (quote.price / baseline - 1) * 100 : null};
+    maximum: baseline && closes.length ? (Math.max(baseline, ...closes) / baseline - 1) * 100 : null,
+    current: baseline && quote.price && Date.parse(quote.time) >= Date.parse(item.registeredAt) ? (quote.price / baseline - 1) * 100 : null};
 }
 
 function renderWatchQuotes() {

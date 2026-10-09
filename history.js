@@ -45,12 +45,12 @@ function historyEvaluation(item) {
   const chart = item.displayCharts?.daily;
   const daily = (chart?.history?.length ? chart.history : chart?.series || []).filter(row => row.complete !== false && row.c > 0).sort((a, b) => a.d.localeCompare(b.d));
   const baseline = Number.isFinite(item.registrationPrice) && item.registrationPrice > 0 ? item.registrationPrice : null;
-  const rows = daily.filter(row => row.d >= registered && row.d <= end);
-  if (!baseline || !end || !rows.length) return {valid: false, registered, end};
+  const rows = daily.filter(row => Date.parse(`${row.d}T15:30:00+09:00`) >= Date.parse(item.registeredAt) && row.d <= end);
+  if (!baseline || !end || !rows.length) return {valid: false, registered, end, baseline};
   const hit = rows.find(row => row.c >= baseline * 1.05);
-  const peak = Math.max(...rows.map(row => row.c));
+  const peak = Math.max(baseline, ...rows.map(row => row.c));
   return {valid: true, registered, end, baseline, peak, peakReturn: (peak / baseline - 1) * 100,
-    targetDate: hit?.d, duration: hit ? rows.findIndex(row => row.d === hit.d) : null};
+    targetDate: hit?.d, duration: hit ? new Set([registered, ...daily.filter(row => row.d >= registered && row.d <= hit.d).map(row => row.d)]).size - 1 : null};
 }
 
 function renderSummary() {
