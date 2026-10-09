@@ -28,6 +28,8 @@ def main():
             page.goto(f"http://127.0.0.1:{server.server_port}/monitor.html?historyChart=1&stock=145720")
             page.wait_for_function("document.querySelector('.detail-panel canvas')?.width > 0")
             page.wait_for_timeout(1500)
+            page.locator('[data-daily-bars="60"]').click()
+            page.wait_for_timeout(300)
             panel = page.locator(".detail-panel")
             panel.evaluate("el => { const banner = document.createElement('div'); banner.textContent = '[테스트 · 실제 매수 알림 아님] 덴티움 저장 그래프'; banner.style.cssText = 'padding:12px;background:#fff1ba;font-weight:bold'; el.prepend(banner); }")
             image = panel.screenshot()
