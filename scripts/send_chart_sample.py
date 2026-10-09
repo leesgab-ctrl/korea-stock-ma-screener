@@ -1,5 +1,6 @@
 """Send one explicitly labelled image test, without recording a trading signal."""
 import functools
+import datetime as dt
 from email.header import Header
 import http.server
 import json
@@ -7,6 +8,8 @@ import os
 from pathlib import Path
 import threading
 import urllib.request
+import urllib.parse
+from zoneinfo import ZoneInfo
 from playwright.sync_api import sync_playwright
 
 
@@ -40,14 +43,15 @@ def main():
         server.shutdown()
     values = [bar[k] for k in ("m3", "m10", "m20", "m40", "m60")]
     spread = (max(values) / min(values) - 1) * 100
-    message = f"덴티움(145720)\n전체 5개 MA 최대간격 {spread:.2f}%\n포착 기준 매수가 {bar['c']:,.0f}원"
+    message = f"덴티움(145720)\n- 전체 5개 MA 최대간격 {spread:.2f}%\n- 포착기준매수가 {bar['c']:,.0f}원"
     if loss is not None:
-        message += f"\n손절 기준 {loss:+.2f}% · {stop:,.0f}원\n직전 3거래일 최저가 기준"
-    message += f"\n기준봉 {bar['t']}\n형식 확인용 · 실시간 신호 아님"
-    request = urllib.request.Request("https://ntfy.sh/" + os.environ["NTFY_TOPIC"].strip(), data=image, headers={
+        message += f"\n- 손절기준 {loss:+.2f}% {stop:,.0f}원"
+    checked = dt.datetime.now(ZoneInfo("Asia/Seoul")).strftime("%Y-%m-%d %H:%M")
+    message += f"\n- 확인시간 {checked}분\n형식 확인용 · 과거 기준봉 {bar['t']}"
+    query = urllib.parse.urlencode({"message": message})
+    request = urllib.request.Request("https://ntfy.sh/" + os.environ["NTFY_TOPIC"].strip() + "?" + query, data=image, headers={
         "Content-Type": "image/png", "Filename": "dentium-chart-test.png",
         "Title": Header("덴티움 이평선 밀착 포착 · 형식 확인용", "utf-8", maxlinelen=10000).encode(),
-        "Message": Header(message.replace("\n", " · "), "utf-8", maxlinelen=10000).encode(),
         "Click": "https://leesgab-ctrl.github.io/korea-stock-ma-screener/monitor.html?stock=145720",
         "Priority": "3",
     })
