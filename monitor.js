@@ -1009,8 +1009,9 @@ function chartPhases(series) {
   });
 }
 
-function maximumMaSpread(row, rounded = true) {
+function maximumMaSpread(row, rounded = true, includeMa60 = true) {
   const values = [row.m3, row.m10, row.m20, row.m40];
+  if (includeMa60) values.push(row.m60);
   if (!values.every((value) => Number.isFinite(value) && value > 0)) return null;
   const spread = (Math.max(...values) / Math.min(...values) - 1) * 100;
   return rounded ? Number(spread.toFixed(1)) : spread;
@@ -1033,7 +1034,7 @@ function phaseBackground(row) {
     : row.phase === "pullback" ? "before" : row.phase;
   const palette = palettes[backgroundPhase] || palettes.before;
   if (backgroundPhase === "before") return palette[0];
-  const spread = maximumMaSpread(row);
+  const spread = maximumMaSpread(row, true, backgroundPhase !== "reference");
   if (spread === null) return palette[0];
   return palette[spread <= 0.5 ? 2 : spread < 1 ? 1 : 0];
 }
