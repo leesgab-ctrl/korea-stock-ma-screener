@@ -1009,10 +1009,11 @@ function chartPhases(series) {
   });
 }
 
-function maximumMaSpread(row) {
+function maximumMaSpread(row, rounded = true) {
   const values = [row.m3, row.m10, row.m20, row.m40];
   if (!values.every((value) => Number.isFinite(value) && value > 0)) return null;
-  return Number(((Math.max(...values) / Math.min(...values) - 1) * 100).toFixed(1));
+  const spread = (Math.max(...values) / Math.min(...values) - 1) * 100;
+  return rounded ? Number(spread.toFixed(1)) : spread;
 }
 
 function phaseBackground(row) {
@@ -1023,8 +1024,15 @@ function phaseBackground(row) {
     confirmed: ["#dff2e7", "#c3e6d2", "#a5d8bb"],
     reference: ["#fce4ec", "#f8cbdc", "#f2abc6"],
   };
-  const palette = palettes[row.referencePullback ? "reference" : row.phase] || palettes.before;
-  if (row.phase === "before" && !row.referencePullback) return palette[0];
+  const rawSpread = maximumMaSpread(row, false);
+  const yellow = rawSpread !== null && rawSpread >= 2
+    && Number.isFinite(row.m60) && row.m60 > 0
+    && row.m20 < row.m40 && row.m3 < row.m60;
+  const backgroundPhase = yellow ? "pullback"
+    : row.referencePullback ? "reference"
+    : row.phase === "pullback" ? "before" : row.phase;
+  const palette = palettes[backgroundPhase] || palettes.before;
+  if (backgroundPhase === "before") return palette[0];
   const spread = maximumMaSpread(row);
   if (spread === null) return palette[0];
   return palette[spread <= 0.5 ? 2 : spread < 1 ? 1 : 0];
