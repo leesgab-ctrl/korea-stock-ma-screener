@@ -986,7 +986,7 @@ for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) {
 }
 
 function chartPhases(series) {
-  let previous = null, phase = "before", deep = false, recovery = false, reference = false;
+  let previous = null, phase = "before", deep = false, recovery = false;
   return series.map(original => {
     const row = {...original, phase: "before", referencePullback: false};
     if (row.complete === false) { row.phase = phase; row.referencePullback = previous?.referencePullback || false; return row; }
@@ -998,21 +998,19 @@ function chartPhases(series) {
         if (previous.m3 <= previous[target] && row.m3 > row[target]) phase = "fast";
         if (previous.m20 <= previous[target] && row.m20 > row[target]) { phase = "confirmed"; recovery = false; }
       }
-      if (row.m20 > row.m40 && row.m40 > previous.m40 && previous.m10 >= previous.m20 && row.m10 < row.m20) reference = true;
-      if (reference && (row.m20 <= row.m40 || row.m40 <= previous.m40 || (row.m3 > row.m20 && row.m10 > row.m20))) reference = false;
     }
     row.phase = phase;
-    row.referencePullback = reference && row.m10 < row.m20 && row.m20 > row.m40
-      && row.m20 > 0 && row.m40 > 0
-      && (row.m20 - row.m10) / row.m20 < 0.01
-      && (row.m20 - row.m40) / row.m40 < 0.01;
+    row.referencePullback = Boolean(previous && row.m40 > previous.m40 && row.m20 > row.m40
+      && row.m10 > 0 && row.m20 > 0 && row.m40 > 0
+      && Math.abs(row.m20 - row.m10) / row.m20 < 0.01
+      && (row.m20 - row.m40) / row.m40 < 0.01);
     previous = row;
     return row;
   });
 }
 
 function maximumMaSpread(row) {
-  const values = [row.m3, row.m10, row.m20, row.m40, row.m60];
+  const values = [row.m3, row.m10, row.m20, row.m40];
   if (!values.every((value) => Number.isFinite(value) && value > 0)) return null;
   return Number(((Math.max(...values) / Math.min(...values) - 1) * 100).toFixed(1));
 }
