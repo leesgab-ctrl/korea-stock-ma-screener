@@ -777,7 +777,7 @@ function renderWatchQuotes() {
   meta.textContent += today ? ` · 기준 ${today}` : "";
   const header = document.createElement("div");
   header.className = "watch-quote-header";
-  for (const label of ["종목명", "유형", "감시현황", "현재가 / 등락률"]) {
+  for (const label of ["종목명", "유형", "감시현황", "최종가격", "등락률"]) {
     const cell = document.createElement("span");
     cell.textContent = label;
     if (label === "감시현황") {
@@ -816,9 +816,13 @@ function renderWatchQuotes() {
     const price = document.createElement("span");
     price.className = "watch-quote-price";
     price.dataset.direction = quote.direction;
-    price.textContent = quoteText(quote);
+    price.textContent = quote.price ? `${Math.round(quote.price).toLocaleString("ko-KR")}원` : "대기";
+    const change = document.createElement("span");
+    change.className = "watch-quote-price";
+    change.dataset.direction = quote.direction;
+    change.textContent = quote.change == null ? "대기" : `${quote.change > 0 ? "+" : ""}${formatter.format(quote.change)}%`;
     price.title = quote.time ? `${formatDateTime(quote.time)} 수집 기준` : "가격 대기";
-    summary.append(name, group, swatches, price);
+    summary.append(name, group, swatches, price, change);
     row.append(summary);
     row.addEventListener("toggle", () => {
       if (row.open && !row.querySelector("iframe")) appendInlineChart(row, item, `watch-${item.code}`);
