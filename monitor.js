@@ -1249,6 +1249,30 @@ function drawChart(series, dailyMa10, recoveryHistory = {}) {
   });
   drawRegistrationMarker(ctx, series, "t", chartViewport.registeredAt, x, pad, width, height, { labelOffset: priceBottom - pad.top - 20 });
   drawTradeMarkers(ctx, series, x, pad, width, height);
+  drawVisibleLow(ctx, series, y, pad, width, priceBottom, mobile);
+}
+
+function drawVisibleLow(ctx, series, y, pad, width, priceBottom, mobile) {
+  const lows = series.map(row => row.l).filter(value => Number.isFinite(value) && value > 0);
+  if (!lows.length) return;
+  const low = Math.min(...lows);
+  const yy = y(low);
+  ctx.save();
+  ctx.strokeStyle = "#455b70";
+  ctx.lineWidth = 1.2;
+  ctx.setLineDash([4, 4]);
+  ctx.beginPath(); ctx.moveTo(pad.left, yy); ctx.lineTo(width - pad.right, yy); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.font = mobile ? "10px Segoe UI" : "11px Segoe UI";
+  const label = `최저 ${formatter.format(Math.round(low))}원`;
+  const labelWidth = ctx.measureText(label).width + 8;
+  const left = Math.max(pad.left, width - pad.right - labelWidth);
+  const top = Math.max(pad.top, Math.min(yy - 18, priceBottom - 17));
+  ctx.fillStyle = "rgba(255,255,255,0.94)";
+  ctx.fillRect(left, top, labelWidth, 16);
+  ctx.fillStyle = "#455b70";
+  ctx.fillText(label, left + 4, top + 12);
+  ctx.restore();
 }
 
 const maHover = { series: [], pad: null, slot: 0 };
