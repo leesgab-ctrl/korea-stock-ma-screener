@@ -753,7 +753,46 @@ function openExclusionDialog(item, action) {
   document.querySelector("#exclusionDialog").showModal();
 }
 
-document.querySelector("#manualExclusionsButton").addEventListener("click", () => document.querySelector("#excludedListDialog").showModal());
+function openOperationContent(button, content) {
+  const panel = document.querySelector("#operationsPanel");
+  const host = document.querySelector("#operationContent");
+  host.querySelectorAll("dialog").forEach((dialog) => {
+    dialog.close();
+    dialog.classList.remove("inline-operation-dialog");
+    document.body.append(dialog);
+  });
+  host.replaceChildren(content);
+  host.hidden = false;
+  panel.classList.add("operation-selected");
+  panel.querySelectorAll(".operation-links > *").forEach((item) => {
+    item.classList.toggle("operation-active", item === button);
+  });
+  if (content.tagName === "DIALOG") {
+    content.classList.add("inline-operation-dialog");
+    content.setAttribute("open", "");
+  }
+}
+document.querySelectorAll("[data-operation-page]").forEach((link) => {
+  link.addEventListener("click", (event) => {
+    event.preventDefault();
+    const frame = document.createElement("iframe");
+    frame.className = "operation-frame";
+    frame.title = link.textContent;
+    frame.src = link.href;
+    openOperationContent(link, frame);
+  });
+});
+[elements.criteriaDialog, document.querySelector("#excludedListDialog")].forEach((dialog) => {
+  dialog.addEventListener("close", () => {
+    const host = document.querySelector("#operationContent");
+    if (host.contains(dialog) && !host.querySelector("dialog[open], iframe")) {
+      host.hidden = true;
+      document.querySelector("#operationsPanel").classList.remove("operation-selected");
+      document.querySelectorAll(".operation-active").forEach((item) => item.classList.remove("operation-active"));
+    }
+  });
+});
+document.querySelector("#manualExclusionsButton").addEventListener("click", (event) => openOperationContent(event.currentTarget, document.querySelector("#excludedListDialog")));
 document.querySelector("#excludedListClose").addEventListener("click", () => document.querySelector("#excludedListDialog").close());
 document.querySelector("#exclusionCancel").addEventListener("click", () => document.querySelector("#exclusionDialog").close());
 document.querySelector("#exclusionForm").addEventListener("submit", async (event) => {
@@ -1837,7 +1876,7 @@ document.querySelector("#operationExclude").addEventListener("click", () => {
 });
 elements.keyword.addEventListener("input", (event) => { state.keyword = event.target.value; render(); });
 elements.refreshButton.addEventListener("click", loadData);
-elements.criteriaButton.addEventListener("click", () => elements.criteriaDialog.showModal());
+elements.criteriaButton.addEventListener("click", () => openOperationContent(elements.criteriaButton, elements.criteriaDialog));
 elements.criteriaDialogClose.addEventListener("click", () => elements.criteriaDialog.close());
 elements.criteriaDialog.addEventListener("click", (event) => {
   if (event.target === elements.criteriaDialog) elements.criteriaDialog.close();

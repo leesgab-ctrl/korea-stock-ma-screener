@@ -54,6 +54,10 @@ main { max-width: 1480px; margin: 0 auto; padding: 18px; display: grid; gap: 14p
 .view-tab:last-child { border-right: 0; }
 .view-tab.active { color: var(--green); border-bottom-color: var(--green); background: var(--green-soft); }
 .operation-links { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+.operation-links .operation-active { background: #176b58; color: white; }
+#operationsPanel.operation-selected > section { display: none; }
+.operation-frame { width: 100%; height: 85vh; min-height: 600px; border: 0; display: block; }
+dialog.inline-operation-dialog { position: static; width: 100%; max-width: none; max-height: none; margin: 0; box-sizing: border-box; }
 .operation-review { padding: 18px 0; display: grid; gap: 12px; }
 .operation-review p, .operation-review li, .chart-source { font-size: 12px; line-height: 1.7; color: var(--muted); }
 .operation-review label { display: grid; gap: 6px; max-width: 400px; }
