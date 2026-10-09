@@ -775,9 +775,8 @@ function watchReturns(item, quote) {
   const daily = item.displayCharts?.daily?.history || item.displayCharts?.daily?.series || [];
   const nowDay = new Intl.DateTimeFormat("en-CA", {timeZone: "Asia/Seoul", year: "numeric", month: "2-digit", day: "2-digit"}).format(new Date());
   const complete = daily.filter(row => row.complete !== false && (row.d < nowDay || (row.d === quote.time?.slice(0, 10) && quote.time.slice(11, 16) >= "15:30")));
-  const registrationClose = complete.find(row => row.d === registered)?.c;
-  const provisional = !registrationClose && registered === quote.time?.slice(0, 10) && registered === nowDay;
-  const baseline = registrationClose || (provisional ? quote.price : null);
+  const provisional = false;
+  const baseline = Number.isFinite(item.registrationPrice) && item.registrationPrice > 0 ? item.registrationPrice : null;
   const closes = complete.filter(row => row.d >= registered && row.c > 0).map(row => row.c);
   const dates = new Set([...daily.map(row => row.d), ...(item.displayCharts?.intraday?.series || []).map(row => row.t.slice(0, 10))].filter(day => day >= registered && day <= quote.time?.slice(0, 10)));
   return {days: registered && quote.time ? dates.size : null, provisional, baseline,
@@ -871,7 +870,7 @@ function renderWatchQuotes() {
       cell.className = "watch-quote-price";
       cell.dataset.direction = value == null ? "" : value > 0 ? "up" : value < 0 ? "down" : "flat";
       cell.textContent = value == null ? "대기" : `${value > 0 ? "+" : ""}${formatter.format(value)}%${returns.provisional ? "*" : ""}`;
-      cell.title = `${label} · ${returns.provisional ? "등록일 장중 현재가 임시 기준" : "등록일 일봉 종가 기준"}${returns.baseline ? ` ${Math.round(returns.baseline).toLocaleString("ko-KR")}원` : " · 기준자료 없음"}`;
+      cell.title = `${label} · 시스템 등록 시점 가격 기준${returns.baseline ? ` ${Math.round(returns.baseline).toLocaleString("ko-KR")}원` : " · 기준자료 없음"}`;
       return cell;
     };
     summary.append(name, group, swatches, period, price, change, returnCell(returns.maximum, "일봉 종가 최고수익률"), returnCell(returns.current, "최신 수집 현재가 수익률"));
