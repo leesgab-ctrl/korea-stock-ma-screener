@@ -985,12 +985,10 @@ for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) {
   });
 }
 
-function registrationPhases(series, registeredAt) {
-  const start = Date.parse(registeredAt);
+function chartPhases(series) {
   let previous = null, phase = "before", deep = false, recovery = false, reference = false;
   return series.map(original => {
     const row = {...original, phase: "before", referencePullback: false};
-    if (!Number.isFinite(start) || Date.parse(row.t) < start) return row;
     if (row.complete === false) { row.phase = phase; row.referencePullback = previous?.referencePullback || false; return row; }
     if (previous) {
       if (previous.m20 >= previous.m40 && row.m20 < row.m40) { recovery = true; phase = "pullback"; deep = false; }
@@ -1013,6 +1011,12 @@ function registrationPhases(series, registeredAt) {
   });
 }
 
+function maximumMaSpread(row) {
+  const values = [row.m3, row.m10, row.m20, row.m40, row.m60];
+  if (!values.every((value) => Number.isFinite(value) && value > 0)) return null;
+  return Number(((Math.max(...values) / Math.min(...values) - 1) * 100).toFixed(1));
+}
+
 function phaseBackground(row) {
   const palettes = {
     before: ["#e9edf0", "#e9edf0", "#e9edf0"],
@@ -1023,9 +1027,8 @@ function phaseBackground(row) {
   };
   const palette = palettes[row.referencePullback ? "reference" : row.phase] || palettes.before;
   if (row.phase === "before" && !row.referencePullback) return palette[0];
-  const values = [row.m3, row.m10, row.m20, row.m40, row.m60];
-  if (!values.every((value) => Number.isFinite(value) && value > 0)) return palette[0];
-  const spread = (Math.max(...values) - Math.min(...values)) / Math.min(...values) * 100;
+  const spread = maximumMaSpread(row);
+  if (spread === null) return palette[0];
   return palette[spread <= 0.5 ? 2 : spread < 1 ? 1 : 0];
 }
 
@@ -1035,7 +1038,7 @@ function drawChart(series, dailyMa10, recoveryHistory = {}) {
   chartViewport.series = series;
   chartViewport.dailyMa10 = dailyMa10;
   chartViewport.recoveryHistory = recoveryHistory;
-  series = registrationPhases(series, chartViewport.registeredAt);
+  series = chartPhases(series);
   const storedDates = [...new Set(series.map(row => row.t.slice(0, 10)))];
   document.querySelectorAll('[data-chart-offset]').forEach(button => {
     const offset = Number(button.dataset.chartOffset);
@@ -1208,13 +1211,13 @@ function showMaTooltip(event) {
     }
     tooltip.append(line);
   }
-  const averages = [row.m3, row.m10, row.m20, row.m40, row.m60];
+  const maximumSpread = maximumMaSpread(row);
   const spread = document.createElement("div");
   spread.style.padding = "1px 6px";
   spread.style.lineHeight = "1.3";
   spread.style.fontWeight = "700";
-  spread.textContent = averages.every(value => Number.isFinite(value) && value > 0)
-    ? `최대 간격 ${((Math.max(...averages) / Math.min(...averages) - 1) * 100).toFixed(1)}%`
+  spread.textContent = maximumSpread !== null
+    ? `최대 간격 ${maximumSpread.toFixed(1)}%`
     : "최대 간격 자료 없음";
   tooltip.append(spread);
   tooltip.hidden = false;
@@ -1422,7 +1425,7 @@ function drawDailyChart(series, preserveWindow = false) {
   dailyHover.slot = slot;
   const item = selectedDetailItem();
   const dailyPhases = new Map();
-  for (const row of registrationPhases(item?.displayCharts?.intraday?.series || [], item?.registeredAt)) {
+  for (const row of chartPhases(item?.displayCharts?.intraday?.series || [])) {
     if (row.complete !== false) dailyPhases.set(row.t.slice(0, 10), row);
   }
   chartSeries.forEach((row, index) => {
