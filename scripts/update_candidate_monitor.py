@@ -1582,9 +1582,17 @@ def main() -> None:
             "signals": 0, "signalHistory": 0, "newAlerts": 0, "pendingNotifications": 0,
         })
         alerts, pending = 0, 0
+    color_changed = False
+    if args.mode != "charts":
+        from color_notifications import notify as notify_colors
+        color_alerts, color_changed = notify_colors(payload, current, os.getenv("NTFY_TOPIC", "").strip(), args.no_notify)
+        alerts += color_alerts
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
     write_github_output(args.github_output, alerts, pending)
+    if args.github_output:
+        with open(args.github_output, "a", encoding="utf-8") as handle:
+            handle.write(f"color_state_changed={str(color_changed).lower()}\n")
     print(
         json.dumps(
             {"mode": args.mode, "active": len(payload["candidates"]), "alerts": alerts, "pending": pending},
