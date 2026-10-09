@@ -1,5 +1,6 @@
 """Send one explicitly labelled image test, without recording a trading signal."""
 import functools
+from email.header import Header
 import http.server
 import json
 import os
@@ -32,18 +33,21 @@ def main():
             page.locator('[data-daily-bars="60"]').click()
             page.wait_for_timeout(300)
             panel = page.locator(".detail-panel")
-            panel.evaluate("el => { const banner = document.createElement('div'); banner.textContent = '[테스트 · 실제 매수 알림 아님] 덴티움 저장 그래프'; banner.style.cssText = 'padding:12px;background:#fff1ba;font-weight:bold'; el.prepend(banner); }")
+            panel.evaluate("el => { const banner = document.createElement('div'); banner.textContent = '최종 알림 형식 확인용 · 과거 봉 기준'; banner.style.cssText = 'padding:12px;background:#f1f3f5;font-weight:bold'; el.prepend(banner); }")
             image = panel.screenshot()
             browser.close()
     finally:
         server.shutdown()
-    message = f"TEST ONLY - historical chart, not a live buy signal. Dentium 145720. Reference price KRW {bar['c']:,}."
+    values = [bar[k] for k in ("m3", "m10", "m20", "m40", "m60")]
+    spread = (max(values) / min(values) - 1) * 100
+    message = f"덴티움(145720)\n전체 5개 MA 최대간격 {spread:.2f}%\n포착 기준 매수가 {bar['c']:,.0f}원"
     if loss is not None:
-        message += f" Stop reference {loss:+.2f}% / KRW {stop:,.0f} (previous 3 trading days low)."
-    message += f" Bar: {bar['t']}."
+        message += f"\n손절 기준 {loss:+.2f}% · {stop:,.0f}원\n직전 3거래일 최저가 기준"
+    message += f"\n기준봉 {bar['t']}\n형식 확인용 · 실시간 신호 아님"
     request = urllib.request.Request("https://ntfy.sh/" + os.environ["NTFY_TOPIC"].strip(), data=image, headers={
         "Content-Type": "image/png", "Filename": "dentium-chart-test.png",
-        "Title": "[TEST] Dentium chart attachment", "Message": message,
+        "Title": Header("덴티움 이평선 밀착 포착 · 형식 확인용", "utf-8", maxlinelen=10000).encode(),
+        "Message": Header(message, "utf-8", maxlinelen=10000).encode(),
         "Click": "https://leesgab-ctrl.github.io/korea-stock-ma-screener/monitor.html?stock=145720",
         "Priority": "3",
     })
