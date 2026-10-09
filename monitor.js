@@ -764,12 +764,35 @@ function renderWatchQuotes() {
     return (b.quote.change ?? 0) - (a.quote.change ?? 0) || a.item.name.localeCompare(b.item.name, "ko");
   });
   const meta = document.createElement("p");
+  const heading = document.createElement("h2");
+  heading.className = "watch-quotes-title";
+  heading.textContent = "감시대상 주가현황";
+  content.append(heading);
   meta.className = "watch-quote-time";
   meta.textContent = `${entries.length}종목 · 전일 종가 대비 등락률 순 · 최신 수집 가격 기준`;
   content.append(meta);
+  const tradingDates = [...new Set(items.flatMap(item => (item.displayCharts?.intraday?.series || []).map(row => row.t.slice(0, 10))))].sort();
+  const today = tradingDates.at(-1);
+  const priorDate = tradingDates.at(-2);
+  meta.textContent += today ? ` · 기준 ${today}` : "";
+  const header = document.createElement("div");
+  header.className = "watch-quote-header";
+  for (const label of ["종목명", "유형", "감시현황", "현재가 / 등락률"]) {
+    const cell = document.createElement("span");
+    cell.textContent = label;
+    if (label === "감시현황") {
+      cell.title = "30분봉 감시현황";
+      const dates = document.createElement("small");
+      dates.textContent = "전일　　 오늘";
+      cell.append(dates);
+    }
+    header.append(cell);
+  }
+  content.append(header);
   for (const {item, quote} of entries) {
     const row = document.createElement("details");
     row.className = "watch-quote-row";
+    row.dataset.group = chartGroup(item);
     const summary = document.createElement("summary");
     const name = document.createElement("span");
     name.className = "watch-quote-name";
@@ -777,18 +800,25 @@ function renderWatchQuotes() {
     const group = document.createElement("span");
     group.className = "watch-quote-group";
     group.textContent = viewLabels[chartGroup(item)];
-    const swatch = document.createElement("span");
-    swatch.className = "watch-quote-swatch";
-    const phase = chartPhases(item.displayCharts?.intraday?.series || []).at(-1);
-    if (phase) swatch.style.backgroundColor = phaseBackground(phase);
-    swatch.title = phase ? `30분봉 감시현황 · ${formatDateTime(phase.t)}` : "차트 자료 대기";
-    swatch.setAttribute("aria-label", swatch.title);
+    const swatches = document.createElement("span");
+    swatches.className = "watch-quote-swatches";
+    const phases = chartPhases(item.displayCharts?.intraday?.series || []);
+    for (const [label, date] of [["전일 최종", priorDate], ["오늘", today]]) {
+      const phase = phases.filter(row => row.t.slice(0, 10) === date && (label !== "전일 최종" || row.complete !== false)).at(-1);
+      const swatch = document.createElement("span");
+      swatch.className = "watch-quote-swatch";
+      if (phase) swatch.style.backgroundColor = phaseBackground(phase);
+      else { swatch.classList.add("pending"); swatch.textContent = "—"; }
+      swatch.title = phase ? `${label} · ${formatDateTime(phase.t)}` : `${label} 자료 대기`;
+      swatch.setAttribute("aria-label", swatch.title);
+      swatches.append(swatch);
+    }
     const price = document.createElement("span");
     price.className = "watch-quote-price";
     price.dataset.direction = quote.direction;
     price.textContent = quoteText(quote);
     price.title = quote.time ? `${formatDateTime(quote.time)} 수집 기준` : "가격 대기";
-    summary.append(name, group, swatch, price);
+    summary.append(name, group, swatches, price);
     row.append(summary);
     row.addEventListener("toggle", () => {
       if (row.open && !row.querySelector("iframe")) appendInlineChart(row, item, `watch-${item.code}`);
