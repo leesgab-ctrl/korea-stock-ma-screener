@@ -1023,9 +1023,10 @@ for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) {
 }
 
 function chartPhases(series) {
+  const observations = ma60Observations(series);
   let previous = null, phase = "before", deep = false, recovery = false;
-  return series.map(original => {
-    const row = {...original, phase: "before", referencePullback: false};
+  return series.map((original, index) => {
+    const row = {...original, ...observations[index], phase: "before", referencePullback: false};
     if (row.complete === false) { row.phase = phase; row.referencePullback = previous?.referencePullback || false; return row; }
     if (previous) {
       if (previous.m20 >= previous.m40 && row.m20 < row.m40) { recovery = true; phase = "pullback"; deep = false; }
@@ -1046,6 +1047,24 @@ function chartPhases(series) {
   });
 }
 
+function ma60Observations(series) {
+  return series.map((row, index) => {
+    const result = { ma60Observation: false, ma10Rising: false };
+    const previous = series[index - 1];
+    const flatRows = series.slice(Math.max(0, index - 3), index + 1);
+    if (row.complete === false || !previous || flatRows.length !== 4
+      || ![row.m40, row.m60, previous.m40, previous.m60, ...flatRows.map(entry => entry.m20)].every(value => Number.isFinite(value) && value > 0)
+      || !(row.m40 > previous.m40 && row.m60 > previous.m60)) return result;
+    const flat = flatRows.map(entry => entry.m20);
+    if ((Math.max(...flat) / Math.min(...flat) - 1) * 100 > 0.1) return result;
+    const near = [row.m3, row.m10, row.m20].some(value => Number.isFinite(value) && value > 0 && Math.abs(value / row.m60 - 1) <= 0.005 + 1e-12);
+    if (!near) return result;
+    result.ma60Observation = true;
+    result.ma10Rising = Number.isFinite(row.m10) && Number.isFinite(previous.m10) && row.m10 > previous.m10;
+    return result;
+  });
+}
+
 function maximumMaSpread(row, rounded = true, includeMa60 = true) {
   const values = [row.m3, row.m10, row.m20, row.m40];
   if (includeMa60) values.push(row.m60);
@@ -1055,6 +1074,7 @@ function maximumMaSpread(row, rounded = true, includeMa60 = true) {
 }
 
 function phaseBackground(row) {
+  if (row.ma60Observation) return row.ma10Rising ? "#cfb8e8" : "#eee4f6";
   const palettes = {
     before: ["#e9edf0", "#d0d8de", "#b7c3cd", "#9fadb9"],
     pullback: ["#fff7d1", "#ffedaa", "#ffe17a", "#ffd34d"],
@@ -1135,6 +1155,10 @@ function drawChart(series, dailyMa10, recoveryHistory = {}) {
   series.forEach((row, index) => {
     ctx.fillStyle = phaseBackground(row);
     ctx.fillRect(pad.left + slot * index, pad.top, slot + 0.5, height - pad.top - pad.bottom);
+    if (row.ma60Observation && row.referencePullback) {
+      ctx.fillStyle = "#e98bab";
+      ctx.fillRect(pad.left + slot * index, volumeTop - 8, slot + 0.5, 3);
+    }
     if (Date.parse(row.t) >= Date.parse(chartViewport.registeredAt) && recoveryHistory[row.t.slice(0, 10)]?.matched) {
       ctx.fillStyle = "#e8c748";
       ctx.fillRect(pad.left + slot * index, volumeTop - 4, slot + 0.5, 3);
@@ -1480,6 +1504,10 @@ function drawDailyChart(series, preserveWindow = false) {
     if (!phase) return;
     ctx.fillStyle = phaseBackground(phase);
     ctx.fillRect(pad.left + slot * index, pad.top, slot + 0.5, height - pad.top - pad.bottom);
+    if (phase.ma60Observation && phase.referencePullback) {
+      ctx.fillStyle = "#e98bab";
+      ctx.fillRect(pad.left + slot * index, volumeTop - 8, slot + 0.5, 3);
+    }
   });
   const x = (index) => pad.left + slot * (index + 0.5);
   const y = (value) => pad.top + ((priceMax - value) / spread) * (priceBottom - pad.top);
