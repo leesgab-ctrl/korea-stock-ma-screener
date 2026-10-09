@@ -96,6 +96,9 @@ function renderHistory() {
       <td class="${returnClass(result.peakReturn)}">${formatReturn(result.peakReturn)}</td>
       <td>${escapeHtml(result.end || "-")}</td>`;
     body.append(row);
+    row.querySelectorAll("td").forEach((cell, index) => {
+      cell.dataset.label = table.querySelectorAll("th")[index].textContent;
+    });
     const name = row.querySelector("strong");
     const button = document.createElement("button");
     button.type = "button";

@@ -66,8 +66,8 @@ main { max-width: 1480px; margin: 0 auto; padding: 18px; display: grid; gap: 14p
 .history-end-label { display: block; padding: 10px 12px; margin-bottom: 12px; background: #e4ebe8; color: #174b3f; font-size: 15px; }
 #operationsPanel, #operationContent, .watch-quotes { min-width: 0; }
 .watch-quotes-title { margin: 24px 0 4px; font-size: 18px; }
-.watch-quote-table { overflow-x: auto; }
-.watch-quote-header, .watch-quote-row > summary { grid-template-columns: minmax(100px, 1fr) 44px 80px 64px 100px 70px 84px 84px; min-width: 740px; box-sizing: border-box; }
+.watch-quote-table { width: 100%; }
+.watch-quote-header, .watch-quote-row > summary { grid-template-columns: minmax(80px, 1fr) 40px 68px 60px 90px 65px 76px 76px; box-sizing: border-box; }
 .watch-quote-header > span:not(:first-child), .watch-quote-row > summary > span:not(:first-child) { text-align: center; }
 .watch-quote-header { display: grid; align-items: center; gap: 8px; padding: 12px 8px; border-top: 2px solid #617a72; border-bottom: 1px solid #aabbb5; background: #e4ebe8; font-size: 12px; font-weight: 700; }
 .watch-quote-header small { display: block; margin-top: 5px; font-size: 11px; font-weight: 400; }
@@ -84,7 +84,23 @@ main { max-width: 1480px; margin: 0 auto; padding: 18px; display: grid; gap: 14p
 .watch-quote-price[data-direction="up"] { color: #c12d36; }
 .watch-quote-price[data-direction="down"] { color: #2463b5; }
 .watch-quote-time { font-size: 12px; color: #62746e; margin: 8px 0; }
-@media (max-width: 480px) { .watch-quote-header, .watch-quote-row > summary { gap: 6px; padding: 12px 6px; } .watch-quote-header { font-size: 11px; } .watch-quote-header small { font-size: 10px; } .watch-quote-name { font-size: 12px; } .watch-quote-group, .watch-quote-price { font-size: 11px; } }
+@media (max-width: 800px) {
+  .watch-quote-header, .watch-quote-row > summary { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px 4px; padding: 12px 4px; }
+  .watch-quote-header { font-size: 11px; }
+  .watch-quote-header small { font-size: 10px; }
+  .watch-quote-name { font-size: 12px; }
+  .watch-quote-group, .watch-quote-price { font-size: 11px; }
+  .history-list { overflow: visible; }
+  .history-table { min-width: 0; width: 100%; }
+  .history-table thead { display: none; }
+  .history-table tbody, .history-table tr { display: block; }
+  .history-table tbody > tr:not(.history-chart-row) { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-bottom: 1px solid var(--line); padding: 10px 0; }
+  .history-table td { min-width: 0; padding: 8px 4px; white-space: normal; overflow-wrap: anywhere; border: 0; font-size: 11px; }
+  .history-table td::before { content: attr(data-label); display: block; margin-bottom: 5px; color: #62746e; font-size: 10px; }
+  .history-table td:first-child { grid-column: 1 / -1; }
+  .history-chart-row td { display: block; width: 100%; box-sizing: border-box; }
+  .history-chart-row td::before { display: none; }
+}
 dialog.inline-operation-dialog { position: static; width: 100%; max-width: none; max-height: none; margin: 0; box-sizing: border-box; }
 .operation-review { padding: 18px 0; display: grid; gap: 12px; }
 .operation-review p, .operation-review li, .chart-source { font-size: 12px; line-height: 1.7; color: var(--muted); }
