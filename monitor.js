@@ -246,6 +246,7 @@ function render() {
   document.querySelector("#operationsPanel").classList.toggle("hidden", state.view !== "operations");
   document.querySelector("#viewTitle").textContent = viewLabels[state.view];
   renderOperations(activeCandidates);
+  if (document.querySelector("#watchQuotesButton").classList.contains("operation-active")) renderWatchQuotes();
   if (candidateView) renderCandidates(activeCandidates);
   const closedPositions = (state.positions?.positions || []).filter((item) => item.status === "closed");
   renderPositions(openPositions, closedPositions);
@@ -752,6 +753,52 @@ function openExclusionDialog(item, action) {
   document.querySelector("#exclusionSubmit").textContent = action === "exclude" ? "제외" : "복원";
   document.querySelector("#exclusionDialog").showModal();
 }
+
+function renderWatchQuotes() {
+  const content = document.createElement("div");
+  content.className = "watch-quotes";
+  const items = (state.payload?.candidates || []).filter(item => ["reference", "target"].includes(chartGroup(item)));
+  const entries = items.map(item => ({item, quote: displayQuote(item)})).sort((a, b) => {
+    if (a.quote.change == null && b.quote.change != null) return 1;
+    if (a.quote.change != null && b.quote.change == null) return -1;
+    return (b.quote.change ?? 0) - (a.quote.change ?? 0) || a.item.name.localeCompare(b.item.name, "ko");
+  });
+  const meta = document.createElement("p");
+  meta.className = "watch-quote-time";
+  meta.textContent = `${entries.length}종목 · 전일 종가 대비 등락률 순 · 최신 수집 가격 기준`;
+  content.append(meta);
+  for (const {item, quote} of entries) {
+    const row = document.createElement("details");
+    row.className = "watch-quote-row";
+    const summary = document.createElement("summary");
+    const name = document.createElement("span");
+    name.className = "watch-quote-name";
+    name.textContent = item.name;
+    const group = document.createElement("span");
+    group.className = "watch-quote-group";
+    group.textContent = viewLabels[chartGroup(item)];
+    const swatch = document.createElement("span");
+    swatch.className = "watch-quote-swatch";
+    const phase = chartPhases(item.displayCharts?.intraday?.series || []).at(-1);
+    if (phase) swatch.style.backgroundColor = phaseBackground(phase);
+    swatch.title = phase ? `30분봉 감시현황 · ${formatDateTime(phase.t)}` : "차트 자료 대기";
+    swatch.setAttribute("aria-label", swatch.title);
+    const price = document.createElement("span");
+    price.className = "watch-quote-price";
+    price.dataset.direction = quote.direction;
+    price.textContent = quoteText(quote);
+    price.title = quote.time ? `${formatDateTime(quote.time)} 수집 기준` : "가격 대기";
+    summary.append(name, group, swatch, price);
+    row.append(summary);
+    row.addEventListener("toggle", () => {
+      if (row.open && !row.querySelector("iframe")) appendInlineChart(row, item, `watch-${item.code}`);
+    });
+    content.append(row);
+  }
+  if (!entries.length) meta.textContent = "현재 감시대상 종목이 없습니다.";
+  openOperationContent(document.querySelector("#watchQuotesButton"), content);
+}
+document.querySelector("#watchQuotesButton").addEventListener("click", renderWatchQuotes);
 
 function openOperationContent(button, content) {
   const panel = document.querySelector("#operationsPanel");
