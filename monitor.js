@@ -152,6 +152,7 @@ async function loadData() {
       const wrap = controls.nextElementSibling;
       const details = document.createElement("details");
       details.className = "inline-daily";
+      details.open = true;
       const summary = document.createElement("summary");
       summary.textContent = "일봉";
       heading.before(details);
@@ -1138,11 +1139,14 @@ function ma60Observations(series) {
     const previous = series[index - 1];
     if (row.complete === false) return;
     if (!previous || ![row.m3, row.m20, row.m40, row.m60, previous.m40, previous.m60].every(value => Number.isFinite(value) && value > 0)
-      || !(row.m40 > previous.m40 && row.m60 > previous.m60) || row.m3 >= row.m20) {
+      || !(row.m60 > previous.m60) || row.m3 >= row.m20) {
       start = -1;
       confirmed = false;
       return;
     }
+    const rising40 = row.m40 > previous.m40;
+    const near60 = row.m3 < row.m60 && (row.m60 - row.m3) / row.m60 <= 0.01 + 1e-12;
+    if (!confirmed && !rising40) { start = -1; return; }
     if (start < 0) start = index;
     if (!confirmed && row.m20 < row.m40) {
       confirmed = true;
@@ -1150,8 +1154,8 @@ function ma60Observations(series) {
       for (let i = start; i <= index; i += 1) results[i].ma60Observation = true;
     }
     if (!confirmed) return;
-    results[index].ma60Observation = true;
-    results[index].ma10Rising = row.m3 < row.m60 && (row.m60 - row.m3) / row.m60 <= 0.01 + 1e-12;
+    results[index].ma60Observation = rising40 || near60;
+    results[index].ma10Rising = near60;
   });
   return results;
 }
