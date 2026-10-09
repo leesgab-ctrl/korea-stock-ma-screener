@@ -520,7 +520,7 @@ function renderCandidates(candidates) {
     node.querySelector(".candidate-quote").textContent = quoteText(quote);
     const maximumSpread = candidateMaximumSpread(item);
     const outlook = candidateOutlook(item);
-    node.querySelector(".candidate-spread").textContent = `${outlook.label} · 최대 ${maximumSpread === null ? "—" : `${maximumSpread.toFixed(1)}%`}`;
+    node.querySelector(".candidate-spread").textContent = `전망 ${outlook.label} · 최대 ${maximumSpread === null ? "—" : `${maximumSpread.toFixed(1)}%`}`;
     node.querySelector(".candidate-spread").title = `전망: ${outlook.time ? formatDateTime(outlook.time) : "자료 부족"} 완성봉 기준 · MA20·MA40 최근 3봉 변화 ±0.1% 이내 수평 · 미래 수익 보장 아님\n최대 간격: 최신 완성 30분봉 · MA3·10·20·40·60`;
     node.querySelector(".candidate-quote").title = quote.time ? `${formatDateTime(quote.time)} 수집 기준` : "수집 대기";
     node.querySelector(".candidate-status").textContent = statusLabels[item.status] || "확인 필요";
