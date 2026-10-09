@@ -1131,21 +1131,29 @@ function chartPhases(series) {
 }
 
 function ma60Observations(series) {
-  return series.map((row, index) => {
-    const result = { ma60Observation: false, ma10Rising: false };
+  const results = series.map(() => ({ ma60Observation: false, ma10Rising: false }));
+  let start = -1;
+  let confirmed = false;
+  series.forEach((row, index) => {
     const previous = series[index - 1];
-    const flatRows = series.slice(Math.max(0, index - 3), index + 1);
-    if (row.complete === false || !previous || flatRows.length !== 4
-      || ![row.m40, row.m60, previous.m40, previous.m60, ...flatRows.map(entry => entry.m20)].every(value => Number.isFinite(value) && value > 0)
-      || !(row.m40 > previous.m40 && row.m60 > previous.m60)) return result;
-    const flat = flatRows.map(entry => entry.m20);
-    if ((Math.max(...flat) / Math.min(...flat) - 1) * 100 > 0.1) return result;
-    const near = [row.m3, row.m10, row.m20].some(value => Number.isFinite(value) && value > 0 && Math.abs(value / row.m60 - 1) <= 0.005 + 1e-12);
-    if (!near) return result;
-    result.ma60Observation = true;
-    result.ma10Rising = Number.isFinite(row.m10) && Number.isFinite(previous.m10) && row.m10 > previous.m10;
-    return result;
+    if (row.complete === false) return;
+    if (!previous || ![row.m3, row.m20, row.m40, row.m60, previous.m40, previous.m60].every(value => Number.isFinite(value) && value > 0)
+      || !(row.m40 > previous.m40 && row.m60 > previous.m60) || row.m3 >= row.m20) {
+      start = -1;
+      confirmed = false;
+      return;
+    }
+    if (start < 0) start = index;
+    if (!confirmed && row.m20 < row.m40) {
+      confirmed = true;
+      // Retrospective chart shading only; signal timestamps are unchanged.
+      for (let i = start; i <= index; i += 1) results[i].ma60Observation = true;
+    }
+    if (!confirmed) return;
+    results[index].ma60Observation = true;
+    results[index].ma10Rising = row.m3 < row.m60 && (row.m60 - row.m3) / row.m60 <= 0.01 + 1e-12;
   });
+  return results;
 }
 
 function maximumMaSpread(row, rounded = true, includeMa60 = true) {
