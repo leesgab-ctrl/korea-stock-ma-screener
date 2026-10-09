@@ -44,7 +44,7 @@ function historyEvaluation(item) {
   const end = (item.archivedAt || item.outcome?.finalDate || "").slice(0, 10);
   const chart = item.displayCharts?.daily;
   const daily = (chart?.history?.length ? chart.history : chart?.series || []).filter(row => row.complete !== false && row.c > 0).sort((a, b) => a.d.localeCompare(b.d));
-  const baseline = daily.find(row => row.d === registered)?.c;
+  const baseline = Number.isFinite(item.registrationPrice) && item.registrationPrice > 0 ? item.registrationPrice : null;
   const rows = daily.filter(row => row.d >= registered && row.d <= end);
   if (!baseline || !end || !rows.length) return {valid: false, registered, end};
   const hit = rows.find(row => row.c >= baseline * 1.05);
