@@ -114,7 +114,8 @@ main { max-width: 1480px; margin: 0 auto; padding: 18px; display: grid; gap: 14p
 .position-group-title { grid-column: 1 / -1; min-height: 34px; padding: 5px 2px; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .position-group-title span { color: var(--muted); font-size: 12px; }
 .position-item { min-width: 0; padding: 12px; display: grid; gap: 8px; border: 1px solid var(--line); border-radius: 7px; }
-.position-item.selected { border-color: var(--green); background: #f4faf7; }
+.position-item.selected { border-color: var(--green); background: #edf0f2; }
+.position-item { background: #f1f3f5; }
 .position-item { grid-template-columns: minmax(180px, 1.3fr) repeat(3, minmax(140px, 1fr)) auto; align-items: center; }
 .position-item .position-select { flex-wrap: wrap; justify-content: flex-start; gap: 4px 8px; }
 .position-quote { flex-basis: 100%; font-weight: 700; }
@@ -254,6 +255,7 @@ main { max-width: 1480px; margin: 0 auto; padding: 18px; display: grid; gap: 14p
 .candidate-progress-row { display: grid; grid-template-columns: minmax(0, 1fr) 38px; align-items: center; gap: 9px; }
 .candidate-rise { color: var(--muted); font-size: 11px; text-align: right; }
 .candidate-progress i { display: block; height: 100%; background: var(--green); }
+.candidate[data-status], .candidate.selected, .candidate:hover { background: #f1f3f5; }
 .candidate[data-status="signal"] .candidate-progress i { background: var(--red); }
 .candidate[data-status="signaled"] .candidate-progress i { background: var(--blue); }
 .candidate[data-status="rising"] .candidate-progress i { background: var(--amber); }
