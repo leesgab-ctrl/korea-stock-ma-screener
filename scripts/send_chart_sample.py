@@ -23,6 +23,8 @@ def main():
         with sync_playwright() as pw:
             browser = pw.chromium.launch()
             page = browser.new_page(viewport={"width": 720, "height": 1400}, device_scale_factor=1.5)
+            preview = {**payload, "history": [candidate]}
+            page.route("**/data/candidate-monitor.json?*", lambda route: route.fulfill(json=preview))
             page.goto(f"http://127.0.0.1:{server.server_port}/monitor.html?historyChart=1&stock=145720")
             page.wait_for_function("document.querySelector('.detail-panel canvas')?.width > 0")
             page.wait_for_timeout(1500)
