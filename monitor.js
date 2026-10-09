@@ -1038,7 +1038,7 @@ function phaseBackground(row) {
   const level = backgroundPhase === "before" ? (spread <= 0.5 ? 1 : 0)
     : spread <= 0.5 ? 2 : spread < 1 ? 1 : 0;
   const fullSpread = maximumMaSpread(row);
-  const extraLevel = fullSpread !== null && fullSpread <= 1 ? 1 : 0;
+  const extraLevel = fullSpread !== null && fullSpread <= 0.8 ? 1 : 0;
   return palette[Math.min(level + extraLevel, palette.length - 1)];
 }
 
