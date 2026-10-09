@@ -754,6 +754,21 @@ function openExclusionDialog(item, action) {
   document.querySelector("#exclusionDialog").showModal();
 }
 
+function watchReturns(item, quote) {
+  const registered = item.registeredAt?.slice(0, 10);
+  const daily = item.displayCharts?.daily?.history || item.displayCharts?.daily?.series || [];
+  const nowDay = new Intl.DateTimeFormat("en-CA", {timeZone: "Asia/Seoul", year: "numeric", month: "2-digit", day: "2-digit"}).format(new Date());
+  const complete = daily.filter(row => row.complete !== false && (row.d < nowDay || (row.d === quote.time?.slice(0, 10) && quote.time.slice(11, 16) >= "15:30")));
+  const registrationClose = complete.find(row => row.d === registered)?.c;
+  const provisional = !registrationClose && registered === quote.time?.slice(0, 10) && registered === nowDay;
+  const baseline = registrationClose || (provisional ? quote.price : null);
+  const closes = complete.filter(row => row.d >= registered && row.c > 0).map(row => row.c);
+  const dates = new Set([...daily.map(row => row.d), ...(item.displayCharts?.intraday?.series || []).map(row => row.t.slice(0, 10))].filter(day => day >= registered && day <= quote.time?.slice(0, 10)));
+  return {days: registered && quote.time ? dates.size : null, provisional, baseline,
+    maximum: baseline && closes.length ? (Math.max(...closes) / baseline - 1) * 100 : null,
+    current: baseline && quote.price ? (quote.price / baseline - 1) * 100 : null};
+}
+
 function renderWatchQuotes() {
   const content = document.createElement("div");
   content.className = "watch-quotes";
@@ -777,18 +792,26 @@ function renderWatchQuotes() {
   meta.textContent += today ? ` · 기준 ${today}` : "";
   const header = document.createElement("div");
   header.className = "watch-quote-header";
-  for (const label of ["종목명", "유형", "감시현황", "최종가격", "등락률"]) {
+  for (const label of ["종목명", "유형", "감시현황", "등록기간", "최종가격", "등락률", "최고수익률", "현재수익률"]) {
     const cell = document.createElement("span");
     cell.textContent = label;
     if (label === "감시현황") {
       cell.title = "30분봉 감시현황";
       const dates = document.createElement("small");
-      dates.textContent = "전일　　 오늘";
+      dates.className = "watch-quote-swatches";
+      for (const label of ["전일", "오늘"]) {
+        const dateLabel = document.createElement("span");
+        dateLabel.textContent = label;
+        dates.append(dateLabel);
+      }
       cell.append(dates);
     }
     header.append(cell);
   }
-  content.append(header);
+  const table = document.createElement("div");
+  table.className = "watch-quote-table";
+  content.append(table);
+  table.append(header);
   for (const {item, quote} of entries) {
     const row = document.createElement("details");
     row.className = "watch-quote-row";
@@ -799,7 +822,7 @@ function renderWatchQuotes() {
     name.textContent = item.name;
     const group = document.createElement("span");
     group.className = "watch-quote-group";
-    group.textContent = viewLabels[chartGroup(item)];
+    group.textContent = chartGroup(item) === "reference" ? "상승" : "조정";
     const swatches = document.createElement("span");
     swatches.className = "watch-quote-swatches";
     const phases = chartPhases(item.displayCharts?.intraday?.series || []);
@@ -822,12 +845,25 @@ function renderWatchQuotes() {
     change.dataset.direction = quote.direction;
     change.textContent = quote.change == null ? "대기" : `${quote.change > 0 ? "+" : ""}${formatter.format(quote.change)}%`;
     price.title = quote.time ? `${formatDateTime(quote.time)} 수집 기준` : "가격 대기";
-    summary.append(name, group, swatches, price, change);
+    const returns = watchReturns(item, quote);
+    const period = document.createElement("span");
+    period.className = "watch-quote-group";
+    period.textContent = returns.days ? `${returns.days}일째` : "대기";
+    period.title = `등록 ${item.registeredAt?.slice(0, 10) || "미확인"} · 거래일 기준`;
+    const returnCell = (value, label) => {
+      const cell = document.createElement("span");
+      cell.className = "watch-quote-price";
+      cell.dataset.direction = value == null ? "" : value > 0 ? "up" : value < 0 ? "down" : "flat";
+      cell.textContent = value == null ? "대기" : `${value > 0 ? "+" : ""}${formatter.format(value)}%${returns.provisional ? "*" : ""}`;
+      cell.title = `${label} · ${returns.provisional ? "등록일 장중 현재가 임시 기준" : "등록일 일봉 종가 기준"}${returns.baseline ? ` ${Math.round(returns.baseline).toLocaleString("ko-KR")}원` : " · 기준자료 없음"}`;
+      return cell;
+    };
+    summary.append(name, group, swatches, period, price, change, returnCell(returns.maximum, "일봉 종가 최고수익률"), returnCell(returns.current, "최신 수집 현재가 수익률"));
     row.append(summary);
     row.addEventListener("toggle", () => {
       if (row.open && !row.querySelector("iframe")) appendInlineChart(row, item, `watch-${item.code}`);
     });
-    content.append(row);
+    table.append(row);
   }
   if (!entries.length) meta.textContent = "현재 감시대상 종목이 없습니다.";
   openOperationContent(document.querySelector("#watchQuotesButton"), content);
