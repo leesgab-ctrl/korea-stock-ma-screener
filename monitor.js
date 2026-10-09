@@ -1019,11 +1019,11 @@ function maximumMaSpread(row, rounded = true, includeMa60 = true) {
 
 function phaseBackground(row) {
   const palettes = {
-    before: ["#e9edf0", "#e9edf0", "#e9edf0"],
-    pullback: ["#fff7d1", "#ffedaa", "#ffe17a"],
-    fast: ["#eef8d6", "#dfefb3", "#cde58c"],
-    confirmed: ["#dff2e7", "#c3e6d2", "#a5d8bb"],
-    reference: ["#fce4ec", "#f8cbdc", "#f2abc6"],
+    before: ["#e9edf0", "#d0d8de", "#b7c3cd", "#9fadb9"],
+    pullback: ["#fff7d1", "#ffedaa", "#ffe17a", "#ffd34d"],
+    fast: ["#eef8d6", "#dfefb3", "#cde58c", "#badb68"],
+    confirmed: ["#dff2e7", "#c3e6d2", "#a5d8bb", "#87cba4"],
+    reference: ["#fce4ec", "#f8cbdc", "#f2abc6", "#e98bab"],
   };
   const rawSpread = maximumMaSpread(row, false);
   const yellow = rawSpread !== null && rawSpread >= 2
@@ -1034,9 +1034,12 @@ function phaseBackground(row) {
     : row.phase === "pullback" ? "before" : row.phase;
   const palette = palettes[backgroundPhase] || palettes.before;
   const spread = maximumMaSpread(row, true, backgroundPhase !== "reference");
-  if (backgroundPhase === "before") return spread !== null && spread <= 0.5 ? "#d0d8de" : palette[0];
   if (spread === null) return palette[0];
-  return palette[spread <= 0.5 ? 2 : spread < 1 ? 1 : 0];
+  const level = backgroundPhase === "before" ? (spread <= 0.5 ? 1 : 0)
+    : spread <= 0.5 ? 2 : spread < 1 ? 1 : 0;
+  const fullSpread = maximumMaSpread(row);
+  const extraLevel = fullSpread !== null && fullSpread < 0.8 ? 1 : 0;
+  return palette[Math.min(level + extraLevel, palette.length - 1)];
 }
 
 function drawChart(series, dailyMa10, recoveryHistory = {}) {
