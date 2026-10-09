@@ -47,7 +47,7 @@ def main():
     request = urllib.request.Request("https://ntfy.sh/" + os.environ["NTFY_TOPIC"].strip(), data=image, headers={
         "Content-Type": "image/png", "Filename": "dentium-chart-test.png",
         "Title": Header("덴티움 이평선 밀착 포착 · 형식 확인용", "utf-8", maxlinelen=10000).encode(),
-        "Message": Header(message, "utf-8", maxlinelen=10000).encode(),
+        "Message": Header(message.replace("\n", " · "), "utf-8", maxlinelen=10000).encode(),
         "Click": "https://leesgab-ctrl.github.io/korea-stock-ma-screener/monitor.html?stock=145720",
         "Priority": "3",
     })
