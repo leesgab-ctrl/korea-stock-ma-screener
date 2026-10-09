@@ -1,5 +1,9 @@
 const requestedCode = new URLSearchParams(window.location.search).get("stock");
 const historyChartMode = new URLSearchParams(window.location.search).get("historyChart") === "1";
+const inlineChartMode = new URLSearchParams(window.location.search).get("inlineChart") === "1";
+const inlineChartItems = new Map();
+const inlineChartObservers = [];
+window.getMonitorInlineChart = key => ({ item: inlineChartItems.get(key), payload: state.payload });
 const PENDING_EXCLUSION_KEY = "koreaStockMonitor.pendingExclusions";
 function readPendingExclusions() {
   try {
@@ -134,6 +138,34 @@ function chartGroup(item) {
 const formatter = new Intl.NumberFormat("ko-KR", { maximumFractionDigits: 2 });
 
 async function loadData() {
+  if (inlineChartMode) {
+    const key = new URLSearchParams(window.location.search).get("chartKey");
+    const source = window.parent.getMonitorInlineChart?.(key);
+    if (!source?.item) return;
+    state.payload = { ...source.payload, candidates: [source.item] };
+    state.selectedCode = source.item.code;
+    document.body.classList.add("history-chart-mode", "inline-chart-mode");
+    document.body.append(elements.detailPanel);
+    const heading = elements.dailyChartMeta.parentElement;
+    if (!document.querySelector(".inline-daily")) {
+      const controls = heading.nextElementSibling;
+      const wrap = controls.nextElementSibling;
+      const details = document.createElement("details");
+      details.className = "inline-daily";
+      const summary = document.createElement("summary");
+      summary.textContent = "일봉";
+      heading.before(details);
+      details.append(summary, heading, controls, wrap);
+      heading.hidden = true;
+      heading.style.display = "none";
+      details.addEventListener("toggle", () => {
+        if (details.open) drawDailyChart(source.item.displayCharts?.daily?.series || [], true);
+      });
+    }
+    renderDetail(source.item);
+    state.lastLoadedAt = Date.now();
+    return;
+  }
   if (elements.refreshButton.disabled) return;
   clearTimeout(exclusionPollTimer);
   elements.refreshButton.disabled = true;
@@ -176,6 +208,8 @@ async function loadData() {
 }
 
 function render() {
+  inlineChartObservers.splice(0).forEach(observer => observer.disconnect());
+  inlineChartItems.clear();
   restoreDetailPanel();
   const { summary = {}, validationSummary = {}, candidates = [], asOf, generatedAt } = state.payload;
   const activeCandidates = candidates;
@@ -214,11 +248,13 @@ function render() {
   if (candidateView) renderCandidates(activeCandidates);
   const closedPositions = (state.positions?.positions || []).filter((item) => item.status === "closed");
   renderPositions(openPositions, closedPositions);
+  document.querySelector(".workspace").classList.toggle("expanded-charts", Boolean(state.expandedCharts && candidateView));
+  elements.detailPanel.classList.toggle("hidden", Boolean(state.expandedCharts && state.view !== "operations"));
   placeDetailPanel();
   renderSelectedDetail();
   if (state.deepLinkPending && state.selectedCode && candidateView) {
     state.deepLinkPending = false;
-    requestAnimationFrame(() => elements.detailPanel.scrollIntoView({ behavior: "smooth", block: "start" }));
+    requestAnimationFrame(() => scrollSelectedChart());
   }
 }
 
@@ -226,6 +262,10 @@ function selectedDetailItem() {
   if (state.view !== "positions") return state.payload?.candidates?.find((item) => item.code === state.selectedCode);
   const position = state.positions?.positions?.find((item) => item.status === "open" && positionKey(item) === state.selectedPositionCode);
   if (!position) return null;
+  return positionDetailItem(position);
+}
+
+function positionDetailItem(position) {
   const candidate = [...(state.payload?.candidates || []), ...(state.payload?.history || [])].find((item) => item.code === position.code);
   const quote = displayQuote(position);
   return { ...(candidate || {}), ...position,
@@ -237,6 +277,36 @@ function selectedDetailItem() {
 
 function renderSelectedDetail() {
   renderDetail(selectedDetailItem());
+}
+
+function appendInlineChart(container, item, key) {
+  inlineChartItems.set(key, item);
+  const frame = document.createElement("iframe");
+  frame.className = "inline-stock-chart";
+  frame.dataset.chartKey = key;
+  frame.title = `${item.name} 30분봉과 일봉`;
+  frame.loading = "lazy";
+  const url = new URL("monitor.html", window.location.href);
+  url.searchParams.set("inlineChart", "1");
+  url.searchParams.set("stock", item.code);
+  url.searchParams.set("chartKey", key);
+  frame.src = url;
+  frame.addEventListener("load", () => {
+    const panel = frame.contentDocument?.querySelector(".detail-panel");
+    if (!panel) return;
+    const resize = () => { frame.style.height = `${Math.ceil(panel.getBoundingClientRect().height) + 2}px`; };
+    const observer = new ResizeObserver(resize);
+    observer.observe(panel);
+    inlineChartObservers.push(observer);
+    resize();
+  });
+  container.append(frame);
+}
+
+function scrollSelectedChart() {
+  const key = state.view === "positions" ? `position:${state.selectedPositionCode}` : state.selectedCode;
+  const frame = [...document.querySelectorAll(".inline-stock-chart")].find(entry => entry.dataset.chartKey === key);
+  (frame || elements.detailPanel).scrollIntoView({ block: "start" });
 }
 
 function renderViewCounts(candidates, positions) {
@@ -340,6 +410,8 @@ function quoteText(quote) {
 }
 
 function renderPositions(positions, closedPositions = []) {
+  const expanded = positions.length > 0 && positions.length < 20;
+  if (state.view === "positions") state.expandedCharts = expanded;
   elements.positionList.innerHTML = "";
   if (!positions.length && !closedPositions.length) {
     elements.positionList.innerHTML = '<div class="empty-list">등록된 보유종목이 없습니다. “보유 등록·수정”에서 추가하세요.</div>';
@@ -376,6 +448,7 @@ function renderPositions(positions, closedPositions = []) {
     selectButton.setAttribute("aria-pressed", String(positionKey(item) === state.selectedPositionCode));
     selectButton.addEventListener("click", () => {
       state.selectedPositionCode = positionKey(item);
+      if (expanded) { scrollSelectedChart(); return; }
       render();
       requestAnimationFrame(() => elements.detailPanel.scrollIntoView({ block: "start" }));
     });
@@ -402,6 +475,7 @@ function renderPositions(positions, closedPositions = []) {
       openPositionDialog(candidate, item, "sold");
     });
     elements.positionList.append(article);
+    if (expanded && state.view === "positions") appendInlineChart(elements.positionList, positionDetailItem(item), `position:${positionKey(item)}`);
   }
   if (closedPositions.length) {
     const recentClosed = [...closedPositions]
@@ -495,6 +569,7 @@ function renderCandidates(candidates) {
     (statusPriority[a.status] ?? 99) - (statusPriority[b.status] ?? 99)
     || a.name.localeCompare(b.name, "ko")
   );
+  state.expandedCharts = visible.length > 0 && visible.length < 20;
   elements.candidateMeta.textContent = `${visible.length}종목 · ${state.view === "new" ? "오늘·직전 거래일 등록" : state.view === "target" ? "등록 이후 MA20 < MA40" : "등록 이후 MA20 > MA40"}`;
   elements.candidateList.innerHTML = "";
   if (!visible.length) {
@@ -555,6 +630,11 @@ function renderCandidates(candidates) {
       const url = new URL(window.location.href);
       url.searchParams.set("stock", item.code);
       window.history.replaceState(null, "", url);
+      if (state.expandedCharts) {
+        elements.candidateList.querySelectorAll(".candidate").forEach(entry => entry.classList.toggle("selected", entry.dataset.code === item.code));
+        scrollSelectedChart();
+        return;
+      }
       render();
       requestAnimationFrame(() => elements.detailPanel.scrollIntoView({ block: "start" }));
     });
@@ -564,6 +644,7 @@ function renderCandidates(candidates) {
     });
     node.querySelector(".candidate-exclude").addEventListener("click", () => openExclusionDialog(item, "exclude"));
     elements.candidateList.append(node);
+    if (state.expandedCharts) appendInlineChart(elements.candidateList, item, item.code);
   }
 }
 
@@ -574,6 +655,8 @@ function restoreDetailPanel() {
 }
 
 function placeDetailPanel() {
+  if (inlineChartMode || historyChartMode) return;
+  if (state.expandedCharts && state.view !== "operations") return;
   if (state.view === "positions") {
     document.querySelector(".positions-panel").append(elements.detailPanel);
     return;
