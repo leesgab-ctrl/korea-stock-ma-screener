@@ -16,7 +16,8 @@ def main():
     bar = next(b for b in reversed(candidate["displayCharts"]["intraday"]["series"]) if b.get("complete"))
     daily = candidate["displayCharts"]["daily"]["history"]
     prior = sorted((b for b in daily if b["d"] < bar["t"][:10]), key=lambda b: b["d"])[-3:]
-    loss = (min(b["l"] for b in prior) / bar["c"] - 1) * 100 if len(prior) == 3 else None
+    stop = min(b["l"] for b in prior) if len(prior) == 3 else None
+    loss = (stop / bar["c"] - 1) * 100 if stop is not None else None
     server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), functools.partial(http.server.SimpleHTTPRequestHandler, directory=str(root)))
     threading.Thread(target=server.serve_forever, daemon=True).start()
     try:
@@ -38,7 +39,7 @@ def main():
         server.shutdown()
     message = f"TEST ONLY - historical chart, not a live buy signal. Dentium 145720. Reference price KRW {bar['c']:,}."
     if loss is not None:
-        message += f" Stop reference {loss:+.2f}% (previous 3 trading days low)."
+        message += f" Stop reference {loss:+.2f}% / KRW {stop:,.0f} (previous 3 trading days low)."
     message += f" Bar: {bar['t']}."
     request = urllib.request.Request("https://ntfy.sh/" + os.environ["NTFY_TOPIC"].strip(), data=image, headers={
         "Content-Type": "image/png", "Filename": "dentium-chart-test.png",
