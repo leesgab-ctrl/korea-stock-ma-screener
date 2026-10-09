@@ -184,7 +184,23 @@ async function loadData() {
       state.selectedCode = archived?.code || null;
       document.body.classList.add("history-chart-mode");
       document.body.append(elements.detailPanel);
-      if (archived) renderDetail(archived);
+      if (archived) {
+        const end = (archived.archivedAt || archived.outcome?.finalDate || "").slice(0, 10);
+        const snapshot = structuredClone(archived);
+        if (end) {
+          for (const [kind, key] of [["intraday", "t"], ["daily", "d"]]) {
+            const chart = snapshot.displayCharts?.[kind];
+            if (!chart) continue;
+            for (const field of ["series", "history"]) if (chart[field]) chart[field] = chart[field].filter(row => row[key].slice(0, 10) <= end);
+          }
+        }
+        state.payload.candidates = [snapshot];
+        renderDetail(snapshot);
+        const label = document.createElement("strong");
+        label.className = "history-end-label";
+        label.textContent = end ? `종료일 ${end} 기준` : "종료일 기록 없음";
+        elements.detailPanel.prepend(label);
+      }
       else elements.detailPanel.textContent = "저장된 차트 자료가 없습니다.";
       return;
     }

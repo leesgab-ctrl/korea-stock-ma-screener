@@ -5,18 +5,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#176b58">
     <title>A-G 후보 검증 이력</title>
-    <link rel="stylesheet" href="monitor.css?v=20261008-history">
+    <link rel="stylesheet" href="monitor.css?v=20261010-6">
   </head>
   <body>
     <header class="topbar">
       <div class="brand-lockup">
-        <span class="brand-mark">K</span>
         <div>
           <h1>A-G 후보 검증 이력</h1>
-          <p>10거래일 관리 종료 종목</p>
         </div>
       </div>
       <nav aria-label="화면 이동">
+        <div id="historyNotice" class="history-status"><strong id="historyStatus">검증 이력 확인 중</strong><span id="historyUpdatedAt"></span></div>
         <a class="history-link" href="monitor.html">현재 감시</a>
         <button id="refreshButton" type="button">새로고침</button>
       </nav>
@@ -30,19 +29,12 @@
         <div><strong id="reachedRate">-</strong><span>종료 후보 달성률</span></div>
       </section>
 
-      <section id="historyNotice" class="notice" aria-label="이력 상태">
-        <div>
-          <strong id="historyStatus">검증 이력 확인 중</strong>
-          <p id="historyUpdatedAt">마지막 갱신 시각을 불러오고 있습니다.</p>
-        </div>
-        <span class="status-chip">종료 후보 전용</span>
-      </section>
 
       <section class="history-panel" aria-label="A-G 종료 후보">
         <div class="section-heading">
           <div>
             <h2>종료 후보 목록</h2>
-            <p>화면 등록 당시 기준가 대비 +5% · 등록 전 상승은 제외 · 매수포착 후 기간 별도 표시 · 실제 매매수익과 다릅니다.</p>
+            <p>등록일 종가 기준 · 종료일까지 일봉 종가로 평가 · 실제 매매수익과 다릅니다.</p>
           </div>
         </div>
         <div class="history-toolbar">
@@ -58,6 +50,6 @@
       </section>
     </main>
 
-    <script src="history.js?v=20261008-history"></script>
+    <script src="history.js?v=20261010-6"></script>
   </body>
 </html>

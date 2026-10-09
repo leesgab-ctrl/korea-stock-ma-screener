@@ -58,6 +58,12 @@ main { max-width: 1480px; margin: 0 auto; padding: 18px; display: grid; gap: 14p
 #operationsPanel.operation-selected > section { display: none; }
 .operation-frame { width: 100%; height: 85vh; min-height: 600px; border: 0; display: block; }
 .watch-quotes { width: 100%; }
+.history-status { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px 12px; font-size: 12px; }
+.history-page .summary { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.history-page .summary > div { display: flex; flex-direction: column-reverse; gap: 6px; padding: 10px 6px; }
+.history-page .summary strong { font-size: 20px; }
+.history-page .summary span { font-size: 12px; }
+.history-end-label { display: block; padding: 10px 12px; margin-bottom: 12px; background: #e4ebe8; color: #174b3f; font-size: 15px; }
 #operationsPanel, #operationContent, .watch-quotes { min-width: 0; }
 .watch-quotes-title { margin: 24px 0 4px; font-size: 18px; }
 .watch-quote-table { overflow-x: auto; }
