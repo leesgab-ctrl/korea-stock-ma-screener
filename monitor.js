@@ -14,7 +14,7 @@ const state = {
   payload: null,
   lastLoadedAt: 0,
   positions: null,
-  view: "target",
+  view: "reference",
   keyword: "",
   selectedCode: requestedCode && /^\d{6}$/.test(requestedCode) ? requestedCode : null,
   selectedPositionCode: null,
@@ -456,9 +456,22 @@ function filteredCandidates(candidates) {
   });
 }
 
+function candidateMaximumSpread(item) {
+  const row = item.displayCharts?.intraday?.series?.filter(row => row.complete !== false).at(-1);
+  return row ? maximumMaSpread(row, false) : null;
+}
+
+function compareCandidateSpread(a, b) {
+  const left = candidateMaximumSpread(a);
+  const right = candidateMaximumSpread(b);
+  if (left === null && right !== null) return 1;
+  if (left !== null && right === null) return -1;
+  return (left !== null && right !== null ? left - right : 0) || a.name.localeCompare(b.name, "ko");
+}
+
 function renderCandidates(candidates) {
   restoreDetailPanel();
-  const visible = filteredCandidates(candidates).sort((a, b) =>
+  const visible = filteredCandidates(candidates).sort(["target", "reference"].includes(state.view) ? compareCandidateSpread : (a, b) =>
     (statusPriority[a.status] ?? 99) - (statusPriority[b.status] ?? 99)
     || a.name.localeCompare(b.name, "ko")
   );
@@ -485,6 +498,9 @@ function renderCandidates(candidates) {
     const direction = quote.direction;
     node.querySelector(".candidate-title").dataset.direction = direction;
     node.querySelector(".candidate-quote").textContent = quoteText(quote);
+    const maximumSpread = candidateMaximumSpread(item);
+    node.querySelector(".candidate-spread").textContent = `최대 ${maximumSpread === null ? "—" : `${maximumSpread.toFixed(1)}%`}`;
+    node.querySelector(".candidate-spread").title = "최신 완성 30분봉 · MA3·10·20·40·60 최대 간격";
     node.querySelector(".candidate-quote").title = quote.time ? `${formatDateTime(quote.time)} 수집 기준` : "수집 대기";
     node.querySelector(".candidate-status").textContent = statusLabels[item.status] || "확인 필요";
     if (intraday.sessionRecovery?.matched) {

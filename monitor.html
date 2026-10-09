@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#176b58">
     <title>A-G 30분봉 신호 감시</title>
-    <link rel="stylesheet" href="monitor.css?v=20261009-2">
+    <link rel="stylesheet" href="monitor.css?v=20261009-3">
   </head>
   <body>
     <header class="topbar">
@@ -22,8 +22,8 @@
     <main>
       <nav class="main-tabs" aria-label="감시 메뉴" role="tablist">
         <button class="view-tab" data-view="new" type="button" role="tab" aria-selected="false">신규종목</button>
-        <button class="view-tab active" data-view="target" type="button" role="tab" aria-selected="true">조정회복형</button>
-        <button class="view-tab" data-view="reference" type="button" role="tab" aria-selected="false">상승조정형</button>
+        <button class="view-tab active" data-view="reference" type="button" role="tab" aria-selected="true">상승조정형</button>
+        <button class="view-tab" data-view="target" type="button" role="tab" aria-selected="false">조정회복형</button>
         <button class="view-tab" data-view="positions" type="button" role="tab" aria-selected="false">보유종목</button>
         <button class="view-tab" data-view="operations" type="button" role="tab" aria-selected="false">운영관리</button>
       </nav>
@@ -154,7 +154,7 @@
     <template id="candidateTemplate">
       <article class="candidate">
         <button class="candidate-select" type="button">
-          <span class="candidate-top"><span class="candidate-title"><strong class="candidate-name"></strong><span class="candidate-quote"></span></span><span class="candidate-status"></span></span>
+          <span class="candidate-top"><span class="candidate-title"><strong class="candidate-name"></strong><span class="candidate-quote"></span><span class="candidate-spread"></span></span><span class="candidate-status"></span></span>
           <span class="candidate-identity"><span class="candidate-code"></span><span class="candidate-tier"></span></span>
           <span class="candidate-bottom"><span class="candidate-days"></span><span class="candidate-price"></span></span>
         </button>
@@ -294,6 +294,6 @@
     <dialog id="excludedListDialog" class="position-dialog">
       <div class="position-form"><h2>사용자 선정 제외</h2><div id="excludedList"></div><button id="excludedListClose" type="button">닫기</button></div>
     </dialog>
-  <script src="monitor.js?v=20261009-17"></script>
+  <script src="monitor.js?v=20261009-18"></script>
   </body>
 </html>
