@@ -461,6 +461,26 @@ function candidateMaximumSpread(item) {
   return row ? maximumMaSpread(row, false) : null;
 }
 
+function candidateOutlook(item, today = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date())) {
+  const rows = (item.displayCharts?.intraday?.series || [])
+    .filter(row => row.complete !== false && row.t?.slice(0, 10) < today);
+  const last = rows.at(-1);
+  const base = rows.at(-4);
+  const pending = { label: "판단 대기", time: last?.t || "" };
+  if (!last || !base || ![last.c, last.m20, last.m40, base.m20, base.m40].every(value => Number.isFinite(value) && value > 0)) return pending;
+  const slope20 = (last.m20 / base.m20 - 1) * 100;
+  const slope40 = (last.m40 / base.m40 - 1) * 100;
+  const direction = value => value > 0.1 ? 1 : value < -0.1 ? -1 : 0;
+  const short = direction(slope20), medium = direction(slope40);
+  let label = "판단 대기";
+  if (short === 1 && medium === 1 && last.c > Math.max(last.m20, last.m40)) label = "상승";
+  else if (short === -1 && medium === -1 && last.c < Math.min(last.m20, last.m40)) label = "하락";
+  else if (short === 0 && medium === 0) label = "횡보";
+  else if (short >= 0 && medium >= 0) label = "상승·횡보";
+  else if (short <= 0 && medium <= 0) label = "횡보·하락";
+  return { label, time: last.t };
+}
+
 function compareCandidateSpread(a, b) {
   const left = candidateMaximumSpread(a);
   const right = candidateMaximumSpread(b);
@@ -499,8 +519,9 @@ function renderCandidates(candidates) {
     node.querySelector(".candidate-title").dataset.direction = direction;
     node.querySelector(".candidate-quote").textContent = quoteText(quote);
     const maximumSpread = candidateMaximumSpread(item);
-    node.querySelector(".candidate-spread").textContent = `최대 ${maximumSpread === null ? "—" : `${maximumSpread.toFixed(1)}%`}`;
-    node.querySelector(".candidate-spread").title = "최신 완성 30분봉 · MA3·10·20·40·60 최대 간격";
+    const outlook = candidateOutlook(item);
+    node.querySelector(".candidate-spread").textContent = `${outlook.label} · 최대 ${maximumSpread === null ? "—" : `${maximumSpread.toFixed(1)}%`}`;
+    node.querySelector(".candidate-spread").title = `전망: ${outlook.time ? formatDateTime(outlook.time) : "자료 부족"} 완성봉 기준 · MA20·MA40 최근 3봉 변화 ±0.1% 이내 수평 · 미래 수익 보장 아님\n최대 간격: 최신 완성 30분봉 · MA3·10·20·40·60`;
     node.querySelector(".candidate-quote").title = quote.time ? `${formatDateTime(quote.time)} 수집 기준` : "수집 대기";
     node.querySelector(".candidate-status").textContent = statusLabels[item.status] || "확인 필요";
     if (intraday.sessionRecovery?.matched) {
