@@ -256,6 +256,7 @@ main { max-width: 1480px; margin: 0 auto; padding: 18px; display: grid; gap: 14p
 .candidate-rise { color: var(--muted); font-size: 11px; text-align: right; }
 .candidate-progress i { display: block; height: 100%; background: var(--green); }
 .candidate[data-status], .candidate.selected, .candidate:hover { background: #f1f3f5; }
+.candidate-observation { background: #b62832; color: #fff; padding: 8px 12px; font-size: 12px; line-height: 1.5; text-align: left; white-space: pre-line; overflow-wrap: anywhere; }
 .candidate[data-status="signal"] .candidate-progress i { background: var(--red); }
 .candidate[data-status="signaled"] .candidate-progress i { background: var(--blue); }
 .candidate[data-status="rising"] .candidate-progress i { background: var(--amber); }

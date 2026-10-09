@@ -556,7 +556,17 @@ function candidateOutlook(item, today = new Intl.DateTimeFormat("en-CA", { timeZ
   return { label, time: last.t };
 }
 
+function candidateObservation(item) {
+  const rows = (item.displayCharts?.intraday?.series || []).filter(row => row.complete !== false);
+  const last = rows.at(-1);
+  const purple = rows.length > 0 && ma60Observations(rows).at(-1).ma60Observation;
+  const spread = last ? maximumMaSpread(last, false) : null;
+  return { purple, spread, compact: spread !== null && spread <= 0.8 + 1e-12 };
+}
+
 function compareCandidateSpread(a, b) {
+  const priority = Number(candidateObservation(b).purple) - Number(candidateObservation(a).purple);
+  if (priority) return priority;
   const left = candidateMaximumSpread(a);
   const right = candidateMaximumSpread(b);
   if (left === null && right !== null) return 1;
@@ -567,7 +577,8 @@ function compareCandidateSpread(a, b) {
 function renderCandidates(candidates) {
   restoreDetailPanel();
   const visible = filteredCandidates(candidates).sort(["target", "reference"].includes(state.view) ? compareCandidateSpread : (a, b) =>
-    (statusPriority[a.status] ?? 99) - (statusPriority[b.status] ?? 99)
+    Number(candidateObservation(b).purple) - Number(candidateObservation(a).purple)
+    || (statusPriority[a.status] ?? 99) - (statusPriority[b.status] ?? 99)
     || a.name.localeCompare(b.name, "ko")
   );
   state.expandedCharts = visible.length > 0 && visible.length < 20;
@@ -596,6 +607,16 @@ function renderCandidates(candidates) {
     node.querySelector(".candidate-quote").textContent = quoteText(quote);
     const maximumSpread = candidateMaximumSpread(item);
     const outlook = candidateOutlook(item);
+    const observation = candidateObservation(item);
+    if (observation.purple || observation.compact) {
+      const notice = document.createElement("div");
+      notice.className = "candidate-observation";
+      const messages = [];
+      if (observation.purple) messages.push("일봉 MA5 근접·십자형 확인 대상입니다. (30분봉 보라색 관찰)");
+      if (observation.compact) messages.push(`30분봉 MA3·10·20·40·60의 전체 최대간격이 ${observation.spread.toFixed(1)}%로 좁혀진 종목입니다.`);
+      notice.textContent = messages.join("\n");
+      node.append(notice);
+    }
     node.querySelector(".candidate-spread").textContent = `전망 ${outlook.label} · 최대 ${maximumSpread === null ? "—" : `${maximumSpread.toFixed(1)}%`}`;
     node.querySelector(".candidate-spread").title = `전망: ${outlook.time ? formatDateTime(outlook.time) : "자료 부족"} 완성봉 기준 · MA20·MA40 최근 3봉 변화 ±0.1% 이내 수평 · 미래 수익 보장 아님\n최대 간격: 최신 완성 30분봉 · MA3·10·20·40·60`;
     node.querySelector(".candidate-quote").title = quote.time ? `${formatDateTime(quote.time)} 수집 기준` : "수집 대기";
