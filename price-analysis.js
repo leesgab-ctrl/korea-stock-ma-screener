@@ -92,6 +92,7 @@ async function renderPriceAnalysis() {
       });
       for (const pair of [...combined.values()].sort((a, b) => (b[sortDays]?.average ?? -Infinity) - (a[sortDays]?.average ?? -Infinity) || (a.from + a.to).localeCompare(b.from + b.to))) {
         const row = document.createElement('tr');
+        if (pair[5]?.average >= 4) row.classList.add('analysis-strong-return');
         const colors = document.createElement('td'); colors.append(swatch(pair.from), document.createTextNode(' → '), swatch(pair.to));
         row.append(colors);
         for (const days of [5, 10, 'current']) {
@@ -100,6 +101,7 @@ async function renderPriceAnalysis() {
         if (days === 'current') count.className = 'analysis-current-cell';
         const detail = document.createElement('button'); detail.type = 'button'; detail.className = 'analysis-detail';
         detail.textContent = `${group.rows.length}${days === 'current' ? '종목' : '건'}`; detail.title = days === 'current' ? '현재종목 상세' : `${days}거래일 상세`; detail.disabled = !group.rows.length; detail.setAttribute('aria-expanded', 'false'); count.append(detail);
+        if (days === 'current' && !group.rows.length) detail.remove();
         const average = document.createElement('td'); average.textContent = group.average == null ? '-' : `${group.average >= 0 ? '+' : ''}${group.average.toFixed(1)}%`;
         average.className = group.average >= 0 ? 'positive' : 'negative';
         const weight = document.createElement('td'); weight.textContent = `${(group.weight || 0).toFixed(1)}%`;
@@ -152,7 +154,7 @@ async function renderPriceAnalysis() {
         }
         const remark = document.createElement('td');
         const notes = [5, 10].map(days => `${days}일${pair[days]?.largeGains || 0}건`);
-        remark.textContent = notes.join('/');
+        remark.textContent = (pair[5]?.largeGains || pair[10]?.largeGains) ? notes.join('/') : '';
         remark.title = '전일 종가 대비 당일 종가가 20% 이상 상승한 종목·거래일 건수';
         row.insertBefore(remark, row.lastElementChild); body.append(row);
       }
