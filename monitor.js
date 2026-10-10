@@ -1420,13 +1420,18 @@ function ma60Observations(series) {
   let start = -1;
   let confirmed = false;
   let convergenceConfirmed = false;
+  let convergence40Rose = false;
   series.forEach((row, index) => {
     const previous = series[index - 1];
     if (row.complete === false) return;
     const validConvergence = previous && [row.m20, row.m40, row.m60, previous.m20, previous.m40, previous.m60]
       .every(value => Number.isFinite(value) && value > 0) && row.m60 > previous.m60;
-    if (!validConvergence) convergenceConfirmed = false;
-    const converging = Boolean(validConvergence && convergenceConfirmed && row.m40 <= previous.m40
+    if (!validConvergence) { convergenceConfirmed = false; convergence40Rose = false; }
+    if (validConvergence && row.m40 > previous.m40) convergence40Rose = true;
+    const orderedConvergence = [row.m3, row.m10, row.m20].every(value => Number.isFinite(value)
+      && value >= row.m60 && value <= row.m40);
+    const converging = Boolean(validConvergence && convergenceConfirmed && convergence40Rose
+      && orderedConvergence && row.m40 < previous.m40
       && ["m40", "m60"].some(key => {
         const gap = Math.abs(row.m20 - row[key]) / row[key];
         const priorGap = Math.abs(previous.m20 - previous[key]) / previous[key];

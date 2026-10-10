@@ -17,6 +17,7 @@ def states(bars):
     confirmed = False
     convergence_armed = False
     convergence_confirmed = False
+    convergence40_rose = False
     for i, b in enumerate(bars):
         p = bars[i - 1] if i else None
         values = [b.get(k) for k in ("m3", "m10", "m20", "m40", "m60")]
@@ -27,7 +28,11 @@ def states(bars):
         valid_convergence = valid and p and all(isinstance(p.get(k), (int, float)) and math.isfinite(p[k]) and p[k] > 0 for k in ("m20", "m40", "m60")) and b["m60"] > p["m60"]
         if not valid_convergence:
             convergence_confirmed = False
-        if valid_convergence and convergence_confirmed and b["m40"] <= p["m40"]:
+            convergence40_rose = False
+        if valid_convergence and b["m40"] > p["m40"]:
+            convergence40_rose = True
+        ordered_convergence = valid and all(b["m60"] <= b[k] <= b["m40"] for k in ("m3", "m10", "m20"))
+        if valid_convergence and convergence_confirmed and convergence40_rose and ordered_convergence and b["m40"] < p["m40"]:
             converging = any(abs(b["m20"] - b[k]) / b[k] <= .016 + 1e-12
                              and abs(b["m20"] - b[k]) / b[k] < abs(p["m20"] - p[k]) / p[k]
                              for k in ("m40", "m60"))
