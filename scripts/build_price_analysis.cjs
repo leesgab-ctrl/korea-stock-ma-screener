@@ -2,6 +2,7 @@ const fs = require('fs');
 const vm = require('vm');
 const path = require('path');
 const crypto = require('crypto');
+const reclassify = process.argv.includes('--reclassify');
 const root = path.resolve(__dirname, '..');
 const source = fs.readFileSync(path.join(root, 'monitor.js'), 'utf8');
 const rules = source.slice(source.indexOf('function chartPhases('), source.indexOf('function drawChart('))
@@ -9,13 +10,21 @@ const rules = source.slice(source.indexOf('function chartPhases('), source.index
 const context = {};
 vm.createContext(context);
 vm.runInContext(rules, context);
-const version = crypto.createHash('sha256').update(rules).digest('hex').slice(0, 12);
+const version = crypto.createHash('sha256').update(rules.replace(/\r\n/g, '\n')).digest('hex').slice(0, 12);
 const payload = JSON.parse(fs.readFileSync(path.join(root, 'data/candidate-monitor.json')));
 const marketPath = path.join(root, 'data/stock-data.json');
 const market = fs.existsSync(marketPath) ? JSON.parse(fs.readFileSync(marketPath)) : { dates: [] };
 const output = path.join(root, 'data/price-analysis.json');
 const saved = fs.existsSync(output) ? JSON.parse(fs.readFileSync(output)) : { records: [] };
 const records = new Map(saved.records.map(row => [row.id + '|' + row.date, row]));
+if (reclassify) {
+  for (const row of records.values()) {
+    row.color = null;
+    row.compact = null;
+    row.ruleVersion = version;
+    row.source = 'reclassification_missing';
+  }
+}
 const now = new Date();
 const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul' }).format(now);
 const items = [...(payload.history || []), ...(payload.candidates || [])];
@@ -52,10 +61,12 @@ for (const item of items) {
     const color = valid ? context.phaseBackground(context.chartPhases(prefix).at(-1)) : null;
     const type = valid ? ({reference: '상승', target: '조정'}[context.chartGroup({registeredAt: item.registeredAt,
       displayCharts: {intraday: {dataStatus: 'ok', series: prefix}}})] || '대기') : '대기';
+    const existing = records.get(key);
     records.set(key, { id, code: item.code, name: item.name, registeredAt: item.registeredAt, date,
       type,
       color, compact, volume: Number.isFinite(volume) && volume >= 0 ? volume : null,
-      close: close?.c ?? null, change: close && prior ? (close.c / prior.c - 1) * 100 : null,
+      close: reclassify && existing ? existing.close : close?.c ?? null,
+      change: reclassify && existing ? existing.change : close && prior ? (close.c / prior.c - 1) * 100 : null,
       ruleVersion: version, source: date === today ? 'close' : 'recalculated', capturedAt: now.toISOString() });
   }
 }
