@@ -80,6 +80,7 @@ function renderHistory() {
   }).sort((a, b) => String(b.registeredAt || "").localeCompare(String(a.registeredAt || ""))
     || String(a.name || a.code).localeCompare(String(b.name || b.code), "ko"));
   elements.historyList.innerHTML = "";
+  elements.historyMeta.textContent = `저장 이력 ${records.length}종목`;
   if (!records.length) {
     elements.historyList.innerHTML = `<div class="empty-list">${state.history.length ? "검색 결과가 없습니다." : "10거래일 관리가 끝난 종목부터 이력이 쌓입니다."}</div>`;
     return;
@@ -87,23 +88,24 @@ function renderHistory() {
 
   const table = document.createElement("table");
   table.className = "history-table";
-  table.innerHTML = "<thead><tr><th>종목명</th><th>등록일</th><th>등록가</th><th>최종가</th><th>목표달성일</th><th>달성기간</th><th>최고수익률</th><th>종료일</th></tr></thead><tbody></tbody>";
+  table.innerHTML = "<thead><tr><th>No</th><th>종목명</th><th>등록일</th><th>등록가</th><th>최종가</th><th>목표달성일</th><th>달성기간</th><th>최고수익률</th><th>종료일</th></tr></thead><tbody></tbody>";
   const body = table.querySelector("tbody");
   table.querySelectorAll("th").forEach((cell, index) => {
-    cell.dataset.short = ["종목", "등록일", "등록가", "최종가", "달성일", "기간", "최고%", "종료일"][index];
+    cell.dataset.short = ["No", "종목", "등록일", "등록가", "최종가", "달성일", "기간", "최고%", "종료일"][index];
     cell.title = cell.textContent;
   });
-  records.forEach((item) => {
+  records.forEach((item, index) => {
     const result = historyEvaluation(item);
     const row = document.createElement("tr");
     row.innerHTML = `
+      <td>${index + 1}</td>
       <td><strong>${escapeHtml(item.name || "-")}</strong><span>${escapeHtml(item.code || "")}</span>${item.archiveReason === "manual_excluded" ? '<span>사용자 선정 제외</span>' : ""}</td>
       <td title="${escapeHtml(result.registered || "")}">${escapeHtml(result.registered?.slice(5) || "기록 없음")}</td>
       <td>${formatPrice(result.baseline)}</td>
       <td>${formatPrice(result.finalPrice)}</td>
       <td title="${escapeHtml(result.targetDate || "")}">${escapeHtml(result.targetDate?.slice(5) || (result.valid ? "미달" : "자료 부족"))}</td>
       <td>${formatDuration(result.duration)}</td>
-      <td class="${returnClass(result.peakReturn)}">${formatReturn(result.peakReturn)}</td>
+      <td class="${returnClass(result.peakReturn)} ${result.peakReturn >= 5 ? "target-hit" : ""}">${formatReturn(result.peakReturn)}</td>
       <td title="${escapeHtml(result.end || "")}">${escapeHtml(result.end?.slice(5) || "-")}</td>`;
     body.append(row);
     row.querySelectorAll("td").forEach((cell, index) => {
@@ -124,7 +126,7 @@ function renderHistory() {
       }
       const detail = document.createElement("tr");
       detail.className = "history-chart-row";
-      const cell = document.createElement("td"); cell.colSpan = 8;
+      const cell = document.createElement("td"); cell.colSpan = 9;
       const frame = document.createElement("iframe");
       frame.title = `${item.name || item.code} 30분봉과 일봉 전체 이력`;
       frame.src = `monitor.html?historyChart=1&stock=${encodeURIComponent(item.code)}`;

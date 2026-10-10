@@ -438,6 +438,7 @@ body.inline-chart-mode .detail-heading { display: none; }
 .history-summary-table td { font-weight: 700; }
 .history-evaluation-note { margin: 6px 0 0; font-size: 11px; color: var(--muted); }
 .history-target { font-size: 12px; white-space: nowrap; }
+.history-heading-meta { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; font-size: 12px; }
 .history-table { table-layout: fixed; font-size: 12px; }
 .history-table th, .history-table td { font-size: 12px; padding: 10px 6px; white-space: normal; overflow-wrap: anywhere; text-align: center; }
 .history-table td:first-child { min-width: 0; text-align: left; }
@@ -476,4 +477,28 @@ body.inline-chart-mode .detail-heading { display: none; }
   .history-table th:nth-child(5) { width: 15%; }
   .history-table th:nth-child(7) { width: 13%; }
   .history-table th:nth-child(8) { width: 14%; }
+}
+.history-table .positive, .history-table .negative { font-weight: 400; }
+.history-table .target-hit { font-weight: 700; }
+.history-table th, .history-table td { display: table-cell; }
+.history-table th:nth-child(2), .history-table td:nth-child(2), .history-table th:nth-child(6), .history-table td:nth-child(6) { display: table-cell; }
+.history-table th:first-child { width: 4%; }
+.history-table th:nth-child(2) { width: 18%; }
+.history-table th:nth-child(3), .history-table th:nth-child(9) { width: 9%; }
+.history-table th:nth-child(4), .history-table th:nth-child(5) { width: 13%; }
+.history-table th:nth-child(6), .history-table th:nth-child(8) { width: 12%; }
+.history-table th:nth-child(7) { width: 10%; }
+.history-table td:nth-child(2) { text-align: left; }
+.history-table td:nth-child(2) > span { display: none; }
+@media (max-width: 800px) {
+  .history-table th:nth-child(7), .history-table td:nth-child(7) { display: none; }
+}
+@media (max-width: 540px) {
+  .history-table th:nth-child(3), .history-table td:nth-child(3) { display: none; }
+  .history-table th:first-child { width: 5%; }
+  .history-table th:nth-child(2) { width: 22%; }
+  .history-table th:nth-child(4), .history-table th:nth-child(5) { width: 16%; }
+  .history-table th:nth-child(6) { width: 14%; }
+  .history-table th:nth-child(8) { width: 13%; }
+  .history-table th:nth-child(9) { width: 14%; }
 }
