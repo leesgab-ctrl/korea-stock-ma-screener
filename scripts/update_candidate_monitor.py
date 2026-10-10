@@ -647,9 +647,13 @@ def fetch_display_chart(
             "l": float(item["lowPrice"]), "c": float(item["currentPrice" if intraday else "closePrice"]),
             "v": float(item["accumulatedTradingVolume"]),
         }
+        no_trading = not intraday and values["v"] == 0 and values["c"] > 0 and all(values[key] == 0 for key in ("o", "h", "l"))
+        if no_trading:
+            # Naver keeps the official close but has no traded OHLC on these days.
+            values.update({key: values["c"] for key in ("o", "h", "l")})
         if any(not math.isfinite(value) or value < 0 for value in values.values()) or min(values[key] for key in ("o", "h", "l", "c")) <= 0:
             raise ValueError("Invalid native chart price")
-        fresh[date_key] = {time_key: date_key, **values}
+        fresh[date_key] = {time_key: date_key, **values, **({"noTrading": True} if no_trading else {})}
 
     # This cache contains only native chart bars, never signal-analysis bars.
     compatible = previous.get("schemaVersion") == 1 and previous.get("source") == "naver_native" and previous.get("venue") == "KRX" and previous.get("timeframe") == timeframe

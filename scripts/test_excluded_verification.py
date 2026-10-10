@@ -6,6 +6,19 @@ import update_candidate_monitor as monitor
 
 
 class ExcludedVerificationTests(unittest.TestCase):
+    def test_native_daily_zero_volume_keeps_close_without_rejecting_chart(self):
+        import json
+        response = {"stockExchangeType": "KRX", "priceInfos": [
+            {"localDate": "20261007", "openPrice": 650, "highPrice": 670, "lowPrice": 640, "closePrice": 666, "accumulatedTradingVolume": 100},
+            {"localDate": "20261008", "openPrice": 0, "highPrice": 0, "lowPrice": 0, "closePrice": 666, "accumulatedTradingVolume": 0},
+        ]}
+        with patch.object(monitor, "fetch_bytes", return_value=json.dumps(response).encode()):
+            chart = monitor.fetch_display_chart("215790", "day", dt.datetime.fromisoformat("2026-10-10T12:00:00+09:00"))
+        self.assertEqual(chart["dataStatus"], "ok")
+        self.assertEqual(chart["barCount"], 2)
+        self.assertTrue(chart["series"][-1]["noTrading"])
+        self.assertEqual(chart["series"][-1]["o"], 666)
+
     def test_collects_until_window_completed_without_reactivating(self):
         calendar = [f"2026-09-{day:02}" for day in range(1, 12)]
         record = {"code": "000001", "registeredAt": "2026-09-01T17:00:00+09:00", "archiveReason": "manual_excluded", "archivedAt": "2026-09-02"}
