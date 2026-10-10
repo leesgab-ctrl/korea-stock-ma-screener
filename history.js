@@ -17,7 +17,6 @@ const elements = {
 };
 
 async function loadHistory() {
-  elements.refreshButton.disabled = true;
   try {
     const response = await fetch(`data/candidate-monitor.json?t=${Date.now()}`, { cache: "no-store" });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -41,8 +40,6 @@ async function loadHistory() {
     elements.historyUpdatedAt.textContent = String(error);
     elements.historyList.innerHTML = '<div class="empty-list">잠시 후 다시 시도해 주세요.</div>';
     elements.historyNotice.classList.add("error");
-  } finally {
-    elements.refreshButton.disabled = false;
   }
 }
 
@@ -228,7 +225,6 @@ function escapeHtml(value) {
     .replaceAll("'", "&#039;");
 }
 
-elements.refreshButton.addEventListener("click", loadHistory);
 elements.historyKeyword?.addEventListener("input", (event) => {
   state.keyword = event.target.value;
   state.page = 0;
