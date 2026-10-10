@@ -87,6 +87,19 @@ for (const item of items) {
   });
   if (index < 0) continue;
   const first = rows[index];
+  const previousEntry = references.get(id);
+  const active = (payload.candidates || []).some(candidate => (candidate.id || candidate.code + '|' + candidate.registeredAt) === id);
+  const recent = rows.slice(-4);
+  const liveReference = active && recent.length === 4 && recent.every(row => row.m20 > row.m40)
+    && recent.slice(1).every((row, i) => row.m40 > recent[i].m40);
+  if (liveReference && !previousEntry?.firstEntryVerified) {
+    const last = rows.at(-1);
+    references.set(id, {id, code: item.code, name: item.name, registeredAt: last.t,
+      registrationPrice: last.c, originalRegisteredAt: item.registeredAt, source: 'live_tracking',
+      firstEntryVerified: true, observedAt: now.toISOString()});
+    continue;
+  }
+  if (previousEntry?.source === 'live_tracking') continue;
   if (!references.has(id) || first.t < references.get(id).registeredAt) {
     references.set(id, {id, code: item.code, name: item.name, registeredAt: first.t,
       registrationPrice: first.c, originalRegisteredAt: item.registeredAt, source: 'reconstructed_completed_bars',

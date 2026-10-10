@@ -43,6 +43,8 @@ async function loadHistory() {
         || (!row.category && /차트\s*형태/.test(row.reason || ''))).map(row => row.code));
       state.history = reference.records.filter(row => originals.has(row.id) && !chartExcluded.has(row.code)).map(row => {
         const item = originals.get(row.id);
+        if (row.firstEntryVerified !== true) return {...item, referenceEntry: true,
+          referenceEntryVerified: true, referenceHistoricalProxy: true};
         const daily = [...new Map([...(item.displayCharts?.daily?.history || []), ...(item.displayCharts?.daily?.series || [])].map(bar => [bar.d, bar])).values()]
           .filter(bar => bar.complete !== false).sort((a, b) => a.d.localeCompare(b.d));
         const days = daily.filter(bar => bar.d > row.registeredAt.slice(0, 10)).slice(0, 10);
@@ -103,7 +105,7 @@ function renderSummary() {
   };
   elements.completedCount.textContent = formatter.format(state.history.length);
   elements.evaluationNote.textContent = "관리기간 완료 종목만 표시 · 등록 다음 거래일부터 일봉 종가 기준 · 자료 부족은 해당 기간 집계 제외";
-  if (referenceHistoryMode) elements.evaluationNote.textContent = `검증이력 중 상승조정형 확인 종목 · 최초 편입일 확인 ${state.history.filter(item => item.referenceEntryVerified).length}종목 / 미확인 ${state.history.filter(item => !item.referenceEntryVerified).length}종목 · 편입일 미확인은 수익률 집계 제외`;
+  if (referenceHistoryMode) elements.evaluationNote.textContent = '과거 참고 이력은 후보 등록일 기준 · 실기록 이력은 저장된 상승조정형 편입일 기준 · 자료 부족은 집계 제외';
   elements.reachedCount.textContent = summaryFor("fiveReturn");
   elements.reachedRate.textContent = summaryFor("peakReturn");
 }
@@ -137,7 +139,7 @@ function renderHistory() {
     const row = document.createElement("tr");
     row.innerHTML = `
       <td>${pageStart + index + 1}</td>
-      <td><strong>${escapeHtml(item.name || "-")}</strong><span>${escapeHtml(item.code || "")}</span>${item.archiveReason === "manual_excluded" ? '<span>사용자 선정 제외</span>' : ""}</td>
+      <td><strong>${escapeHtml(item.name || "-")}</strong><span>${escapeHtml(item.code || "")}</span>${item.referenceHistoricalProxy ? '<span>과거 참고</span>' : item.referenceEntry ? '<span>편입 기록</span>' : ''}${item.archiveReason === "manual_excluded" ? '<span>사용자 선정 제외</span>' : ""}</td>
       <td title="${escapeHtml(result.entryUnknown ? '등록 당시 30분봉 부족으로 최초 편입일 복원 불가' : result.registered || "")}">${escapeHtml(result.entryUnknown ? '편입일 미확인' : result.registered?.slice(5) || "기록 없음")}</td>
       <td class="history-prices"><span title="등록가">${formatPrice(result.baseline)}</span><span title="최종가">${formatPrice(result.finalPrice)}</span></td>
       <td title="등록 다음 거래일부터 5거래일 일봉 종가 중 최고수익률" class="${returnClass(result.fiveReturn)} ${result.fiveReturn >= 5 ? "target-hit" : ""}">${formatReturn(result.fiveReturn)}</td>
