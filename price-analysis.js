@@ -116,7 +116,7 @@ async function renderPriceAnalysis(grouped = false) {
       content.append(meta);
       const table = document.createElement('table'); table.className = 'analysis-table';
       table.classList.add('analysis-combined');
-      table.innerHTML = '<thead><tr><th rowspan="2">전일 →<br>해당일</th><th colspan="4">5거래일</th><th colspan="3">10거래일</th><th rowspan="2">20%이상<br>건수</th><th rowspan="2">현재<br>종목</th></tr><tr><th>건수</th><th>(평균)<br>거래량%</th><th><button type="button" data-sort-days="5">등락률</button></th><th>비중</th><th>건수</th><th>(평균)<br>거래량%</th><th><button type="button" data-sort-days="10">등락률</button></th></tr></thead><tbody></tbody>';
+      table.innerHTML = '<thead><tr><th rowspan="2">전일 →<br>해당일</th><th colspan="4">5거래일</th><th colspan="3">10거래일</th><th rowspan="2">비고</th><th rowspan="2">현재<br>종목</th></tr><tr><th>건수</th><th>(평균)<br>거래량%</th><th><button type="button" data-sort-days="5">등락률</button></th><th>비중</th><th>건수</th><th>(평균)<br>거래량%</th><th><button type="button" data-sort-days="10">등락률</button></th></tr></thead><tbody></tbody>';
       const body = table.querySelector('tbody');
       table.querySelector('thead tr:first-child th:last-child').classList.add('analysis-current-heading');
       const renderRows = () => {
@@ -200,6 +200,11 @@ async function renderPriceAnalysis(grouped = false) {
         const remark = document.createElement('td');
         const notes = [5, 10].map(days => `${days}일${pair[days]?.largeGains || 0}건`);
         remark.textContent = (pair[5]?.largeGains || pair[10]?.largeGains) ? notes.join('/') : '';
+        if ([pair.from, pair.to].some(color => ['#f8cbdc', '#f2abc6', '#e98bab'].includes(color))) {
+          const warning = document.createElement('div');
+          warning.textContent = '다음날 MA 상승을 꼭 확인할 것';
+          remark.append(warning);
+        }
         remark.title = '전일 종가 대비 당일 종가가 20% 이상 상승한 종목·거래일 건수';
         row.insertBefore(remark, row.lastElementChild); body.append(row);
       }
