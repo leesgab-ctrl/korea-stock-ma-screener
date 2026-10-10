@@ -142,9 +142,13 @@ function renderHistory() {
       frame.src = `monitor.html?historyChart=1&stock=${encodeURIComponent(item.code)}`;
       cell.append(frame); detail.append(cell); row.after(detail);
       frame.addEventListener("load", () => {
-        const resize = () => { frame.style.height = `${frame.contentDocument?.body.scrollHeight || 1100}px`; };
+        const resize = () => {
+          const panel = frame.contentDocument?.querySelector(".detail-panel");
+          if (panel) frame.style.height = `${Math.ceil(panel.getBoundingClientRect().height)}px`;
+        };
         const observer = new ResizeObserver(resize);
-        if (frame.contentDocument?.body) observer.observe(frame.contentDocument.body);
+        const panel = frame.contentDocument?.querySelector(".detail-panel");
+        if (panel) observer.observe(panel);
         resize();
       });
       button.setAttribute("aria-expanded", "true");
