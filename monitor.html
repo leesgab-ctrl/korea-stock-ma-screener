@@ -289,6 +289,7 @@
         <h2 id="exclusionTitle">감시 제외</h2>
         <input id="exclusionCode" type="hidden">
         <input id="exclusionAction" type="hidden">
+        <label>제외 구분<select id="exclusionCategory"><option value="chart_shape">차트 형태</option><option value="other">기타</option></select></label>
         <label>제외 이유<textarea id="exclusionReason" maxlength="300" rows="3">차트 형태 부적합</textarea></label>
         <label>GitHub 연결키<input id="exclusionToken" type="password" autocomplete="off" required></label>
         <p id="exclusionStatus" role="status"></p>
@@ -298,7 +299,7 @@
     <dialog id="excludedListDialog" class="position-dialog">
       <div class="position-form"><h2>사용자 선정 제외</h2><div id="excludedList"></div><button id="excludedListClose" type="button">닫기</button></div>
     </dialog>
-  <script src="price-analysis.js?v=20261010-37"></script>
-  <script src="monitor.js?v=20261010-39"></script>
+  <script src="price-analysis.js?v=20261010-40"></script>
+  <script src="monitor.js?v=20261010-40"></script>
   </body>
 </html>

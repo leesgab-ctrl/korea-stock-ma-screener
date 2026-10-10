@@ -20,6 +20,13 @@ on:
         description: 사용자 선정 제외 이유
         required: false
         type: string
+      exclusion_category:
+        description: 사용자 선정 제외 구분
+        required: false
+        type: choice
+        options:
+          - chart_shape
+          - other
       name:
         description: 종목명 (매수 등록 시 입력)
         required: false
@@ -88,6 +95,7 @@ jobs:
         env:
           CODE: ${{ inputs.code }}
           REASON: ${{ inputs.reason }}
+          EXCLUSION_CATEGORY: ${{ inputs.exclusion_category }}
           ACTION: ${{ inputs.action }}
         run: python scripts/manage_candidate_exclusions.py --action "$ACTION"
       - name: Mark as sold

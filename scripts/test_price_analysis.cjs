@@ -46,4 +46,15 @@ const ordered = context.sortPriceAnalysisPairs(pairs, 5, true);
 assert.equal(ordered[0].from, 'b');
 assert.equal(ordered[1].to, 'x');
 assert.equal(ordered[2].to, 'y');
+const filtered = context.filterChartShapeAnalysis({dates: [], records: [
+  {code: 'a'}, {code: 'b'}, {code: 'c'}, {code: 'd'},
+]}, [
+  {code: 'a', reason: '차트 형태 복잡'},
+  {code: 'b', category: 'chart_shape', reason: 'horizontal'},
+  {code: 'c', category: 'other', reason: '차트 형태'},
+  {code: 'd', reason: '이미상승'},
+]);
+assert.equal(filtered.records.length, 2);
+assert.equal(filtered.records[0].code, 'c');
+assert.equal(filtered.records[1].code, 'd');
 console.log('Price analysis tests passed');

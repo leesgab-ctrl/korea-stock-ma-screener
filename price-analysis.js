@@ -28,6 +28,12 @@ function aggregatePriceAnalysis(payload, days, today) {
   })).sort((a, b) => b.average - a.average) };
 }
 
+function filterChartShapeAnalysis(payload, exclusions) {
+  const codes = new Set(exclusions.filter(entry => entry.category === 'chart_shape'
+    || (!entry.category && /차트\s*형태/.test(entry.reason || ''))).map(entry => entry.code));
+  return {...payload, records: payload.records.filter(row => !codes.has(row.code))};
+}
+
 function sortPriceAnalysisPairs(pairs, days, grouped = false) {
   const scores = new Map();
   if (grouped) for (const pair of pairs) {
@@ -53,7 +59,7 @@ async function renderPriceAnalysis(grouped = false) {
   try {
     const response = await fetch(`data/price-analysis.json?t=${Date.now()}`, {cache: 'no-store'});
     if (!response.ok) throw new Error('마감 분석 기록이 아직 없습니다.');
-    const data = await response.json();
+    const data = filterChartShapeAnalysis(await response.json(), state.payload.manualExclusions || []);
     content.replaceChildren();
     const title = document.createElement('h2');
     title.textContent = grouped ? '형태분석' : '주가분석';

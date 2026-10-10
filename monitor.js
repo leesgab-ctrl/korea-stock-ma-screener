@@ -829,8 +829,10 @@ function openExclusionDialog(item, action) {
   document.querySelector("#exclusionAction").value = action;
   document.querySelector("#exclusionReason").value = item.reason || "차트 형태 부적합";
   document.querySelector("#exclusionReason").disabled = action === "restore";
+  document.querySelector("#exclusionCategory").value = item.category || (/차트\s*형태/.test(item.reason || "차트 형태") ? "chart_shape" : "other");
+  document.querySelector("#exclusionCategory").disabled = action === "restore";
   document.querySelector("#exclusionToken").value = storedGithubToken();
-  document.querySelector("#exclusionStatus").textContent = action === "exclude" ? "분석·알림·달성률 계산에서 제외됩니다. 보유 기록은 유지됩니다." : "후보 기간이 남아 있으면 다시 감시합니다.";
+  document.querySelector("#exclusionStatus").textContent = action === "exclude" ? "감시·알림에서 제외합니다. 차트 형태는 주가·형태분석에서도 제외하며 가격 수집·검증이력은 유지합니다." : "후보 기간이 남아 있으면 다시 감시합니다.";
   document.querySelector("#exclusionSubmit").textContent = action === "exclude" ? "제외" : "복원";
   document.querySelector("#exclusionDialog").showModal();
 }
@@ -1043,7 +1045,7 @@ document.querySelector("#exclusionForm").addEventListener("submit", async (event
     const response = await fetch(WORKFLOW_DISPATCH_URL, {
       method: "POST",
       headers: { Accept: "application/vnd.github+json", Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ref: "main", inputs: { action, code, reason }}),
+      body: JSON.stringify({ref: "main", inputs: { action, code, reason, exclusion_category: document.querySelector("#exclusionCategory").value }}),
     });
     if (!response.ok) throw new Error(`요청 실패 (${response.status}) · 연결키와 권한을 확인해 주세요.`);
     try { localStorage.setItem(GITHUB_TOKEN_KEY, token); } catch {}
