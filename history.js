@@ -38,7 +38,7 @@ async function loadHistory() {
       const referenceResponse = await fetch(`data/reference-history.json?t=${Date.now()}`, {cache: 'no-store'});
       if (!referenceResponse.ok) throw new Error(`HTTP ${referenceResponse.status}`);
       const reference = await referenceResponse.json();
-      const originals = new Map([...(payload.history || []), ...(payload.candidates || [])].map(item => [item.id || item.code + '|' + item.registeredAt, item]));
+      const originals = new Map(state.history.map(item => [item.id || item.code + '|' + item.registeredAt, item]));
       const chartExcluded = new Set((payload.manualExclusions || []).filter(row => row.category === 'chart_shape'
         || (!row.category && /차트\s*형태/.test(row.reason || ''))).map(row => row.code));
       state.history = reference.records.filter(row => originals.has(row.id) && !chartExcluded.has(row.code)).map(row => {
@@ -100,7 +100,7 @@ function renderSummary() {
   };
   elements.completedCount.textContent = formatter.format(state.history.length);
   elements.evaluationNote.textContent = "관리기간 완료 종목만 표시 · 등록 다음 거래일부터 일봉 종가 기준 · 자료 부족은 해당 기간 집계 제외";
-  if (referenceHistoryMode) elements.evaluationNote.textContent = '완성 30분봉으로 복원한 최초 편입일·편입 봉 종가 기준 · 다음 거래일부터 5·10일 종가 최고수익률 · 차트 형태 제외종목 제외 · 자료 부족은 집계 제외';
+  if (referenceHistoryMode) elements.evaluationNote.textContent = '검증이력 중 상승조정형 편입 종목만 · 복원한 최초 편입일·편입 봉 종가 기준 · 다음 거래일부터 5·10일 종가 최고수익률 · 차트 형태 제외종목 제외 · 자료 부족은 집계 제외';
   elements.reachedCount.textContent = summaryFor("fiveReturn");
   elements.reachedRate.textContent = summaryFor("peakReturn");
 }
