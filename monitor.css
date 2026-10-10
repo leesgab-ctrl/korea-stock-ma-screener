@@ -136,10 +136,10 @@ dialog.inline-operation-dialog { position: static; width: 100%; max-width: none;
 .status-chip.waiting10 { background: #f0f2f1; color: var(--muted); }
 .status-chip.excluded { background: #ecefed; color: var(--muted); }
 
-.history-panel { background: var(--panel); border: 1px solid var(--line); border-radius: 7px; overflow: hidden; }
+.history-panel { background: var(--panel); border: 1px solid var(--line); border-radius: 7px; overflow: visible; }
 .history-toolbar { padding: 14px 16px; display: flex; align-items: end; justify-content: space-between; gap: 16px; border-bottom: 1px solid var(--line); }
 .history-toolbar p { color: var(--muted); font-size: 12px; }
-.history-list { overflow-x: auto; }
+.history-list { overflow: visible; }
 .history-table { width: 100%; border-collapse: collapse; font-size: 12px; }
 .history-table th, .history-table td { padding: 10px 12px; border-bottom: 1px solid var(--line); text-align: left; white-space: nowrap; }
 .history-table th { position: sticky; top: 0; z-index: 1; background: #f7faf8; color: var(--muted); font-size: 11px; }
@@ -507,14 +507,15 @@ body.inline-chart-mode .detail-heading { display: none; }
 .history-table .history-chart-row > td { width: auto; padding: 0; overflow: visible; }
 .history-table th:nth-child(n) { width: auto; font-size: 12px; white-space: normal; }
 .history-table th::before { content: none; }
-.history-table th:nth-child(1) { width: 4%; white-space: nowrap; }
+.history-table th:nth-child(1) { width: 7%; white-space: nowrap; }
 .history-table th:nth-child(2) { width: 19%; }
-.history-table th:nth-child(3) { width: 11%; }
+.history-table th:nth-child(3) { width: 10%; }
 .history-table th:nth-child(4) { width: 17%; }
 .history-table th:nth-child(5) { width: 13%; }
 .history-table th:nth-child(6) { width: 10%; }
 .history-table th:nth-child(7) { width: 14%; }
-.history-table th:nth-child(8) { width: 12%; }
+.history-table th:nth-child(8) { width: 10%; }
+.history-table thead th { position: sticky; top: 0; z-index: 3; background: #e4ece8; box-shadow: 0 1px 0 var(--line); }
 .history-table .history-prices > span { display: block; white-space: nowrap; }
 .history-table td { white-space: nowrap; }
 @media (max-width: 540px) {
