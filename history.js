@@ -20,7 +20,8 @@ async function loadHistory() {
     const response = await fetch(`data/candidate-monitor.json?t=${Date.now()}`, { cache: "no-store" });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const payload = await response.json();
-    state.history = Array.isArray(payload.history) ? payload.history : [];
+    const activeCodes = new Set((payload.candidates || []).map(item => item.code));
+    state.history = (Array.isArray(payload.history) ? payload.history : []).filter(item => item.archiveReason === "window_completed" && !activeCodes.has(item.code));
     state.excludedCodes = new Set((payload.manualExclusions || []).map((r) => r.code));
     renderSummary();
     renderHistory();
@@ -66,7 +67,7 @@ function renderSummary() {
   const reached = evaluated.filter((item) => historyEvaluation(item).targetDate);
   const rate = evaluated.length ? (100 * reached.length) / evaluated.length : 0;
   elements.completedCount.textContent = formatter.format(state.history.length);
-  elements.evaluationNote.textContent = `달성률 평가 대상 ${evaluated.length}종목 · 자료 부족·사용자 제외는 집계 제외 · 등록 당시 가격 기준`;
+  elements.evaluationNote.textContent = `관리기간 완료 종목만 표시 · 달성률 평가 대상 ${evaluated.length}종목 · 자료 부족은 집계 제외`;
   elements.reachedCount.textContent = formatter.format(reached.length);
   elements.reachedRate.textContent = evaluated.length ? `${formatter.format(rate)}%` : "평가 대기";
 }
