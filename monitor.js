@@ -189,7 +189,9 @@ async function loadData() {
       document.body.classList.add("history-chart-mode");
       document.body.append(elements.detailPanel);
       if (archived) {
-        const end = (archived.verificationEndDate || archived.archivedAt || archived.outcome?.finalDate || "").slice(0, 10);
+        const excludedCollecting = new URLSearchParams(window.location.search).get("excludedChart") === "1"
+          && archived.verificationStatus !== "completed";
+        const end = excludedCollecting ? "" : (archived.verificationEndDate || archived.archivedAt || archived.outcome?.finalDate || "").slice(0, 10);
         const snapshot = structuredClone(archived);
         const intraday = snapshot.displayCharts?.intraday;
         if (intraday) {
@@ -207,7 +209,7 @@ async function loadData() {
         renderDetail(snapshot);
         const label = document.createElement("strong");
         label.className = "history-end-label";
-        label.textContent = end ? `종료일 ${end} 기준` : "종료일 기록 없음";
+        label.textContent = excludedCollecting ? "수동 제외 · 검증 종료일까지 가격 수집 중" : end ? `종료일 ${end} 기준` : "종료일 기록 없음";
         elements.detailPanel.prepend(label);
       }
       else elements.detailPanel.textContent = "저장된 차트 자료가 없습니다.";
@@ -757,11 +759,55 @@ function renderManualExclusions() {
   const list = document.querySelector("#excludedList");
   list.replaceChildren();
   if (!entries.length) list.textContent = "수동 제외한 종목이 없습니다.";
-  for (const entry of entries) {
-    const row = document.createElement("div");
-    row.className = "manual-exclusion-row";
-    const label = document.createElement("span");
-    label.textContent = `${entry.name} (${entry.code}) · ${entry.excludedAt?.slice(0, 10) || ""} · ${entry.reason || "차트 형태 부적합"}`;
+  if (!entries.length) return;
+  const table = document.createElement("table");
+  table.className = "exclusion-table";
+  table.innerHTML = "<thead><tr><th>No</th><th>종목명</th><th>등록일</th><th>제외일자</th><th>제외사유</th><th>복원</th></tr></thead><tbody></tbody>";
+  const body = table.querySelector("tbody");
+  [...entries].sort((a, b) => String(b.excludedAt || "").localeCompare(String(a.excludedAt || ""))).forEach((entry, index) => {
+    const item = (state.payload.history || []).find(record => record.code === entry.code && record.archiveReason === "manual_excluded")
+      || (state.payload.history || []).find(record => record.code === entry.code);
+    const row = document.createElement("tr");
+    const values = [index + 1, entry.name || entry.code, (item?.registeredAt || entry.registeredAt || "").slice(5, 10) || "-",
+      entry.excludedAt?.slice(5, 10) || "-", entry.reason || "차트 형태 부적합"];
+    values.forEach(value => {
+      const cell = document.createElement("td");
+      cell.textContent = value;
+      cell.title = String(value);
+      row.append(cell);
+    });
+    const name = document.createElement("button");
+    name.type = "button";
+    name.className = "history-stock-button";
+    name.textContent = entry.name || entry.code;
+    name.setAttribute("aria-expanded", "false");
+    row.children[1].replaceChildren(name);
+    name.addEventListener("click", () => {
+      if (row.nextElementSibling?.classList.contains("exclusion-chart-row")) {
+        row.nextElementSibling.remove();
+        name.setAttribute("aria-expanded", "false");
+        return;
+      }
+      const detail = document.createElement("tr");
+      detail.className = "exclusion-chart-row";
+      const cell = document.createElement("td");
+      cell.colSpan = 6;
+      if (item) {
+        const frame = document.createElement("iframe");
+        frame.title = `${entry.name || entry.code} 30분봉과 일봉`;
+        frame.src = `monitor.html?historyChart=1&excludedChart=1&stock=${encodeURIComponent(entry.code)}`;
+        frame.addEventListener("load", () => {
+          const resize = () => { frame.style.height = `${frame.contentDocument?.body.scrollHeight || 1100}px`; };
+          const observer = new ResizeObserver(resize);
+          if (frame.contentDocument?.body) observer.observe(frame.contentDocument.body);
+          resize();
+        });
+        cell.append(frame);
+      } else cell.textContent = "저장된 차트 자료가 없습니다.";
+      detail.append(cell);
+      row.after(detail);
+      name.setAttribute("aria-expanded", "true");
+    });
     const button = document.createElement("button");
     button.type = "button";
     button.textContent = "복원";
@@ -769,9 +815,12 @@ function renderManualExclusions() {
       document.querySelector("#excludedListDialog").close();
       openExclusionDialog(entry, "restore");
     });
-    row.append(label, button);
-    list.append(row);
-  }
+    const restore = document.createElement("td");
+    restore.append(button);
+    row.append(restore);
+    body.append(row);
+  });
+  list.append(table);
 }
 
 function openExclusionDialog(item, action) {

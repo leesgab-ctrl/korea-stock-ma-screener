@@ -519,6 +519,20 @@ body.inline-chart-mode .detail-heading { display: none; }
 .history-pagination { display: flex; align-items: center; justify-content: center; gap: 12px; padding: 14px 4px; }
 .history-pagination button { border: 1px solid var(--line); border-radius: 4px; padding: 8px 10px; background: white; color: var(--ink); cursor: pointer; font: inherit; }
 .history-pagination button:disabled { opacity: 0.4; cursor: default; }
+.exclusion-table { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: 12px; }
+.exclusion-table th, .exclusion-table td { padding: 10px 3px; border-bottom: 1px solid var(--line); text-align: center; }
+.exclusion-table th { background: #e4ece8; }
+.exclusion-table th:nth-child(1) { width: 7%; }
+.exclusion-table th:nth-child(2) { width: 23%; }
+.exclusion-table th:nth-child(3), .exclusion-table th:nth-child(4) { width: 12%; }
+.exclusion-table th:nth-child(5) { width: 31%; }
+.exclusion-table th:nth-child(6) { width: 15%; }
+.exclusion-table td:nth-child(2), .exclusion-table td:nth-child(5) { text-align: left; overflow-wrap: anywhere; }
+.exclusion-table .history-stock-button { max-width: 100%; white-space: normal; overflow-wrap: anywhere; }
+.exclusion-table td > button:not(.history-stock-button) { padding: 5px 4px; border: 1px solid var(--line); border-radius: 4px; background: white; font: inherit; cursor: pointer; }
+.exclusion-table .exclusion-chart-row > td { padding: 0; }
+.exclusion-chart-row iframe { display: block; width: 100%; height: 1100px; border: 0; }
+#excludedListDialog.inline-operation-dialog .position-form { padding: 10px 2px; }
 .history-table .history-prices > span { display: block; white-space: nowrap; }
 .history-table td { white-space: nowrap; }
 @media (max-width: 540px) {
