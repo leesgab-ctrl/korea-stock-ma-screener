@@ -949,6 +949,39 @@ function renderWatchQuotes() {
   openOperationContent(document.querySelector("#watchQuotesButton"), content);
 }
 document.querySelector("#watchQuotesButton").addEventListener("click", renderWatchQuotes);
+const MEMO_STORAGE_KEY = "koreaStockMonitor.memo";
+let memoDraft = null;
+document.querySelector("#memoButton").addEventListener("click", event => {
+  const form = document.createElement("form");
+  form.className = "operation-memo";
+  const input = document.createElement("textarea");
+  input.setAttribute("aria-label", "메모");
+  if (memoDraft == null) {
+    try { memoDraft = localStorage.getItem(MEMO_STORAGE_KEY) || ""; }
+    catch { memoDraft = ""; }
+  }
+  input.value = memoDraft;
+  const save = document.createElement("button");
+  save.type = "submit";
+  save.className = "external-link";
+  save.textContent = "저장";
+  input.addEventListener("input", () => {
+    memoDraft = input.value;
+    save.textContent = "저장";
+  });
+  form.addEventListener("submit", event => {
+    event.preventDefault();
+    try {
+      localStorage.setItem(MEMO_STORAGE_KEY, input.value);
+      memoDraft = input.value;
+      save.textContent = "저장 완료";
+    } catch {
+      alert("메모를 저장하지 못했습니다. 브라우저 저장 공간 설정을 확인해 주세요.");
+    }
+  });
+  form.append(input, save);
+  openOperationContent(event.currentTarget, form);
+});
 
 function openOperationContent(button, content) {
   savedView = {view: state.view, operation: button.id || button.getAttribute("href")};
