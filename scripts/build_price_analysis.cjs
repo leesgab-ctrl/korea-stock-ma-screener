@@ -89,7 +89,9 @@ for (const item of items) {
   const first = rows[index];
   if (!references.has(id) || first.t < references.get(id).registeredAt) {
     references.set(id, {id, code: item.code, name: item.name, registeredAt: first.t,
-      registrationPrice: first.c, originalRegisteredAt: item.registeredAt, source: 'reconstructed_completed_bars'});
+      registrationPrice: first.c, originalRegisteredAt: item.registeredAt, source: 'reconstructed_completed_bars',
+      availableFrom: rows[0].t, firstEntryVerified: rows[0].t.slice(0, 10) === item.registeredAt.slice(0, 10)
+        && Number.isFinite(rows[0].m20) && Number.isFinite(rows[0].m40)});
   }
 }
 fs.writeFileSync(referencePath, JSON.stringify({generatedAt: now.toISOString(), ruleVersion: version,

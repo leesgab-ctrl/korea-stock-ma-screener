@@ -47,7 +47,8 @@ async function loadHistory() {
           .filter(bar => bar.complete !== false).sort((a, b) => a.d.localeCompare(b.d));
         const days = daily.filter(bar => bar.d > row.registeredAt.slice(0, 10)).slice(0, 10);
         return {...item, registeredAt: row.registeredAt, registrationPrice: row.registrationPrice,
-          verificationEndDate: days.at(-1)?.d || row.registeredAt.slice(0, 10), referenceEntry: true};
+          verificationEndDate: days.at(-1)?.d || row.registeredAt.slice(0, 10), referenceEntry: true,
+          referenceEntryVerified: row.firstEntryVerified === true};
       });
     }
     renderSummary();
@@ -66,6 +67,8 @@ async function loadHistory() {
 }
 
 function historyEvaluation(item) {
+  if (item.referenceEntry && !item.referenceEntryVerified) return {valid: false, registered: null,
+    end: null, baseline: null, finalPrice: null, entryUnknown: true};
   const registered = item.registeredAt?.slice(0, 10);
   const end = (item.verificationEndDate || item.archivedAt || item.outcome?.finalDate || "").slice(0, 10);
   const chart = item.displayCharts?.daily;
@@ -100,7 +103,7 @@ function renderSummary() {
   };
   elements.completedCount.textContent = formatter.format(state.history.length);
   elements.evaluationNote.textContent = "관리기간 완료 종목만 표시 · 등록 다음 거래일부터 일봉 종가 기준 · 자료 부족은 해당 기간 집계 제외";
-  if (referenceHistoryMode) elements.evaluationNote.textContent = '검증이력 중 상승조정형 편입 종목만 · 복원한 최초 편입일·편입 봉 종가 기준 · 다음 거래일부터 5·10일 종가 최고수익률 · 차트 형태 제외종목 제외 · 자료 부족은 집계 제외';
+  if (referenceHistoryMode) elements.evaluationNote.textContent = `검증이력 중 상승조정형 확인 종목 · 최초 편입일 확인 ${state.history.filter(item => item.referenceEntryVerified).length}종목 / 미확인 ${state.history.filter(item => !item.referenceEntryVerified).length}종목 · 편입일 미확인은 수익률 집계 제외`;
   elements.reachedCount.textContent = summaryFor("fiveReturn");
   elements.reachedRate.textContent = summaryFor("peakReturn");
 }
@@ -135,7 +138,7 @@ function renderHistory() {
     row.innerHTML = `
       <td>${pageStart + index + 1}</td>
       <td><strong>${escapeHtml(item.name || "-")}</strong><span>${escapeHtml(item.code || "")}</span>${item.archiveReason === "manual_excluded" ? '<span>사용자 선정 제외</span>' : ""}</td>
-      <td title="${escapeHtml(result.registered || "")}">${escapeHtml(result.registered?.slice(5) || "기록 없음")}</td>
+      <td title="${escapeHtml(result.entryUnknown ? '등록 당시 30분봉 부족으로 최초 편입일 복원 불가' : result.registered || "")}">${escapeHtml(result.entryUnknown ? '편입일 미확인' : result.registered?.slice(5) || "기록 없음")}</td>
       <td class="history-prices"><span title="등록가">${formatPrice(result.baseline)}</span><span title="최종가">${formatPrice(result.finalPrice)}</span></td>
       <td title="등록 다음 거래일부터 5거래일 일봉 종가 중 최고수익률" class="${returnClass(result.fiveReturn)} ${result.fiveReturn >= 5 ? "target-hit" : ""}">${formatReturn(result.fiveReturn)}</td>
       <td title="목표 +5% 달성기간">${result.duration == null ? "-" : result.duration === 0 ? "당일" : `${result.duration}일`}</td>
