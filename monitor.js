@@ -1416,9 +1416,20 @@ function ma60Observations(series) {
   const results = series.map(() => ({ ma60Observation: false, ma10Rising: false, ma40Convergence: false }));
   let start = -1;
   let confirmed = false;
+  let convergenceConfirmed = false;
   series.forEach((row, index) => {
     const previous = series[index - 1];
     if (row.complete === false) return;
+    const validConvergence = previous && [row.m20, row.m40, row.m60, previous.m20, previous.m40, previous.m60]
+      .every(value => Number.isFinite(value) && value > 0) && row.m60 > previous.m60;
+    if (!validConvergence) convergenceConfirmed = false;
+    const converging = Boolean(validConvergence && convergenceConfirmed && row.m40 <= previous.m40
+      && ["m40", "m60"].some(key => {
+        const gap = Math.abs(row.m20 - row[key]) / row[key];
+        const priorGap = Math.abs(previous.m20 - previous[key]) / previous[key];
+        return gap <= 0.016 + 1e-12 && gap < priorGap;
+      }));
+    if (converging) Object.assign(results[index], {ma60Observation: true, ma10Rising: true, ma40Convergence: true});
     if (!previous || ![row.m3, row.m20, row.m40, row.m60, previous.m40, previous.m60].every(value => Number.isFinite(value) && value > 0)
       || !(row.m60 > previous.m60) || row.m3 >= row.m20) {
       start = -1;
@@ -1427,13 +1438,11 @@ function ma60Observations(series) {
     }
     const rising40 = row.m40 > previous.m40;
     const near60 = row.m3 < row.m60 && (row.m60 - row.m3) / row.m60 <= 0.01 + 1e-12;
-    const gap = Math.abs(row.m40 - row.m60) / row.m60;
-    const priorGap = Math.abs(previous.m40 - previous.m60) / previous.m60;
-    const converging = !rising40 && gap <= 0.015 + 1e-12 && gap < priorGap;
     if (!confirmed && !rising40) { start = -1; return; }
     if (start < 0) start = index;
     if (!confirmed && row.m20 < row.m40) {
       confirmed = true;
+      convergenceConfirmed = true;
       // Retrospective chart shading only; signal timestamps are unchanged.
       for (let i = start; i <= index; i += 1) results[i].ma60Observation = true;
     }

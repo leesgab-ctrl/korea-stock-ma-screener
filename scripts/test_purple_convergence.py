@@ -16,13 +16,20 @@ class PurpleConvergenceTest(unittest.TestCase):
         self.assertTrue(result[2]["purple"])
         self.assertTrue(result[3]["convergenceBreakout"])
         self.assertFalse(result[4]["convergenceBreakout"])
-        bars[2]["m40"] = 101.6
+        bars[2]["m20"] = 98.3
         self.assertFalse(states(bars)[2]["purple"])
 
     def test_existing_near60_remains(self):
         bars = [dict(m3=99, m10=100, m20=101, m40=102, m60=99.5),
                 dict(m3=99.5, m10=100, m20=101, m40=103, m60=100)]
         self.assertTrue(states(bars)[1]["purple"])
+
+    def test_convergence_above_ma20_and_inclusive_threshold(self):
+        bars = [dict(m3=98, m10=100, m20=100, m40=101, m60=98),
+                dict(m3=98, m10=100, m20=100, m40=102, m60=98.2),
+                dict(m3=100.2, m10=100, m20=100.6, m40=102, m60=100),
+                dict(m3=101.8, m10=100, m20=101.6, m40=101.9, m60=100.1)]
+        self.assertTrue(states(bars)[3]["purple"])
 
 
 if __name__ == "__main__":

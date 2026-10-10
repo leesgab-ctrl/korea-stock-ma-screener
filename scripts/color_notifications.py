@@ -16,6 +16,7 @@ def states(bars):
     result = []
     confirmed = False
     convergence_armed = False
+    convergence_confirmed = False
     for i, b in enumerate(bars):
         p = bars[i - 1] if i else None
         values = [b.get(k) for k in ("m3", "m10", "m20", "m40", "m60")]
@@ -23,6 +24,13 @@ def states(bars):
         purple = False
         converging = False
         breakout = False
+        valid_convergence = valid and p and all(isinstance(p.get(k), (int, float)) and math.isfinite(p[k]) and p[k] > 0 for k in ("m20", "m40", "m60")) and b["m60"] > p["m60"]
+        if not valid_convergence:
+            convergence_confirmed = False
+        if valid_convergence and convergence_confirmed and b["m40"] <= p["m40"]:
+            converging = any(abs(b["m20"] - b[k]) / b[k] <= .016 + 1e-12
+                             and abs(b["m20"] - b[k]) / b[k] < abs(p["m20"] - p[k]) / p[k]
+                             for k in ("m40", "m60"))
         if valid and p and all(isinstance(p.get(k), (int, float)) and math.isfinite(p[k]) and p[k] > 0 for k in ("m3", "m40", "m60")):
             breakout = convergence_armed and b["m60"] > p["m60"] and p["m3"] <= p["m40"] and b["m3"] > b["m40"]
             if breakout or b["m60"] <= p["m60"]:
@@ -40,13 +48,12 @@ def states(bars):
             else:
                 if b["m20"] < b["m40"]:
                     confirmed = True
-                gap = abs(b["m40"] - b["m60"]) / b["m60"]
-                prior_gap = abs(p["m40"] - p["m60"]) / p["m60"]
-                converging = confirmed and not rising40 and gap <= .015 + 1e-12 and gap < prior_gap
+                    convergence_confirmed = True
                 near60 = b["m3"] < b["m60"] and (b["m60"] - b["m3"]) / b["m60"] <= .01 + 1e-12
-                purple = confirmed and (near60 or converging)
-                if converging and b["m3"] <= b["m40"]:
-                    convergence_armed = True
+                purple = confirmed and near60
+        purple = purple or converging
+        if converging and b["m3"] <= b["m40"]:
+            convergence_armed = True
         spread = (max(values) / min(values) - 1) * 100 if valid else None
         # The agreed alert uses all five averages, not the four-line pink palette.
         compact = valid and spread <= .8 + 1e-12
