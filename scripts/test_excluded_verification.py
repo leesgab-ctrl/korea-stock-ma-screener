@@ -6,6 +6,28 @@ import update_candidate_monitor as monitor
 
 
 class ExcludedVerificationTests(unittest.TestCase):
+    def test_reference_window_continues_after_original_verification(self):
+        record = {"id": "test", "code": "000001", "registeredAt": "2026-09-01T17:00:00+09:00",
+                  "verificationStatus": "completed", "verificationEndDate": "2026-09-11"}
+        payload = {"history": [record], "candidates": []}
+        entry = {"id": "test", "registeredAt": "2026-09-05T12:00:00+09:00"}
+        def fetch(code, timeframe, current, previous):
+            key = "d" if timeframe == "day" else "t"
+            rows = [{key: f"2026-09-{day:02}" + ("T15:00:00+09:00" if key == "t" else ""), "c": 100}
+                    for day in range(1, 16)]
+            return {"history": rows, "series": rows, "dataStatus": "ok"}
+        with patch.object(monitor, "fetch_display_chart", side_effect=fetch) as mocked:
+            monitor.refresh_reference_verification(payload, dt.datetime.fromisoformat("2026-09-12T20:01:00+09:00"), [entry])
+            self.assertEqual(record["referenceVerificationStatus"], "collecting")
+            monitor.refresh_reference_verification(payload, dt.datetime.fromisoformat("2026-09-15T20:01:00+09:00"), [entry])
+            self.assertEqual(record["referenceVerificationEndDate"], "2026-09-15")
+            self.assertEqual(record["referenceVerificationStatus"], "completed")
+            calls = mocked.call_count
+            monitor.refresh_reference_verification(payload, dt.datetime.fromisoformat("2026-09-16T20:01:00+09:00"), [entry])
+            self.assertEqual(mocked.call_count, calls)
+        self.assertEqual(record["verificationEndDate"], "2026-09-11")
+        self.assertEqual(record["registeredAt"], "2026-09-01T17:00:00+09:00")
+
     def test_native_daily_zero_volume_keeps_close_without_rejecting_chart(self):
         import json
         response = {"stockExchangeType": "KRX", "priceInfos": [

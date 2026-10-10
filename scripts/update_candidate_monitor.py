@@ -767,6 +767,39 @@ def refresh_excluded_verification(payload, current, calendar):
     return changed
 
 
+def refresh_reference_verification(payload, current, entries=None):
+    if entries is None:
+        path = ROOT / "data/reference-history.json"
+        entries = json.loads(path.read_text(encoding="utf-8")).get("records", []) if path.exists() else []
+    references = {row["id"]: row for row in entries}
+    changed = False
+    for record in payload.get("history", []):
+        entry = references.get(record.get("id") or record["code"] + "|" + record.get("registeredAt", ""))
+        if not entry or record.get("referenceVerificationStatus") == "completed":
+            continue
+        charts = record.setdefault("displayCharts", {})
+        errors = []
+        for name, timeframe in (("daily", "day"), ("intraday", "minute30")):
+            previous = charts.get(name, {})
+            try:
+                charts[name] = fetch_display_chart(record["code"], timeframe, current, previous)
+            except (OSError, TimeoutError, ValueError, KeyError, TypeError) as exc:
+                errors.append(str(exc))
+        daily = charts.get("daily", {})
+        dates = sorted({row["d"] for row in daily.get("history", []) + daily.get("series", [])
+                        if row.get("d") and row.get("complete") is not False
+                        and entry["registeredAt"][:10] < row["d"] <= current.date().isoformat()})
+        end = dates[9] if len(dates) >= 10 else None
+        record["referenceVerificationStatus"] = "collecting"
+        record["referenceVerificationErrors"] = errors
+        if end:
+            record["referenceVerificationEndDate"] = end
+            if not errors and current >= dt.datetime.fromisoformat(f"{end}T20:00:00+09:00"):
+                record["referenceVerificationStatus"] = "completed"
+        changed = True
+    return changed
+
+
 def fetch_daily_chart(code: str, count: int = 130) -> dict[str, Any]:
     url = (
         "https://fchart.stock.naver.com/sise.nhn"
@@ -1584,6 +1617,7 @@ def main() -> None:
     )
     refresh_display_charts(payload, current)
     archive_tracking_changed = refresh_excluded_verification(payload, current, restore_calendar)
+    archive_tracking_changed = refresh_reference_verification(payload, current) or archive_tracking_changed
     from paper_trading import evaluate as evaluate_paper_candidate
     for candidate in payload.get("candidates", []):
         if candidate.pop("restoreClassificationPending", False):

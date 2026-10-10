@@ -166,7 +166,8 @@ async function loadData() {
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     state.payload = await response.json();
     if (historyChartMode) {
-      const archived = (state.payload.history || []).find(item => item.code === requestedCode);
+      const referenceStart = new URLSearchParams(window.location.search).get('referenceStart');
+      const archived = [...(state.payload.history || []), ...(referenceStart ? state.payload.candidates || [] : [])].find(item => item.code === requestedCode);
       state.payload.candidates = archived ? [archived] : [];
       state.selectedCode = archived?.code || null;
       document.body.classList.add("history-chart-mode");
@@ -174,12 +175,18 @@ async function loadData() {
       if (archived) {
         const excludedCollecting = new URLSearchParams(window.location.search).get("excludedChart") === "1"
           && archived.verificationStatus !== "completed";
-        const end = excludedCollecting ? "" : (archived.verificationEndDate || archived.archivedAt || archived.outcome?.finalDate || "").slice(0, 10);
+        const end = referenceStart ? (new URLSearchParams(window.location.search).get('referenceEnd') || '').slice(0, 10)
+          : excludedCollecting ? "" : (archived.verificationEndDate || archived.archivedAt || archived.outcome?.finalDate || "").slice(0, 10);
         const snapshot = structuredClone(archived);
+        if (referenceStart && Number.isFinite(Date.parse(referenceStart))) snapshot.registeredAt = referenceStart;
         const intraday = snapshot.displayCharts?.intraday;
         if (intraday) {
           intraday.series = [...new Map([...(intraday.history || []), ...(intraday.series || [])]
             .map(row => [row.t, row])).values()].sort((a, b) => a.t.localeCompare(b.t));
+          if (referenceStart) {
+            const entryBar = intraday.series.find(row => row.t === referenceStart);
+            if (entryBar?.c > 0) snapshot.registrationPrice = entryBar.c;
+          }
         }
         if (end) {
           for (const [kind, key] of [["intraday", "t"], ["daily", "d"]]) {

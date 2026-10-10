@@ -1,5 +1,11 @@
 const state = { history: [], keyword: "", page: 0, excludedCodes: new Set() };
 const PAGE_SIZE = 50;
+const referenceHistoryMode = new URLSearchParams(window.location.search).get('type') === 'reference';
+if (referenceHistoryMode) {
+  document.body.classList.add('reference-history-page');
+  document.title = '상승조정형이력';
+  document.querySelector('h1').textContent = '상승조정형이력';
+}
 const formatter = new Intl.NumberFormat("ko-KR", { maximumFractionDigits: 2 });
 const percentFormatter = new Intl.NumberFormat("ko-KR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 const elements = {
@@ -28,9 +34,25 @@ async function loadHistory() {
       return (item.archiveReason === "window_completed" || item.verificationStatus === "completed" || endedManual) && !activeCodes.has(item.code);
     });
     state.excludedCodes = new Set((payload.manualExclusions || []).map((r) => r.code));
+    if (referenceHistoryMode) {
+      const referenceResponse = await fetch(`data/reference-history.json?t=${Date.now()}`, {cache: 'no-store'});
+      if (!referenceResponse.ok) throw new Error(`HTTP ${referenceResponse.status}`);
+      const reference = await referenceResponse.json();
+      const originals = new Map([...(payload.history || []), ...(payload.candidates || [])].map(item => [item.id || item.code + '|' + item.registeredAt, item]));
+      const chartExcluded = new Set((payload.manualExclusions || []).filter(row => row.category === 'chart_shape'
+        || (!row.category && /차트\s*형태/.test(row.reason || ''))).map(row => row.code));
+      state.history = reference.records.filter(row => originals.has(row.id) && !chartExcluded.has(row.code)).map(row => {
+        const item = originals.get(row.id);
+        const daily = [...new Map([...(item.displayCharts?.daily?.history || []), ...(item.displayCharts?.daily?.series || [])].map(bar => [bar.d, bar])).values()]
+          .filter(bar => bar.complete !== false).sort((a, b) => a.d.localeCompare(b.d));
+        const days = daily.filter(bar => bar.d > row.registeredAt.slice(0, 10)).slice(0, 10);
+        return {...item, registeredAt: row.registeredAt, registrationPrice: row.registrationPrice,
+          verificationEndDate: days.at(-1)?.d || row.registeredAt.slice(0, 10), referenceEntry: true};
+      });
+    }
     renderSummary();
     renderHistory();
-    elements.historyStatus.textContent = "종료 후보 이력 정상";
+    elements.historyStatus.textContent = referenceHistoryMode ? '상승조정형 이력 정상' : "종료 후보 이력 정상";
     elements.historyUpdatedAt.textContent = payload.generatedAt
       ? `마지막 갱신 ${formatDateTime(payload.generatedAt)}`
       : "갱신 기록 없음";
@@ -47,7 +69,8 @@ function historyEvaluation(item) {
   const registered = item.registeredAt?.slice(0, 10);
   const end = (item.verificationEndDate || item.archivedAt || item.outcome?.finalDate || "").slice(0, 10);
   const chart = item.displayCharts?.daily;
-  const daily = (chart?.history?.length ? chart.history : chart?.series || []).filter(row => row.complete !== false && row.c > 0).sort((a, b) => a.d.localeCompare(b.d));
+  const daily = [...new Map([...(chart?.history || []), ...(chart?.series || [])].map(row => [row.d, row])).values()]
+    .filter(row => row.complete !== false && row.c > 0).sort((a, b) => a.d.localeCompare(b.d));
   const baseline = Number.isFinite(item.registrationPrice) && item.registrationPrice > 0 ? item.registrationPrice : null;
   const prices = [
     ...(item.displayCharts?.intraday?.series || []).map(row => ({time: row.t, price: row.c})),
@@ -77,6 +100,7 @@ function renderSummary() {
   };
   elements.completedCount.textContent = formatter.format(state.history.length);
   elements.evaluationNote.textContent = "관리기간 완료 종목만 표시 · 등록 다음 거래일부터 일봉 종가 기준 · 자료 부족은 해당 기간 집계 제외";
+  if (referenceHistoryMode) elements.evaluationNote.textContent = '완성 30분봉으로 복원한 최초 편입일·편입 봉 종가 기준 · 다음 거래일부터 5·10일 종가 최고수익률 · 차트 형태 제외종목 제외 · 자료 부족은 집계 제외';
   elements.reachedCount.textContent = summaryFor("fiveReturn");
   elements.reachedRate.textContent = summaryFor("peakReturn");
 }
@@ -139,7 +163,8 @@ function renderHistory() {
       const cell = document.createElement("td"); cell.colSpan = 8;
       const frame = document.createElement("iframe");
       frame.title = `${item.name || item.code} 30분봉과 일봉 전체 이력`;
-      frame.src = `monitor.html?historyChart=1&stock=${encodeURIComponent(item.code)}`;
+      frame.src = `monitor.html?historyChart=1&stock=${encodeURIComponent(item.code)}`
+        + (referenceHistoryMode ? `&referenceStart=${encodeURIComponent(item.registeredAt)}&referenceEnd=${encodeURIComponent(item.verificationEndDate)}` : '');
       cell.append(frame); detail.append(cell); row.after(detail);
       frame.addEventListener("load", () => {
         const resize = () => {

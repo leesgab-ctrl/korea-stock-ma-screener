@@ -73,3 +73,25 @@ for (const item of items) {
 const result = { dates, records: [...records.values()].sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id)) };
 fs.writeFileSync(output, JSON.stringify(result, null, 2) + '\n');
 console.log(`Saved ${result.records.length} daily monitoring records`);
+const referencePath = path.join(root, 'data/reference-history.json');
+const priorReferences = fs.existsSync(referencePath) ? JSON.parse(fs.readFileSync(referencePath)).records || [] : [];
+const references = new Map(priorReferences.map(row => [row.id, row]));
+for (const item of items) {
+  if (!item.registeredAt) continue;
+  const id = item.id || item.code + '|' + item.registeredAt;
+  const rows = merge(item.displayCharts?.intraday, 't').filter(row => Date.parse(row.t) >= Date.parse(item.registeredAt));
+  const index = rows.findIndex((row, i) => {
+    const recent = rows.slice(Math.max(0, i - 3), i + 1);
+    return recent.length === 4 && recent.every(bar => Number.isFinite(bar.m20) && Number.isFinite(bar.m40) && bar.m20 > bar.m40)
+      && recent.slice(1).every((bar, j) => bar.m40 > recent[j].m40) && row.c > 0;
+  });
+  if (index < 0) continue;
+  const first = rows[index];
+  if (!references.has(id) || first.t < references.get(id).registeredAt) {
+    references.set(id, {id, code: item.code, name: item.name, registeredAt: first.t,
+      registrationPrice: first.c, originalRegisteredAt: item.registeredAt, source: 'reconstructed_completed_bars'});
+  }
+}
+fs.writeFileSync(referencePath, JSON.stringify({generatedAt: now.toISOString(), ruleVersion: version,
+  records: [...references.values()].sort((a, b) => b.registeredAt.localeCompare(a.registeredAt))}, null, 2) + '\n');
+console.log(`Saved ${references.size} reference-type entry records`);
