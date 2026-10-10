@@ -1,4 +1,5 @@
-const state = { history: [], keyword: "", excludedCodes: new Set() };
+const state = { history: [], keyword: "", page: 0, excludedCodes: new Set() };
+const PAGE_SIZE = 50;
 const formatter = new Intl.NumberFormat("ko-KR", { maximumFractionDigits: 2 });
 const percentFormatter = new Intl.NumberFormat("ko-KR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 const elements = {
@@ -104,11 +105,14 @@ function renderHistory() {
   table.querySelectorAll("th").forEach((cell, index) => {
     cell.title = cell.textContent;
   });
-  records.forEach((item, index) => {
+  const pageCount = Math.max(1, Math.ceil(records.length / PAGE_SIZE));
+  state.page = Math.min(state.page, pageCount - 1);
+  const pageStart = state.page * PAGE_SIZE;
+  records.slice(pageStart, pageStart + PAGE_SIZE).forEach((item, index) => {
     const result = historyEvaluation(item);
     const row = document.createElement("tr");
     row.innerHTML = `
-      <td>${index + 1}</td>
+      <td>${pageStart + index + 1}</td>
       <td><strong>${escapeHtml(item.name || "-")}</strong><span>${escapeHtml(item.code || "")}</span>${item.archiveReason === "manual_excluded" ? '<span>사용자 선정 제외</span>' : ""}</td>
       <td title="${escapeHtml(result.registered || "")}">${escapeHtml(result.registered?.slice(5) || "기록 없음")}</td>
       <td class="history-prices"><span title="등록가">${formatPrice(result.baseline)}</span><span title="최종가">${formatPrice(result.finalPrice)}</span></td>
@@ -150,6 +154,30 @@ function renderHistory() {
     });
   });
   elements.historyList.append(table);
+  if (pageCount > 1) {
+    const navigation = document.createElement("nav");
+    navigation.className = "history-pagination";
+    navigation.setAttribute("aria-label", "이력리스트 페이지");
+    const position = document.createElement("span");
+    position.textContent = `${state.page + 1} / ${pageCount}`;
+    const changePage = delta => {
+      state.page += delta;
+      renderHistory();
+      elements.historyList.scrollIntoView({ block: "start" });
+    };
+    const previous = document.createElement("button");
+    previous.type = "button";
+    previous.textContent = "이전 페이지";
+    previous.disabled = state.page === 0;
+    previous.addEventListener("click", () => changePage(-1));
+    const next = document.createElement("button");
+    next.type = "button";
+    next.textContent = "다음 페이지";
+    next.disabled = state.page === pageCount - 1;
+    next.addEventListener("click", () => changePage(1));
+    navigation.append(previous, position, next);
+    elements.historyList.append(navigation);
+  }
 }
 
 function returnClass(value) {
@@ -203,6 +231,7 @@ function escapeHtml(value) {
 elements.refreshButton.addEventListener("click", loadHistory);
 elements.historyKeyword?.addEventListener("input", (event) => {
   state.keyword = event.target.value;
+  state.page = 0;
   renderHistory();
 });
 

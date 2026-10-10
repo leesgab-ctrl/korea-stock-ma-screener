@@ -516,6 +516,9 @@ body.inline-chart-mode .detail-heading { display: none; }
 .history-table th:nth-child(7) { width: 14%; }
 .history-table th:nth-child(8) { width: 10%; }
 .history-table thead th { position: sticky; top: 0; z-index: 3; background: #e4ece8; box-shadow: 0 1px 0 var(--line); }
+.history-pagination { display: flex; align-items: center; justify-content: center; gap: 12px; padding: 14px 4px; }
+.history-pagination button { border: 1px solid var(--line); border-radius: 4px; padding: 8px 10px; background: white; color: var(--ink); cursor: pointer; font: inherit; }
+.history-pagination button:disabled { opacity: 0.4; cursor: default; }
 .history-table .history-prices > span { display: block; white-space: nowrap; }
 .history-table td { white-space: nowrap; }
 @media (max-width: 540px) {
