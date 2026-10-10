@@ -14,17 +14,26 @@ const payload = { dates: ['2026-10-01', '2026-10-02', '2026-10-06'], records: [
 ] };
 const result = context.aggregatePriceAnalysis(payload, 5, '2026-10-06');
 assert.equal(result.total, 4);
-assert.equal(result.groups.length, 1);
+assert.equal(result.groups.length, 2);
 assert.equal(result.groups[0].average, 5);
 assert.equal(result.groups[0].weight, 25);
 assert.equal(result.unchanged, 1);
 assert.equal(result.missing, 2);
 payload.records[1].ruleVersion = '2';
-assert.equal(context.aggregatePriceAnalysis(payload, 5, '2026-10-06').groups.length, 0);
+assert.equal(context.aggregatePriceAnalysis(payload, 5, '2026-10-06').groups.length, 1);
 assert.equal(context.aggregatePriceAnalysis(payload, 1, '2026-10-06').total, 2);
 payload.records[1].ruleVersion = '1';
 payload.records[1].change = (120 / 100 - 1) * 100;
 assert.equal(context.aggregatePriceAnalysis(payload, 5, '2026-10-06').groups[0].largeGains, 1);
 payload.records[1].change = 19.99;
 assert.equal(context.aggregatePriceAnalysis(payload, 5, '2026-10-06').groups[0].largeGains, 0);
+const volumes = {dates: ['2026-10-01', '2026-10-02', '2026-10-06'], records: [
+  {id: 'v', date: '2026-10-01', color: '#aaa', change: 0, volume: 100, ruleVersion: '1'},
+  {id: 'v', date: '2026-10-02', color: '#aaa', change: 1, volume: 120, ruleVersion: '1'},
+  {id: 'v', date: '2026-10-06', color: '#bbb', change: 2, volume: 9999, ruleVersion: '1'},
+]};
+assert.equal(context.aggregatePriceAnalysis(volumes, 1, '2026-10-07').groups[0].volumeAverage, 120);
+volumes.records[0].volume = 0;
+assert.equal(context.aggregatePriceAnalysis(volumes, 1, '2026-10-07').groups[0].volumeAverage, null);
+assert.equal(context.aggregatePriceAnalysis(volumes, 1, '2026-10-07').groups[0].rows.length, 1);
 console.log('Price analysis tests passed');

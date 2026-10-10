@@ -34,6 +34,8 @@ for (const item of items) {
   const excluded = item.archiveReason === 'manual_excluded' ? item.archivedAt?.slice(0, 10) : null;
   for (const date of dates.filter(date => date >= registered && date <= end && (!excluded || date <= excluded))) {
     const key = id + '|' + date;
+    const volume = daily.find(row => row.d === date)?.v;
+    if (Number.isFinite(volume) && volume >= 0 && records.has(key)) records.get(key).volume = volume;
     if (records.get(key)?.color) continue;
     const prefix = series.filter(row => row.t.slice(0, 10) <= date);
     const last = prefix.at(-1);
@@ -49,7 +51,8 @@ for (const item of items) {
       displayCharts: {intraday: {dataStatus: 'ok', series: prefix}}})] || '대기') : '대기';
     records.set(key, { id, code: item.code, name: item.name, registeredAt: item.registeredAt, date,
       type,
-      color, close: close?.c ?? null, change: close && prior ? (close.c / prior.c - 1) * 100 : null,
+      color, volume: Number.isFinite(volume) && volume >= 0 ? volume : null,
+      close: close?.c ?? null, change: close && prior ? (close.c / prior.c - 1) * 100 : null,
       ruleVersion: version, source: date === today ? 'close' : 'recalculated', capturedAt: now.toISOString() });
   }
 }
