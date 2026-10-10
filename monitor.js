@@ -1658,7 +1658,7 @@ function drawVisibleLow(ctx, series, y, pad, width, priceBottom, mobile) {
   const label = `최저 ${formatter.format(Math.round(low))}원`;
   const labelWidth = ctx.measureText(label).width + 8;
   const left = Math.max(pad.left, width - pad.right - labelWidth);
-  const top = Math.max(pad.top, Math.min(yy - 18, priceBottom - 17));
+  const top = yy + 3;
   ctx.fillStyle = "rgba(255,255,255,0.94)";
   ctx.fillRect(left, top, labelWidth, 16);
   ctx.fillStyle = "#455b70";
