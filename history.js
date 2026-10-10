@@ -59,20 +59,23 @@ function historyEvaluation(item) {
   const hit = rows.find(row => row.c >= baseline * 1.05);
   const windowRows = rows.filter(row => row.d > registered).slice(0, 10);
   const fiveRows = windowRows.slice(0, 5);
-  const peak = windowRows.length ? Math.max(...windowRows.map(row => row.c)) : null;
+  const peak = windowRows.length === 10 ? Math.max(...windowRows.map(row => row.c)) : null;
   const fiveReturn = fiveRows.length === 5 ? (Math.max(...fiveRows.map(row => row.c)) / baseline - 1) * 100 : null;
   return {valid: true, registered, end, baseline, finalPrice, peak, fiveReturn, peakReturn: peak == null ? null : (peak / baseline - 1) * 100,
     targetDate: hit?.d, duration: hit ? new Set([registered, ...daily.filter(row => row.d >= registered && row.d <= hit.d).map(row => row.d)]).size - 1 : null};
 }
 
 function renderSummary() {
-  const evaluated = state.history.filter((item) => historyEvaluation(item).valid);
-  const reached = evaluated.filter((item) => historyEvaluation(item).targetDate);
-  const rate = evaluated.length ? (100 * reached.length) / evaluated.length : 0;
+  const results = state.history.map(historyEvaluation);
+  const summaryFor = key => {
+    const evaluated = results.filter(result => Number.isFinite(result[key]));
+    const reached = evaluated.filter(result => result[key] >= 5);
+    return evaluated.length ? `${reached.length}종목 ${formatter.format(100 * reached.length / evaluated.length)}%` : "평가 대기";
+  };
   elements.completedCount.textContent = formatter.format(state.history.length);
-  elements.evaluationNote.textContent = `관리기간 완료 종목만 표시 · 달성률 평가 대상 ${evaluated.length}종목 · 자료 부족은 집계 제외`;
-  elements.reachedCount.textContent = formatter.format(reached.length);
-  elements.reachedRate.textContent = evaluated.length ? `${formatter.format(rate)}%` : "평가 대기";
+  elements.evaluationNote.textContent = "관리기간 완료 종목만 표시 · 등록 다음 거래일부터 일봉 종가 기준 · 자료 부족은 해당 기간 집계 제외";
+  elements.reachedCount.textContent = summaryFor("fiveReturn");
+  elements.reachedRate.textContent = summaryFor("peakReturn");
 }
 
 function renderHistory() {
