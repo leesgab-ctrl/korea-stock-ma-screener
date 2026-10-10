@@ -949,7 +949,8 @@ function renderWatchQuotes() {
   openOperationContent(document.querySelector("#watchQuotesButton"), content);
 }
 document.querySelector("#watchQuotesButton").addEventListener("click", renderWatchQuotes);
-document.querySelector("#priceAnalysisButton").addEventListener("click", renderPriceAnalysis);
+document.querySelector("#priceAnalysisButton").addEventListener("click", () => renderPriceAnalysis());
+document.querySelector("#shapeAnalysisButton").addEventListener("click", () => renderPriceAnalysis(true));
 const MEMO_STORAGE_KEY = "koreaStockMonitor.memo";
 let memoDraft = null;
 document.querySelector("#memoButton").addEventListener("click", event => {

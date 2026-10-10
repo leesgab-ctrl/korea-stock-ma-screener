@@ -78,6 +78,8 @@ main { max-width: 1480px; margin: 0 auto; padding: 18px; display: grid; gap: 14p
 .analysis-combined .analysis-current-heading { background: #bcdccc; color: #145b40; }
 .analysis-combined .analysis-current-cell { background: #e0f0e6; }
 .analysis-combined > tbody > .analysis-strong-return > td:not(.analysis-current-cell) { background: #fff2bf; }
+.analysis-combined > tbody > .analysis-group-start > td { border-top: 3px solid #65877a; }
+.analysis-combined > tbody > .analysis-group-end > td { border-bottom: 3px solid #65877a; }
 .analysis-current-cell .analysis-detail { color: #145b40; font-weight: 700; }
 .analysis-details-row[data-days="current"] > td { background: #edf7f0; }
 .analysis-details-row[data-days="current"] .analysis-stocks th { background: #cde7d6; color: #145b40; }

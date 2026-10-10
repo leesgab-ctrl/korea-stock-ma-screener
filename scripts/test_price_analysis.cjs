@@ -36,4 +36,14 @@ assert.equal(context.aggregatePriceAnalysis(volumes, 1, '2026-10-07').groups[0].
 volumes.records[0].volume = 0;
 assert.equal(context.aggregatePriceAnalysis(volumes, 1, '2026-10-07').groups[0].volumeAverage, null);
 assert.equal(context.aggregatePriceAnalysis(volumes, 1, '2026-10-07').groups[0].rows.length, 1);
+const pairs = [
+  {from: 'a', to: 'x', 5: {average: 10, rows: [{change: 10}]}},
+  {from: 'a', to: 'y', 5: {average: 0, rows: Array.from({length: 9}, () => ({change: 0}))}},
+  {from: 'b', to: 'z', 5: {average: 2, rows: [{change: 2}]}},
+];
+assert.equal(context.sortPriceAnalysisPairs(pairs, 5)[0].from, 'a');
+const ordered = context.sortPriceAnalysisPairs(pairs, 5, true);
+assert.equal(ordered[0].from, 'b');
+assert.equal(ordered[1].to, 'x');
+assert.equal(ordered[2].to, 'y');
 console.log('Price analysis tests passed');

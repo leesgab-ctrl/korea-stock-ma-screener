@@ -28,18 +28,35 @@ function aggregatePriceAnalysis(payload, days, today) {
   })).sort((a, b) => b.average - a.average) };
 }
 
-async function renderPriceAnalysis() {
+function sortPriceAnalysisPairs(pairs, days, grouped = false) {
+  const scores = new Map();
+  if (grouped) for (const pair of pairs) {
+    const score = scores.get(pair.from) || {sum: 0, count: 0};
+    for (const row of pair[5]?.rows || []) { score.sum += row.change; score.count += 1; }
+    scores.set(pair.from, score);
+  }
+  const average = color => {
+    const score = scores.get(color);
+    return score?.count ? score.sum / score.count : -Infinity;
+  };
+  return [...pairs].sort((a, b) => {
+    if (grouped && a.from !== b.from) return average(b.from) - average(a.from) || a.from.localeCompare(b.from);
+    return (b[days]?.average ?? -Infinity) - (a[days]?.average ?? -Infinity) || (a.from + a.to).localeCompare(b.from + b.to);
+  });
+}
+
+async function renderPriceAnalysis(grouped = false) {
   const content = document.createElement('section');
   content.className = 'price-analysis';
   content.textContent = '주가분석을 불러오는 중입니다.';
-  openOperationContent(document.querySelector('#priceAnalysisButton'), content);
+  openOperationContent(document.querySelector(grouped ? '#shapeAnalysisButton' : '#priceAnalysisButton'), content);
   try {
     const response = await fetch(`data/price-analysis.json?t=${Date.now()}`, {cache: 'no-store'});
     if (!response.ok) throw new Error('마감 분석 기록이 아직 없습니다.');
     const data = await response.json();
     content.replaceChildren();
     const title = document.createElement('h2');
-    title.textContent = '주가분석';
+    title.textContent = grouped ? '형태분석' : '주가분석';
     content.append(title);
     const note = document.createElement('p');
     note.className = 'analysis-note';
@@ -98,8 +115,11 @@ async function renderPriceAnalysis() {
         button.setAttribute('aria-pressed', String(active));
         button.parentElement.setAttribute('aria-sort', active ? 'descending' : 'none');
       });
-      for (const pair of [...combined.values()].sort((a, b) => (b[sortDays]?.average ?? -Infinity) - (a[sortDays]?.average ?? -Infinity) || (a.from + a.to).localeCompare(b.from + b.to))) {
+      const ordered = sortPriceAnalysisPairs([...combined.values()], sortDays, grouped);
+      for (const [index, pair] of ordered.entries()) {
         const row = document.createElement('tr');
+        if (grouped && ordered[index - 1]?.from !== pair.from) row.classList.add('analysis-group-start');
+        if (grouped && ordered[index + 1]?.from !== pair.from) row.classList.add('analysis-group-end');
         if (pair[5]?.average >= 4) row.classList.add('analysis-strong-return');
         const colors = document.createElement('td'); colors.append(swatch(pair.from), document.createTextNode(' → '), swatch(pair.to));
         row.append(colors);
