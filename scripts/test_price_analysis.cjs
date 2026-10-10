@@ -57,4 +57,14 @@ const filtered = context.filterChartShapeAnalysis({dates: [], records: [
 assert.equal(filtered.records.length, 2);
 assert.equal(filtered.records[0].code, 'c');
 assert.equal(filtered.records[1].code, 'd');
+const compactData = {dates: ['2026-10-01', '2026-10-02'], records: [
+  {id: 'a', date: '2026-10-01', color: '#aaa', compact: true, change: 0, ruleVersion: '1'},
+  {id: 'a', date: '2026-10-02', color: '#aaa', compact: true, change: 2, ruleVersion: '1'},
+  {id: 'b', date: '2026-10-01', color: '#aaa', compact: false, change: 0, ruleVersion: '1'},
+  {id: 'b', date: '2026-10-02', color: '#aaa', compact: false, change: 4, ruleVersion: '1'},
+]};
+const compactGroups = context.aggregatePriceAnalysis(compactData, 1, '2026-10-03').groups;
+assert.equal(compactGroups.length, 2);
+assert.equal(compactGroups.find(group => group.fromCompact).average, 2);
+assert.equal(compactGroups.find(group => !group.fromCompact).average, 4);
 console.log('Price analysis tests passed');

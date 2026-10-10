@@ -896,8 +896,11 @@ function renderWatchQuotes() {
       const swatch = document.createElement("span");
       swatch.className = "watch-quote-swatch";
       if (phase) swatch.style.backgroundColor = phaseBackground(phase);
+      const spread = phase ? maximumMaSpread(phase) : null;
+      if (spread !== null && spread <= 0.8) swatch.classList.add("ma-compact-swatch");
       else { swatch.classList.add("pending"); swatch.textContent = "—"; }
       swatch.title = phase ? `${label} · ${formatDateTime(phase.t)}` : `${label} 자료 대기`;
+      if (spread !== null && spread <= 0.8) swatch.title += ` · 5개 MA 최대간격 ${spread.toFixed(1)}% (밀집)`;
       swatch.setAttribute("aria-label", swatch.title);
       swatches.append(swatch);
     }

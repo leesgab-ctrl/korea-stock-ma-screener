@@ -9,8 +9,8 @@ function aggregatePriceAnalysis(payload, days, today) {
     const prior = lookup.get(row.id + '|' + priorDate);
     if (!row.color || !prior?.color || row.ruleVersion !== prior.ruleVersion || !Number.isFinite(row.change)) { missing += 1; continue; }
     if (prior.color === row.color) unchanged += 1;
-    const key = prior.color + '|' + row.color;
-    if (!groups.has(key)) groups.set(key, { from: prior.color, to: row.color, rows: [] });
+    const key = prior.color + '|' + Boolean(prior.compact) + '|' + row.color + '|' + Boolean(row.compact);
+    if (!groups.has(key)) groups.set(key, { from: prior.color, to: row.color, fromCompact: prior.compact === true, toCompact: row.compact === true, rows: [] });
     const earlierDate = payload.dates[payload.dates.indexOf(row.date) - 2];
     const earlier = lookup.get(row.id + '|' + earlierDate);
     const volumeRatio = Number.isFinite(prior.volume) && prior.volume >= 0 && earlier?.volume > 0
@@ -36,17 +36,18 @@ function filterChartShapeAnalysis(payload, exclusions) {
 
 function sortPriceAnalysisPairs(pairs, days, grouped = false) {
   const scores = new Map();
+  const identity = pair => pair.from + '|' + Boolean(pair.fromCompact);
   if (grouped) for (const pair of pairs) {
-    const score = scores.get(pair.from) || {sum: 0, count: 0};
+    const score = scores.get(identity(pair)) || {sum: 0, count: 0};
     for (const row of pair[5]?.rows || []) { score.sum += row.change; score.count += 1; }
-    scores.set(pair.from, score);
+    scores.set(identity(pair), score);
   }
   const average = color => {
     const score = scores.get(color);
     return score?.count ? score.sum / score.count : -Infinity;
   };
   return [...pairs].sort((a, b) => {
-    if (grouped && a.from !== b.from) return average(b.from) - average(a.from) || a.from.localeCompare(b.from);
+    if (grouped && identity(a) !== identity(b)) return average(identity(b)) - average(identity(a)) || identity(a).localeCompare(identity(b));
     return (b[days]?.average ?? -Infinity) - (a[days]?.average ?? -Infinity) || (a.from + a.to).localeCompare(b.from + b.to);
   });
 }
@@ -84,23 +85,27 @@ async function renderPriceAnalysis(grouped = false) {
       if (!color) continue;
       const quote = displayQuote(item);
       const record = {id, name: item.name, type, date: currentDate, close: quote.price, change: quote.change, current: true};
-      if (!currentByColor.has(color)) currentByColor.set(color, []);
-      currentByColor.get(color).push(record);
+      const spread = last ? maximumMaSpread(last) : null;
+      const compact = saved?.compact ?? (spread !== null && spread <= 0.8);
+      const colorKey = color + '|' + Boolean(compact);
+      if (!currentByColor.has(colorKey)) currentByColor.set(colorKey, []);
+      currentByColor.get(colorKey).push(record);
     }
-    const swatch = color => {
+    const swatch = (color, compact) => {
       const span = document.createElement('span');
       span.className = 'analysis-swatch'; span.style.background = color; span.title = color;
+      if (compact) { span.classList.add('ma-compact-swatch'); span.title += ' · 5개 MA 최대간격 0.8% 이하'; }
       return span;
     };
     {
       const results = {5: aggregatePriceAnalysis(data, 5, today), 10: aggregatePriceAnalysis(data, 10, today)};
       const combined = new Map();
       for (const days of [5, 10]) for (const group of results[days].groups) {
-        const key = group.from + '|' + group.to;
-        if (!combined.has(key)) combined.set(key, {from: group.from, to: group.to});
+        const key = group.from + '|' + group.fromCompact + '|' + group.to + '|' + group.toCompact;
+        if (!combined.has(key)) combined.set(key, {from: group.from, to: group.to, fromCompact: group.fromCompact, toCompact: group.toCompact});
         combined.get(key)[days] = group;
       }
-      for (const pair of combined.values()) pair.current = {rows: currentByColor.get(pair.from) || []};
+      for (const pair of combined.values()) pair.current = {rows: currentByColor.get(pair.from + '|' + Boolean(pair.fromCompact)) || []};
       let sortDays = 5;
       const heading = document.createElement('h3');
       heading.textContent = '최근 5 · 10거래일';
@@ -124,10 +129,10 @@ async function renderPriceAnalysis(grouped = false) {
       const ordered = sortPriceAnalysisPairs([...combined.values()], sortDays, grouped);
       for (const [index, pair] of ordered.entries()) {
         const row = document.createElement('tr');
-        if (grouped && ordered[index - 1]?.from !== pair.from) row.classList.add('analysis-group-start');
-        if (grouped && ordered[index + 1]?.from !== pair.from) row.classList.add('analysis-group-end');
+        if (grouped && (ordered[index - 1]?.from !== pair.from || ordered[index - 1]?.fromCompact !== pair.fromCompact)) row.classList.add('analysis-group-start');
+        if (grouped && (ordered[index + 1]?.from !== pair.from || ordered[index + 1]?.fromCompact !== pair.fromCompact)) row.classList.add('analysis-group-end');
         if (pair[5]?.average >= 4) row.classList.add('analysis-strong-return');
-        const colors = document.createElement('td'); colors.append(swatch(pair.from), document.createTextNode(' → '), swatch(pair.to));
+        const colors = document.createElement('td'); colors.append(swatch(pair.from, pair.fromCompact), document.createTextNode(' → '), swatch(pair.to, pair.toCompact));
         row.append(colors);
         for (const days of [5, 10, 'current']) {
         const group = pair[days] || {rows: [], average: null, weight: 0};
