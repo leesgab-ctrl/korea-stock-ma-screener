@@ -15,11 +15,20 @@ import urllib.request
 def states(bars):
     result = []
     confirmed = False
+    convergence_armed = False
     for i, b in enumerate(bars):
         p = bars[i - 1] if i else None
         values = [b.get(k) for k in ("m3", "m10", "m20", "m40", "m60")]
         valid = all(isinstance(v, (int, float)) and math.isfinite(v) and v > 0 for v in values)
         purple = False
+        converging = False
+        breakout = False
+        if valid and p and all(isinstance(p.get(k), (int, float)) and math.isfinite(p[k]) and p[k] > 0 for k in ("m3", "m40", "m60")):
+            breakout = convergence_armed and b["m60"] > p["m60"] and p["m3"] <= p["m40"] and b["m3"] > b["m40"]
+            if breakout or b["m60"] <= p["m60"]:
+                convergence_armed = False
+        else:
+            convergence_armed = False
         if not valid or not p or not all(isinstance(p.get(k), (int, float)) for k in ("m40", "m60")):
             confirmed = False
         elif b["m60"] <= p["m60"] or b["m3"] >= b["m20"]:
@@ -31,11 +40,17 @@ def states(bars):
             else:
                 if b["m20"] < b["m40"]:
                     confirmed = True
-                purple = confirmed and b["m3"] < b["m60"] and (b["m60"] - b["m3"]) / b["m60"] <= .01 + 1e-12
+                gap = abs(b["m40"] - b["m60"]) / b["m60"]
+                prior_gap = abs(p["m40"] - p["m60"]) / p["m60"]
+                converging = confirmed and not rising40 and gap <= .015 + 1e-12 and gap < prior_gap
+                near60 = b["m3"] < b["m60"] and (b["m60"] - b["m3"]) / b["m60"] <= .01 + 1e-12
+                purple = confirmed and (near60 or converging)
+                if converging and b["m3"] <= b["m40"]:
+                    convergence_armed = True
         spread = (max(values) / min(values) - 1) * 100 if valid else None
         # The agreed alert uses all five averages, not the four-line pink palette.
         compact = valid and spread <= .8 + 1e-12
-        result.append({"purple": purple, "compact": compact, "spread": spread})
+        result.append({"purple": purple, "compact": compact, "spread": spread, "convergenceBreakout": breakout})
     return result
 
 
@@ -67,7 +82,7 @@ def send(topic, candidate, payload, row, state, kind, current):
     lows = {r["d"]: r["l"] for r in daily if r.get("d", "") < row["t"][:10] and isinstance(r.get("l"), (int, float)) and r["l"] > 0}
     dates = sorted(lows)[-3:]
     stop = min(lows[d] for d in dates) if len(dates) == 3 else None
-    label = "진한 보라색 조정 관찰" if kind == "purple" else "전체 5개 MA 밀착"
+    label = {"purple": "진한 보라색 조정 관찰", "convergenceBreakout": "MA40·60 밀집 후 MA3 상향돌파 매수 후보"}.get(kind, "전체 5개 MA 밀착")
     message = f"{candidate['name']}({candidate['code']})\n- 전체 5개 MA 최대간격 {state['spread']:.2f}%\n- 포착기준매수가 {row['c']:,.0f}원"
     if stop is not None and stop < row["c"]:
         message += f"\n- 손절기준 {(stop / row['c'] - 1) * 100:+.2f}% {stop:,.0f}원"
@@ -118,11 +133,12 @@ def notify(payload, current, topic, no_notify=False, sender=send):
             completion = dt.datetime.fromisoformat(b["t"]) + dt.timedelta(minutes=1 if b["t"][11:16] == "15:30" else 30)
             if completion > current:
                 continue
-            kinds = [kind for kind in ("compact", "purple") if state[kind] and not saved.get(kind)]
+            kinds = [kind for kind in ("compact", "purple", "convergenceBreakout") if state[kind] and not saved.get(kind)]
             if kinds and dt.timedelta(0) <= current - completion <= dt.timedelta(minutes=90):
                 try:
                     # Simultaneous conditions produce one notification, not two.
-                    sender(topic, candidate, payload, b, state, "purple" if "purple" in kinds else "compact", current)
+                    kind = "convergenceBreakout" if "convergenceBreakout" in kinds else "purple" if "purple" in kinds else "compact"
+                    sender(topic, candidate, payload, b, state, kind, current)
                 except Exception as exc:
                     payload.setdefault("colorNotificationErrors", []).append(str(exc))
                     break

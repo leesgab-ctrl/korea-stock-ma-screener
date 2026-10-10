@@ -1430,7 +1430,7 @@ function chartPhases(series) {
 }
 
 function ma60Observations(series) {
-  const results = series.map(() => ({ ma60Observation: false, ma10Rising: false }));
+  const results = series.map(() => ({ ma60Observation: false, ma10Rising: false, ma40Convergence: false }));
   let start = -1;
   let confirmed = false;
   series.forEach((row, index) => {
@@ -1444,6 +1444,9 @@ function ma60Observations(series) {
     }
     const rising40 = row.m40 > previous.m40;
     const near60 = row.m3 < row.m60 && (row.m60 - row.m3) / row.m60 <= 0.01 + 1e-12;
+    const gap = Math.abs(row.m40 - row.m60) / row.m60;
+    const priorGap = Math.abs(previous.m40 - previous.m60) / previous.m60;
+    const converging = !rising40 && gap <= 0.015 + 1e-12 && gap < priorGap;
     if (!confirmed && !rising40) { start = -1; return; }
     if (start < 0) start = index;
     if (!confirmed && row.m20 < row.m40) {
@@ -1452,8 +1455,9 @@ function ma60Observations(series) {
       for (let i = start; i <= index; i += 1) results[i].ma60Observation = true;
     }
     if (!confirmed) return;
-    results[index].ma60Observation = rising40 || near60;
-    results[index].ma10Rising = near60;
+    results[index].ma60Observation = rising40 || near60 || converging;
+    results[index].ma10Rising = near60 || converging;
+    results[index].ma40Convergence = converging;
   });
   return results;
 }
