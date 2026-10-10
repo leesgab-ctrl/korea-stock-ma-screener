@@ -124,7 +124,6 @@ function newRegistrationLabel(item) {
 const positionKey = item => item?.id || item?.code;
 
 function chartGroup(item) {
-  if (item.paperStrategy?.excludedReason) return "excluded";
   if (item.status === "insufficient") return "insufficient";
   const chart = item.displayCharts?.intraday;
   if (chart?.dataStatus !== "ok") return "insufficient";
@@ -798,7 +797,7 @@ function watchReturns(item, quote) {
 function renderWatchQuotes() {
   const content = document.createElement("div");
   content.className = "watch-quotes";
-  const items = (state.payload?.candidates || []).filter(item => ["reference", "target"].includes(chartGroup(item)));
+  const items = state.payload?.candidates || [];
   const entries = items.map(item => ({item, quote: displayQuote(item)})).sort((a, b) => {
     if (a.quote.change == null && b.quote.change != null) return 1;
     if (a.quote.change != null && b.quote.change == null) return -1;
@@ -848,7 +847,7 @@ function renderWatchQuotes() {
     name.textContent = item.name;
     const group = document.createElement("span");
     group.className = "watch-quote-group";
-    group.textContent = chartGroup(item) === "reference" ? "상승" : "조정";
+    group.textContent = { reference: "상승", target: "조정", insufficient: "대기", unclassified: "대기" }[chartGroup(item)] || "대기";
     const swatches = document.createElement("span");
     swatches.className = "watch-quote-swatches";
     const phases = chartPhases(item.displayCharts?.intraday?.series || []);

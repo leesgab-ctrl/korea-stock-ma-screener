@@ -112,7 +112,7 @@ def update_paper(payload, current, notify=None):
     for candidate in payload.get("candidates", []):
         result = evaluate(candidate)
         candidate["paperStrategy"] = result
-        candidate["status"] = "excluded" if result["excludedReason"] else "watching"
+        candidate["status"] = "watching"
         chart = candidate.get("displayCharts", {}).get("intraday", {})
         if chart.get("dataStatus") != "ok":
             continue

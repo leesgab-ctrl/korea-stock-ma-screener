@@ -1464,7 +1464,7 @@ def enrich(
                     notified.add(signature)
                     new_alerts += 1
         elif intraday.get("structuralExcluded"):
-            candidate["status"] = "excluded"
+            candidate["status"] = "watching"
         elif (
             intraday.get("baselineMa20AboveMa40") is None
             and not intraday.get("baselineInferred")
@@ -1598,6 +1598,9 @@ def main() -> None:
         calendar = sorted(set(calendar) | session_dates)
         if calendar:
             expire_registration_window(payload, calendar, min(calendar[-1], current.date().isoformat()))
+    for candidate in payload.get("candidates", []):
+        if candidate.get("status") == "excluded":
+            candidate["status"] = "watching"
     if payload.get("paperTrading"):
         open_codes = {p["code"] for p in payload["paperTrading"]["positions"] if p["status"] == "open"}
         active_codes = {c["code"] for c in payload.get("candidates", [])}
@@ -1622,7 +1625,7 @@ def main() -> None:
                 payload.setdefault("paperNotificationErrors", []).append(str(exc))
         update_paper(payload, current, paper_notice)
         payload.setdefault("summary", {}).update({
-            "active": sum(not c["paperStrategy"]["excludedReason"] for c in payload.get("candidates", [])),
+            "active": len(payload.get("candidates", [])),
             "signals": 0, "signalHistory": 0, "newAlerts": 0, "pendingNotifications": 0,
         })
         alerts, pending = 0, 0
