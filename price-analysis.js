@@ -60,7 +60,7 @@ async function renderPriceAnalysis() {
       content.append(meta);
       const table = document.createElement('table'); table.className = 'analysis-table';
       table.classList.add('analysis-combined');
-      table.innerHTML = '<thead><tr><th rowspan="2">전일 →<br>해당일</th><th colspan="3">5거래일</th><th colspan="3">10거래일</th><th rowspan="2">비고</th></tr><tr><th>건수</th><th><button type="button" data-sort-days="5">평균<br>등락률</button></th><th>비중</th><th>건수</th><th><button type="button" data-sort-days="10">평균<br>등락률</button></th><th>비중</th></tr></thead><tbody></tbody>';
+      table.innerHTML = '<thead><tr><th rowspan="2">전일 →<br>해당일</th><th colspan="3">5거래일</th><th colspan="3">10거래일</th><th rowspan="2">20%이상<br>건수</th></tr><tr><th>건수</th><th><button type="button" data-sort-days="5">평균<br>등락률</button></th><th>비중</th><th>건수</th><th><button type="button" data-sort-days="10">평균<br>등락률</button></th><th>비중</th></tr></thead><tbody></tbody>';
       const body = table.querySelector('tbody');
       const renderRows = () => {
       body.replaceChildren();
@@ -127,8 +127,8 @@ async function renderPriceAnalysis() {
         });
         }
         const remark = document.createElement('td');
-        const notes = [5, 10].filter(days => pair[days]?.largeGains).map(days => `${days}일 20% 이상 상승 ${pair[days].largeGains}건`);
-        remark.textContent = notes.join(' / ') || '-';
+        const notes = [5, 10].map(days => `${days}일${pair[days]?.largeGains || 0}건`);
+        remark.textContent = notes.join('/');
         remark.title = '전일 종가 대비 당일 종가가 20% 이상 상승한 종목·거래일 건수';
         row.append(remark); body.append(row);
       }
