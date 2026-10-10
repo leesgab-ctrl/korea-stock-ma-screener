@@ -220,6 +220,11 @@ async function renderPriceAnalysis(grouped = false) {
         const remark = document.createElement('td');
         const notes = [5, 10].map(days => `${days}일${pair[days]?.largeGains || 0}건`);
         remark.textContent = (pair[5]?.largeGains || pair[10]?.largeGains) ? notes.join('/') : '';
+        if (pair.toCompact) {
+          const warning = document.createElement('div');
+          warning.textContent = '다음날 반드시 3MA 상승 여부 확인 후 매수할 것';
+          remark.append(warning);
+        }
         if ([pair.from, pair.to].some(color => ['#f8cbdc', '#f2abc6', '#e98bab'].includes(color))) {
           const warning = document.createElement('div');
           warning.textContent = '다음날 MA 상승을 꼭 확인할 것';
