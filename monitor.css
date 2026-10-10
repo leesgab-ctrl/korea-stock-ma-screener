@@ -452,7 +452,7 @@ body.inline-chart-mode .detail-heading { display: none; }
   .history-table td:first-child { grid-column: 1 / -1; }
 }
 .history-chart-row td { padding: 0; }
-.history-chart-row iframe { display: block; width: min(100%, 100vw - 40px); height: 1100px; border: 0; }
+.history-chart-row iframe { display: block; width: 100%; height: 1100px; border: 0; }
 @media (max-width: 800px) {
   .watch-quote-header, .watch-quote-row > summary { grid-template-columns: minmax(0, 1.4fr) minmax(0, .45fr) minmax(0, .9fr) minmax(0, 1.1fr) minmax(0, .8fr); gap: 4px; }
   .watch-quote-header > :nth-child(4), .watch-quote-row > summary > :nth-child(4),
@@ -504,6 +504,7 @@ body.inline-chart-mode .detail-heading { display: none; }
   .history-table th:nth-child(9) { width: 14%; }
 }
 .history-table th:nth-child(n), .history-table td:nth-child(n) { display: table-cell; }
+.history-table .history-chart-row > td { width: auto; padding: 0; overflow: visible; }
 .history-table th:nth-child(n) { width: auto; font-size: 12px; white-space: normal; }
 .history-table th::before { content: none; }
 .history-table th:nth-child(1) { width: 4%; white-space: nowrap; }

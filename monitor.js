@@ -1753,7 +1753,7 @@ function drawDailyChart(series, preserveWindow = false) {
     if (dailyViewport.code !== code) {
       dailyViewport.code = code;
       dailyViewport.endOffset = 0;
-      dailyViewport.initialCount = historyChartMode ? dailyViewport.series.length : series.length;
+      dailyViewport.initialCount = historyChartMode ? Math.min(60, dailyViewport.series.length) : series.length;
       dailyViewport.count = dailyViewport.initialCount;
       dailyViewport.start = dailyViewport.series.length - dailyViewport.count;
     }
