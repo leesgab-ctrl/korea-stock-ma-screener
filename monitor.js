@@ -185,7 +185,7 @@ async function loadData() {
       document.body.classList.add("history-chart-mode");
       document.body.append(elements.detailPanel);
       if (archived) {
-        const end = (archived.archivedAt || archived.outcome?.finalDate || "").slice(0, 10);
+        const end = (archived.verificationEndDate || archived.archivedAt || archived.outcome?.finalDate || "").slice(0, 10);
         const snapshot = structuredClone(archived);
         if (end) {
           for (const [kind, key] of [["intraday", "t"], ["daily", "d"]]) {

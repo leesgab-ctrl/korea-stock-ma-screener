@@ -723,6 +723,45 @@ def refresh_display_charts(payload: dict[str, Any], current: dt.datetime, positi
     }
 
 
+def refresh_excluded_verification(payload, current, calendar):
+    changed = False
+    for record in payload.get("history", []):
+        if record.get("verificationStatus") == "completed":
+            continue
+        registered = str(record.get("registeredAt") or "")[:10]
+        if not registered:
+            continue
+        charts = record.setdefault("displayCharts", {})
+        errors = []
+        for name, timeframe in (("intraday", "minute30"), ("daily", "day")):
+            previous = charts.get(name, {})
+            try:
+                charts[name] = fetch_display_chart(record["code"], timeframe, current, previous)
+            except (OSError, TimeoutError, ValueError, KeyError, TypeError) as exc:
+                errors.append(str(exc))
+                charts[name] = {**previous, "dataStatus": "stale" if previous.get("series") else "error", "error": str(exc)}
+        dates = sorted(set(calendar) | {
+            row["d"] for row in charts.get("daily", {}).get("history", [])
+            if row.get("d") and row["d"] <= current.date().isoformat()
+        })
+        after = [day for day in dates if registered < day <= current.date().isoformat()]
+        end = after[9] if len(after) >= 10 else None
+        record["verificationStatus"] = "collecting"
+        record["verificationUpdatedAt"] = current.isoformat(timespec="seconds")
+        record["verificationErrors"] = errors
+        if end:
+            for name, key in (("intraday", "t"), ("daily", "d")):
+                for field in ("series", "history"):
+                    if field in charts.get(name, {}):
+                        charts[name][field] = [row for row in charts[name][field] if row[key][:10] <= end]
+            available = {row["d"] for row in charts.get("daily", {}).get("history", [])}
+            if not errors and end in available and current >= dt.datetime.fromisoformat(f"{end}T20:00:00+09:00"):
+                record["verificationStatus"] = "completed"
+                record["verificationEndDate"] = end
+        changed = True
+    return changed
+
+
 def fetch_daily_chart(code: str, count: int = 130) -> dict[str, Any]:
     url = (
         "https://fchart.stock.naver.com/sise.nhn"
@@ -1539,6 +1578,7 @@ def main() -> None:
         payload, current, args.minute_count, True, refresh_daily_chart=True,
     )
     refresh_display_charts(payload, current)
+    archive_tracking_changed = refresh_excluded_verification(payload, current, restore_calendar)
     from paper_trading import evaluate as evaluate_paper_candidate
     for candidate in payload.get("candidates", []):
         if candidate.pop("restoreClassificationPending", False):
@@ -1593,6 +1633,7 @@ def main() -> None:
     if args.github_output:
         with open(args.github_output, "a", encoding="utf-8") as handle:
             handle.write(f"color_state_changed={str(color_changed).lower()}\n")
+            handle.write(f"archive_tracking_changed={str(archive_tracking_changed).lower()}\n")
     print(
         json.dumps(
             {"mode": args.mode, "active": len(payload["candidates"]), "alerts": alerts, "pending": pending},

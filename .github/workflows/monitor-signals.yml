@@ -54,7 +54,7 @@ jobs:
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
         run: python scripts/manage_positions.py --action monitor --github-output "$GITHUB_OUTPUT"
       - name: Save newly notified signals
-        if: inputs.charts_only != true && (steps.monitor.outputs.alerts != '0' || steps.positions.outputs.alerts != '0' || steps.monitor.outputs.color_state_changed == 'true')
+        if: inputs.charts_only != true && (steps.monitor.outputs.alerts != '0' || steps.positions.outputs.alerts != '0' || steps.monitor.outputs.color_state_changed == 'true' || steps.monitor.outputs.archive_tracking_changed == 'true')
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"

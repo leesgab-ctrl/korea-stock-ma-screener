@@ -21,7 +21,7 @@ async function loadHistory() {
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const payload = await response.json();
     const activeCodes = new Set((payload.candidates || []).map(item => item.code));
-    state.history = (Array.isArray(payload.history) ? payload.history : []).filter(item => item.archiveReason === "window_completed" && !activeCodes.has(item.code));
+    state.history = (Array.isArray(payload.history) ? payload.history : []).filter(item => (item.archiveReason === "window_completed" || item.verificationStatus === "completed") && !activeCodes.has(item.code));
     state.excludedCodes = new Set((payload.manualExclusions || []).map((r) => r.code));
     renderSummary();
     renderHistory();
@@ -42,7 +42,7 @@ async function loadHistory() {
 
 function historyEvaluation(item) {
   const registered = item.registeredAt?.slice(0, 10);
-  const end = (item.archivedAt || item.outcome?.finalDate || "").slice(0, 10);
+  const end = (item.verificationEndDate || item.archivedAt || item.outcome?.finalDate || "").slice(0, 10);
   const chart = item.displayCharts?.daily;
   const daily = (chart?.history?.length ? chart.history : chart?.series || []).filter(row => row.complete !== false && row.c > 0).sort((a, b) => a.d.localeCompare(b.d));
   const baseline = Number.isFinite(item.registrationPrice) && item.registrationPrice > 0 ? item.registrationPrice : null;
@@ -63,7 +63,7 @@ function historyEvaluation(item) {
 }
 
 function renderSummary() {
-  const evaluated = state.history.filter((item) => !state.excludedCodes.has(item.code) && item.archiveReason !== "manual_excluded" && historyEvaluation(item).valid);
+  const evaluated = state.history.filter((item) => historyEvaluation(item).valid);
   const reached = evaluated.filter((item) => historyEvaluation(item).targetDate);
   const rate = evaluated.length ? (100 * reached.length) / evaluated.length : 0;
   elements.completedCount.textContent = formatter.format(state.history.length);
