@@ -57,8 +57,11 @@ function historyEvaluation(item) {
   const rows = daily.filter(row => Date.parse(`${row.d}T15:30:00+09:00`) >= Date.parse(item.registeredAt) && row.d <= end);
   if (!baseline || !end || !rows.length) return {valid: false, registered, end, baseline, finalPrice};
   const hit = rows.find(row => row.c >= baseline * 1.05);
-  const peak = Math.max(baseline, ...rows.map(row => row.c));
-  return {valid: true, registered, end, baseline, finalPrice, peak, peakReturn: (peak / baseline - 1) * 100,
+  const windowRows = rows.filter(row => row.d > registered).slice(0, 10);
+  const fiveRows = windowRows.slice(0, 5);
+  const peak = windowRows.length ? Math.max(...windowRows.map(row => row.c)) : null;
+  const fiveReturn = fiveRows.length === 5 ? (Math.max(...fiveRows.map(row => row.c)) / baseline - 1) * 100 : null;
+  return {valid: true, registered, end, baseline, finalPrice, peak, fiveReturn, peakReturn: peak == null ? null : (peak / baseline - 1) * 100,
     targetDate: hit?.d, duration: hit ? new Set([registered, ...daily.filter(row => row.d >= registered && row.d <= hit.d).map(row => row.d)]).size - 1 : null};
 }
 
@@ -88,10 +91,9 @@ function renderHistory() {
 
   const table = document.createElement("table");
   table.className = "history-table";
-  table.innerHTML = "<thead><tr><th>No</th><th>종목명</th><th>등록일</th><th>등록가</th><th>최종가</th><th>목표달성일</th><th>달성기간</th><th>최고수익률</th><th>종료일</th></tr></thead><tbody></tbody>";
+  table.innerHTML = "<thead><tr><th>No</th><th>종목명</th><th>등록일</th><th>등록가<br>최종가</th><th>5일<br>수익률</th><th>달성<br>기간</th><th>10일최고<br>수익률</th><th>종료일</th></tr></thead><tbody></tbody>";
   const body = table.querySelector("tbody");
   table.querySelectorAll("th").forEach((cell, index) => {
-    cell.dataset.short = ["No", "종목", "등록일", "등록가", "최종가", "달성일", "기간", "최고%", "종료일"][index];
     cell.title = cell.textContent;
   });
   records.forEach((item, index) => {
@@ -101,10 +103,9 @@ function renderHistory() {
       <td>${index + 1}</td>
       <td><strong>${escapeHtml(item.name || "-")}</strong><span>${escapeHtml(item.code || "")}</span>${item.archiveReason === "manual_excluded" ? '<span>사용자 선정 제외</span>' : ""}</td>
       <td title="${escapeHtml(result.registered || "")}">${escapeHtml(result.registered?.slice(5) || "기록 없음")}</td>
-      <td>${formatPrice(result.baseline)}</td>
-      <td>${formatPrice(result.finalPrice)}</td>
-      <td title="${escapeHtml(result.targetDate || "")}">${escapeHtml(result.targetDate?.slice(5) || (result.valid ? "미달" : "자료 부족"))}</td>
-      <td>${formatDuration(result.duration)}</td>
+      <td class="history-prices"><span title="등록가">${formatPrice(result.baseline)}</span><span title="최종가">${formatPrice(result.finalPrice)}</span></td>
+      <td title="등록 다음 거래일부터 5거래일 일봉 종가 중 최고수익률" class="${returnClass(result.fiveReturn)} ${result.fiveReturn >= 5 ? "target-hit" : ""}">${formatReturn(result.fiveReturn)}</td>
+      <td title="목표 +5% 달성기간">${result.duration == null ? "-" : result.duration === 0 ? "당일" : `${result.duration}일`}</td>
       <td class="${returnClass(result.peakReturn)} ${result.peakReturn >= 5 ? "target-hit" : ""}">${formatReturn(result.peakReturn)}</td>
       <td title="${escapeHtml(result.end || "")}">${escapeHtml(result.end?.slice(5) || "-")}</td>`;
     body.append(row);
@@ -126,7 +127,7 @@ function renderHistory() {
       }
       const detail = document.createElement("tr");
       detail.className = "history-chart-row";
-      const cell = document.createElement("td"); cell.colSpan = 9;
+      const cell = document.createElement("td"); cell.colSpan = 8;
       const frame = document.createElement("iframe");
       frame.title = `${item.name || item.code} 30분봉과 일봉 전체 이력`;
       frame.src = `monitor.html?historyChart=1&stock=${encodeURIComponent(item.code)}`;

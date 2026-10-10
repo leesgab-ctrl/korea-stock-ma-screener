@@ -747,7 +747,7 @@ function applyPendingExclusions() {
 
 function renderManualExclusions() {
   const entries = state.payload.manualExclusions || [];
-  document.querySelector("#manualExclusionsButton").textContent = `수동 제외 (${entries.length})`;
+  document.querySelector("#manualExclusionsButton").textContent = "수동제외";
   const list = document.querySelector("#excludedList");
   list.replaceChildren();
   if (!entries.length) list.textContent = "수동 제외한 종목이 없습니다.";
