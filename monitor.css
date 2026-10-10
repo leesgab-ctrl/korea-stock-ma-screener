@@ -475,7 +475,7 @@ body.history-chart-mode > .detail-panel { margin: 0; width: 100%; min-height: 0;
 body.inline-chart-mode > .detail-panel { border: 0; border-radius: 0; min-height: 0; }
 body.inline-chart-mode .detail-heading { display: none; }
 .inline-daily { border-top: 1px solid var(--line); margin-top: 8px; }
-.inline-daily > summary { padding: 10px 0; cursor: pointer; font-weight: 600; }
+.inline-daily > summary, .inline-intraday > summary { width: fit-content; padding: 10px 0; cursor: pointer; font-weight: 600; touch-action: pan-y; }
 .history-stock-button { color: #176b58; background: none; border: 0; padding: 0; font: inherit; font-weight: 700; cursor: pointer; }
 .history-summary-table { width: 100%; border-collapse: collapse; table-layout: fixed; background: white; font-size: 12px; }
 .history-summary-table th, .history-summary-table td { border: 1px solid var(--line); padding: 10px 6px; text-align: center; }

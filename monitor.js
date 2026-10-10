@@ -150,23 +150,6 @@ async function loadData() {
     state.selectedCode = source.item.code;
     document.body.classList.add("history-chart-mode", "inline-chart-mode");
     document.body.append(elements.detailPanel);
-    const heading = elements.dailyChartMeta.parentElement;
-    if (!document.querySelector(".inline-daily")) {
-      const controls = heading.nextElementSibling;
-      const wrap = controls.nextElementSibling;
-      const details = document.createElement("details");
-      details.className = "inline-daily";
-      details.open = true;
-      const summary = document.createElement("summary");
-      summary.textContent = "일봉";
-      heading.before(details);
-      details.append(summary, heading, controls, wrap);
-      heading.hidden = true;
-      heading.style.display = "none";
-      details.addEventListener("toggle", () => {
-        if (details.open) drawDailyChart(source.item.displayCharts?.daily?.series || [], true);
-      });
-    }
     renderDetail(source.item);
     state.lastLoadedAt = Date.now();
     return;
@@ -1717,6 +1700,12 @@ function showMaTooltip(event) {
   tooltip.style.left = `${Math.max(4, Math.min(localX + 12, rect.width - tooltip.offsetWidth - 4))}px`;
   tooltip.style.top = `${Math.max(4, Math.min(localY + 12, rect.height - tooltip.offsetHeight - 4))}px`;
 }
+document.querySelector(".inline-intraday").addEventListener("toggle", event => {
+  if (event.currentTarget.open && chartViewport.series.length) redrawChartWindow();
+});
+document.querySelector(".inline-daily").addEventListener("toggle", event => {
+  if (event.currentTarget.open && dailyViewport.series.length) drawDailyChart(dailyViewport.series, true);
+});
 elements.chart.addEventListener("pointermove", showMaTooltip);
 elements.chart.addEventListener("pointerdown", showMaTooltip);
 elements.chart.addEventListener("pointerleave", event => { if (event.pointerType !== "touch") hideMaTooltip(); });

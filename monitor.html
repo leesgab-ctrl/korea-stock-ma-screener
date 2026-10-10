@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#176b58">
     <title>A-G 30분봉 신호 감시</title>
-    <link rel="stylesheet" href="monitor.css?v=20261010-37">
+    <link rel="stylesheet" href="monitor.css?v=20261010-42">
   </head>
   <body>
     <header class="topbar">
@@ -101,7 +101,8 @@
           </div>
           <div id="emptyDetail" class="empty-detail">활성 후보의 30분봉 판정 결과가 여기에 표시됩니다.</div>
           <div id="detailContent" class="detail-content hidden">
-            <div class="daily-chart-heading"><strong>30분봉</strong></div>
+            <details class="inline-intraday" open>
+            <summary>30분봉</summary>
             <div class="signal-line" style="display:none">
               <span id="detailBadge" class="status-chip">관찰 중</span>
               <strong id="detailProgress">0 / 5</strong>
@@ -129,7 +130,10 @@
               <canvas id="maChart" width="900" height="360" aria-label="30분봉 캔들, 거래량과 이동평균선"></canvas>
               <div id="maPriceTooltip" class="daily-price-tooltip" role="tooltip" hidden></div>
             </div>
-            <div class="daily-chart-heading">
+            </details>
+            <details class="inline-daily" open>
+            <summary>일봉</summary>
+            <div class="daily-chart-heading" hidden style="display:none">
               <strong>일봉 흐름</strong>
               <span id="dailyChartMeta" hidden></span>
             </div>
@@ -149,6 +153,7 @@
               <canvas id="dailyChart" width="900" height="320" aria-label="일봉 캔들, 거래량과 이동평균선"></canvas>
               <div id="dailyPriceTooltip" class="daily-price-tooltip" role="tooltip" hidden></div>
             </div>
+            </details>
             <div id="signalMessage" class="signal-message" hidden></div>
           </div>
         </section>
@@ -300,6 +305,6 @@
       <div class="position-form"><h2>사용자 선정 제외</h2><div id="excludedList"></div><button id="excludedListClose" type="button">닫기</button></div>
     </dialog>
   <script src="price-analysis.js?v=20261010-40"></script>
-  <script src="monitor.js?v=20261010-41"></script>
+  <script src="monitor.js?v=20261010-42"></script>
   </body>
 </html>
