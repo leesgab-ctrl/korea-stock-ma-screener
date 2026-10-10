@@ -34,6 +34,18 @@ function filterChartShapeAnalysis(payload, exclusions) {
   return {...payload, records: payload.records.filter(row => !codes.has(row.code))};
 }
 
+function analysisVolumeDetails(item, priorDate) {
+  const chart = item?.displayCharts?.daily;
+  const rows = [...new Map([...(chart?.history || []), ...(chart?.series || [])].map(row => [row.d, row])).values()]
+    .filter(row => row.complete !== false && row.d <= priorDate).sort((a, b) => a.d.localeCompare(b.d));
+  const prior = rows.at(-1);
+  if (!priorDate || prior?.d !== priorDate || !Number.isFinite(prior.v) || prior.v < 0) return {volume: null, ratio: null};
+  const recent = rows.slice(-20);
+  const average = recent.length === 20 && recent.every(row => Number.isFinite(row.v) && row.v >= 0)
+    ? recent.reduce((sum, row) => sum + row.v, 0) / 20 : null;
+  return {volume: prior.v, ratio: average > 0 ? prior.v / average * 100 : null};
+}
+
 function sortPriceAnalysisPairs(pairs, days, grouped = false) {
   const scores = new Map();
   const identity = pair => pair.from + '|' + Boolean(pair.fromCompact);
@@ -163,7 +175,7 @@ async function renderPriceAnalysis(grouped = false) {
           expanded.dataset.days = days;
           const cell = document.createElement('td'); cell.colSpan = 10;
           const list = document.createElement('table'); list.className = 'analysis-table analysis-stocks';
-          list.innerHTML = '<thead><tr><th>종목명</th><th>유형</th><th>날짜</th><th>최종가격</th><th>등락률</th></tr></thead><tbody></tbody>';
+          list.innerHTML = '<thead><tr><th>종목명</th><th>유형</th><th>날짜</th><th>최종가격</th><th>등락률</th><th>전일<br>거래량</th><th>거래량<br>비율</th></tr></thead><tbody></tbody>';
           for (const record of [...group.rows].sort((a, b) => b.date.localeCompare(a.date))) {
             const stock = document.createElement('tr');
             const name = document.createElement('td'); const button = document.createElement('button');
@@ -172,13 +184,21 @@ async function renderPriceAnalysis(grouped = false) {
               const field = document.createElement('td'); field.textContent = value; stock.append(field);
             }
             stock.lastElementChild.className = record.change >= 0 ? 'positive' : 'negative';
+            const items = record.current ? state.payload.candidates || [] : [...(state.payload.history || []), ...(state.payload.candidates || [])];
+            const item = items.find(item => (item.id || item.code + '|' + item.registeredAt) === record.id);
+            const priorDate = data.dates[data.dates.indexOf(record.date) - 1];
+            const volumeInfo = analysisVolumeDetails(item, priorDate);
+            for (const value of [volumeInfo.volume == null ? '-' : `${Math.round(volumeInfo.volume).toLocaleString('ko-KR')}주`,
+              volumeInfo.ratio == null ? '-' : `${Math.round(volumeInfo.ratio)}%`]) {
+              const field = document.createElement('td'); field.textContent = value;
+              field.title = `전일 ${priorDate || '-'} · 해당 전일까지의 일봉 거래량 20거래일 평균 대비`;
+              stock.append(field);
+            }
             list.querySelector('tbody').append(stock);
             button.addEventListener('click', () => {
               if (stock.nextElementSibling?.classList.contains('analysis-chart-row')) { stock.nextElementSibling.remove(); button.setAttribute('aria-expanded', 'false'); return; }
-              const items = record.current ? state.payload.candidates || [] : [...(state.payload.history || []), ...(state.payload.candidates || [])];
-              const item = items.find(item => (item.id || item.code + '|' + item.registeredAt) === record.id);
               const chartRow = document.createElement('tr'); chartRow.className = 'analysis-chart-row';
-              const chartCell = document.createElement('td'); chartCell.colSpan = 5;
+              const chartCell = document.createElement('td'); chartCell.colSpan = 7;
               if (item) {
                 const snapshot = structuredClone(item);
                 snapshot.displayCharts ||= {};
