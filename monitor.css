@@ -53,7 +53,21 @@ main { max-width: 1480px; margin: 0 auto; padding: 18px; display: grid; gap: 14p
 .view-tab { min-width: 0; min-height: 52px; padding: 10px 4px; border: 0; border-right: 1px solid var(--line); border-bottom: 3px solid transparent; background: transparent; color: var(--muted); cursor: pointer; font-weight: 700; font-size: 14px; display: flex; justify-content: center; align-items: center; gap: 4px; }
 .view-tab:last-child { border-right: 0; }
 .view-tab.active { color: var(--green); border-bottom-color: var(--green); background: var(--green-soft); }
-.operation-links { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 4px; margin-bottom: 16px; }
+.operation-links { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 3px; margin-bottom: 16px; }
+.price-analysis h2 { margin: 0 0 10px; font-size: 18px; }
+.price-analysis h3 { margin: 24px 0 8px; font-size: 16px; }
+.analysis-note { color: var(--muted); font-size: 12px; line-height: 1.6; }
+.analysis-table { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: 12px; }
+.analysis-table th, .analysis-table td { padding: 10px 3px; border-bottom: 1px solid var(--line); text-align: center; overflow-wrap: anywhere; }
+.analysis-table th { background: #e4ece8; }
+.analysis-table .positive { color: var(--red); }
+.analysis-table .negative { color: var(--blue); }
+.analysis-swatch { display: inline-block; width: 18px; height: 18px; border: 1px solid #8c9b96; vertical-align: middle; }
+.analysis-detail { padding: 5px 2px; border: 0; background: transparent; color: #176b58; font: inherit; cursor: pointer; }
+.analysis-table .analysis-details-row > td, .analysis-table .analysis-chart-row > td { padding: 0; }
+.analysis-stocks th:first-child { width: 27%; }
+.analysis-stocks .history-stock-button { white-space: normal; overflow-wrap: anywhere; }
+.analysis-chart-row iframe { width: 100%; border: 0; }
 .operation-memo { display: grid; gap: 12px; }
 .operation-memo textarea { display: block; box-sizing: border-box; width: 100%; min-height: 360px; padding: 12px; resize: vertical; border: 1px solid var(--line); border-radius: 4px; background: white; color: var(--ink); font: inherit; line-height: 1.6; }
 .operation-memo button { justify-self: end; }

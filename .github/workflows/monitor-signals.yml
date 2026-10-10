@@ -9,6 +9,7 @@ on:
         default: false
   schedule:
     - cron: "*/10 0-6 * * 1-5"
+    - cron: "10 11 * * 1-5"
 
 permissions:
   contents: write
@@ -36,31 +37,42 @@ jobs:
           curl --fail --retry 3 --silent --show-error -o /tmp/candidate-monitor.json https://leesgab-ctrl.github.io/korea-stock-ma-screener/data/candidate-monitor.json
           mv /tmp/candidate-monitor.json data/candidate-monitor.json
       - name: Install notification chart renderer
-        if: inputs.charts_only != true
+        if: inputs.charts_only != true && github.event.schedule != '10 11 * * 1-5'
         run: pip install playwright && python -m playwright install --with-deps chromium
       - name: Check active candidates
         id: monitor
         env:
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
-          CHARTS_ONLY: ${{ inputs.charts_only }}
+          CHARTS_ONLY: ${{ inputs.charts_only || github.event.schedule == '10 11 * * 1-5' }}
         run: |
           MODE=intraday
           if [ "$CHARTS_ONLY" = "true" ]; then MODE=charts; fi
           python scripts/update_candidate_monitor.py --mode "$MODE" --github-output "$GITHUB_OUTPUT"
       - name: Check purchased stocks
-        if: inputs.charts_only != true
+        if: inputs.charts_only != true && github.event.schedule != '10 11 * * 1-5'
         id: positions
         env:
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
         run: python scripts/manage_positions.py --action monitor --github-output "$GITHUB_OUTPUT"
       - name: Save newly notified signals
-        if: inputs.charts_only != true && (steps.monitor.outputs.alerts != '0' || steps.positions.outputs.alerts != '0' || steps.monitor.outputs.color_state_changed == 'true' || steps.monitor.outputs.archive_tracking_changed == 'true')
+        if: inputs.charts_only != true && github.event.schedule != '10 11 * * 1-5' && (steps.monitor.outputs.alerts != '0' || steps.positions.outputs.alerts != '0' || steps.monitor.outputs.color_state_changed == 'true' || steps.monitor.outputs.archive_tracking_changed == 'true')
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add data/candidate-monitor.json data/positions.json
           git commit -m "Record stock monitoring alert"
           git push
+      - name: Build daily price analysis records
+        run: node scripts/build_price_analysis.cjs
+      - name: Save price analysis records
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/price-analysis.json
+          if ! git diff --cached --quiet; then
+            git commit -m "Record daily price analysis"
+            git push
+          fi
       - name: Configure Pages
         uses: actions/configure-pages@v5
       - name: Upload Pages artifact
