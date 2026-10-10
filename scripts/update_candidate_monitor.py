@@ -754,6 +754,7 @@ def refresh_excluded_verification(payload, current, calendar):
         record["verificationUpdatedAt"] = current.isoformat(timespec="seconds")
         record["verificationErrors"] = errors
         if end:
+            record["verificationEndDate"] = end
             for name, key in (("intraday", "t"), ("daily", "d")):
                 for field in ("series", "history"):
                     if field in charts.get(name, {}):

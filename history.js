@@ -21,7 +21,11 @@ async function loadHistory() {
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const payload = await response.json();
     const activeCodes = new Set((payload.candidates || []).map(item => item.code));
-    state.history = (Array.isArray(payload.history) ? payload.history : []).filter(item => (item.archiveReason === "window_completed" || item.verificationStatus === "completed") && !activeCodes.has(item.code));
+    state.history = (Array.isArray(payload.history) ? payload.history : []).filter(item => {
+      const endedManual = item.archiveReason === "manual_excluded" && item.verificationEndDate
+        && Date.parse(payload.generatedAt) >= Date.parse(`${item.verificationEndDate}T20:00:00+09:00`);
+      return (item.archiveReason === "window_completed" || item.verificationStatus === "completed" || endedManual) && !activeCodes.has(item.code);
+    });
     state.excludedCodes = new Set((payload.manualExclusions || []).map((r) => r.code));
     renderSummary();
     renderHistory();
