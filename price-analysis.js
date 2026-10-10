@@ -16,6 +16,7 @@ function aggregatePriceAnalysis(payload, days, today) {
   return { dates, total: rows.length, missing, unchanged, groups: [...groups.values()].map(group => ({...group,
     average: group.rows.reduce((sum, row) => sum + row.change, 0) / group.rows.length,
     weight: rows.length ? group.rows.length / rows.length * 100 : 0,
+    largeGains: group.rows.filter(row => row.change >= 20 - 1e-10).length,
   })).sort((a, b) => b.average - a.average) };
 }
 
@@ -42,33 +43,55 @@ async function renderPriceAnalysis() {
       span.className = 'analysis-swatch'; span.style.background = color; span.title = color;
       return span;
     };
-    for (const days of [5, 10]) {
-      const result = aggregatePriceAnalysis(data, days, today);
+    {
+      const results = {5: aggregatePriceAnalysis(data, 5, today), 10: aggregatePriceAnalysis(data, 10, today)};
+      const combined = new Map();
+      for (const days of [5, 10]) for (const group of results[days].groups) {
+        const key = group.from + '|' + group.to;
+        if (!combined.has(key)) combined.set(key, {from: group.from, to: group.to});
+        combined.get(key)[days] = group;
+      }
+      let sortDays = 5;
       const heading = document.createElement('h3');
-      heading.textContent = `최근 ${days}거래일`;
+      heading.textContent = '최근 5 · 10거래일';
       content.append(heading);
       const meta = document.createElement('p'); meta.className = 'analysis-note';
-      meta.textContent = `${result.dates[0] || '-'} ~ ${result.dates.at(-1) || '-'} · 전체 ${result.total}종목·거래일 · 동일색 ${result.unchanged}건 · 비교자료 부족 ${result.missing}건 · 과거 자료는 현재 기준 재계산`;
+      meta.textContent = [5, 10].map(days => `${days}일 ${results[days].dates[0] || '-'} ~ ${results[days].dates.at(-1) || '-'} · 전체 ${results[days].total}건 · 자료 부족 ${results[days].missing}건`).join(' / ');
       content.append(meta);
       const table = document.createElement('table'); table.className = 'analysis-table';
-      table.innerHTML = '<thead><tr><th>전일 → 해당일</th><th>전환 건수</th><th>평균등락률</th><th>비중</th></tr></thead><tbody></tbody>';
+      table.classList.add('analysis-combined');
+      table.innerHTML = '<thead><tr><th rowspan="2">전일 →<br>해당일</th><th colspan="3">5거래일</th><th colspan="3">10거래일</th><th rowspan="2">비고</th></tr><tr><th>건수</th><th><button type="button" data-sort-days="5">평균<br>등락률</button></th><th>비중</th><th>건수</th><th><button type="button" data-sort-days="10">평균<br>등락률</button></th><th>비중</th></tr></thead><tbody></tbody>';
       const body = table.querySelector('tbody');
-      for (const group of result.groups) {
+      const renderRows = () => {
+      body.replaceChildren();
+      table.querySelectorAll('[data-sort-days]').forEach(button => {
+        const active = Number(button.dataset.sortDays) === sortDays;
+        button.setAttribute('aria-pressed', String(active));
+        button.parentElement.setAttribute('aria-sort', active ? 'descending' : 'none');
+      });
+      for (const pair of [...combined.values()].sort((a, b) => (b[sortDays]?.average ?? -Infinity) - (a[sortDays]?.average ?? -Infinity) || (a.from + a.to).localeCompare(b.from + b.to))) {
         const row = document.createElement('tr');
-        const colors = document.createElement('td'); colors.append(swatch(group.from), document.createTextNode(' → '), swatch(group.to));
+        const colors = document.createElement('td'); colors.append(swatch(pair.from), document.createTextNode(' → '), swatch(pair.to));
+        row.append(colors);
+        for (const days of [5, 10]) {
+        const group = pair[days] || {rows: [], average: null, weight: 0};
         const count = document.createElement('td');
         const detail = document.createElement('button'); detail.type = 'button'; detail.className = 'analysis-detail';
-        detail.textContent = `${group.rows.length}건 · 상세`; detail.setAttribute('aria-expanded', 'false'); count.append(detail);
-        const average = document.createElement('td'); average.textContent = `${group.average >= 0 ? '+' : ''}${group.average.toFixed(1)}%`;
+        detail.textContent = `${group.rows.length}건`; detail.title = `${days}거래일 상세`; detail.disabled = !group.rows.length; detail.setAttribute('aria-expanded', 'false'); count.append(detail);
+        const average = document.createElement('td'); average.textContent = group.average == null ? '-' : `${group.average >= 0 ? '+' : ''}${group.average.toFixed(1)}%`;
         average.className = group.average >= 0 ? 'positive' : 'negative';
         const weight = document.createElement('td'); weight.textContent = `${group.weight.toFixed(1)}%`;
-        row.append(colors, count, average, weight); body.append(row);
+        row.append(count, average, weight);
         detail.addEventListener('click', () => {
           if (row.nextElementSibling?.classList.contains('analysis-details-row')) {
-            row.nextElementSibling.remove(); detail.setAttribute('aria-expanded', 'false'); return;
+            const same = row.nextElementSibling.dataset.days === String(days);
+            row.nextElementSibling.remove();
+            row.querySelectorAll('.analysis-detail').forEach(button => button.setAttribute('aria-expanded', 'false'));
+            if (same) return;
           }
           const expanded = document.createElement('tr'); expanded.className = 'analysis-details-row';
-          const cell = document.createElement('td'); cell.colSpan = 4;
+          expanded.dataset.days = days;
+          const cell = document.createElement('td'); cell.colSpan = 8;
           const list = document.createElement('table'); list.className = 'analysis-table analysis-stocks';
           list.innerHTML = '<thead><tr><th>종목명</th><th>유형</th><th>날짜</th><th>최종가격</th><th>등락률</th></tr></thead><tbody></tbody>';
           for (const record of [...group.rows].sort((a, b) => b.date.localeCompare(a.date))) {
@@ -102,9 +125,18 @@ async function renderPriceAnalysis() {
           }
           cell.append(list); expanded.append(cell); row.after(expanded); detail.setAttribute('aria-expanded', 'true');
         });
+        }
+        const remark = document.createElement('td');
+        const notes = [5, 10].filter(days => pair[days]?.largeGains).map(days => `${days}일 20% 이상 상승 ${pair[days].largeGains}건`);
+        remark.textContent = notes.join(' / ') || '-';
+        remark.title = '전일 종가 대비 당일 종가가 20% 이상 상승한 종목·거래일 건수';
+        row.append(remark); body.append(row);
       }
+      };
+      table.querySelectorAll('[data-sort-days]').forEach(button => button.addEventListener('click', () => { sortDays = Number(button.dataset.sortDays); renderRows(); }));
+      renderRows();
       content.append(table);
-      if (!result.groups.length) { const empty = document.createElement('p'); empty.textContent = '비교 가능한 색 전환 기록이 없습니다.'; content.append(empty); }
+      if (!combined.size) { const empty = document.createElement('p'); empty.textContent = '비교 가능한 색 전환 기록이 없습니다.'; content.append(empty); }
     }
   } catch (error) { content.textContent = error.message; }
 }

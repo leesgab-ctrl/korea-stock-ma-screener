@@ -68,6 +68,17 @@ main { max-width: 1480px; margin: 0 auto; padding: 18px; display: grid; gap: 14p
 .analysis-stocks th:first-child { width: 27%; }
 .analysis-stocks .history-stock-button { white-space: normal; overflow-wrap: anywhere; }
 .analysis-chart-row iframe { width: 100%; border: 0; }
+.analysis-combined > thead button { padding: 0; border: 0; background: transparent; color: inherit; font: inherit; cursor: pointer; }
+.analysis-combined > thead button[aria-pressed="true"] { color: #176b58; font-weight: 700; text-decoration: underline; }
+.analysis-combined > thead > tr:first-child > th:first-child { width: 15%; }
+.analysis-combined > thead > tr:first-child > th:last-child { width: 19%; }
+.analysis-combined > tbody > tr:not(.analysis-details-row) > td { white-space: nowrap; }
+.analysis-combined > tbody > tr:not(.analysis-details-row) > td:last-child { white-space: normal; font-size: 11px; }
+@media (max-width: 540px) {
+  .analysis-combined > thead th, .analysis-combined > tbody > tr:not(.analysis-details-row) > td { padding: 8px 1px; font-size: 10px; }
+  .analysis-combined > tbody > tr:not(.analysis-details-row) .analysis-swatch { width: 12px; height: 12px; }
+  .analysis-combined > tbody > tr:not(.analysis-details-row) .analysis-detail { font-size: 10px; }
+}
 .operation-memo { display: grid; gap: 12px; }
 .operation-memo textarea { display: block; box-sizing: border-box; width: 100%; min-height: 360px; padding: 12px; resize: vertical; border: 1px solid var(--line); border-radius: 4px; background: white; color: var(--ink); font: inherit; line-height: 1.6; }
 .operation-memo button { justify-self: end; }
