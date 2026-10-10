@@ -12,13 +12,17 @@ function readPendingExclusions() {
   } catch { return new Map(); }
 }
 let exclusionPollTimer;
+const VIEW_STORAGE_KEY = "koreaStockMonitor.currentView";
+let savedView = {};
+try { savedView = JSON.parse(sessionStorage.getItem(VIEW_STORAGE_KEY) || "{}"); } catch {}
+let restoreOperationPending = !requestedCode && !inlineChartMode && !historyChartMode;
 const state = {
   pendingExclusions: readPendingExclusions(),
   exclusionMessage: "",
   payload: null,
   lastLoadedAt: 0,
   positions: null,
-  view: "reference",
+  view: !requestedCode && ["new", "reference", "target", "positions", "operations"].includes(savedView.view) ? savedView.view : "reference",
   keyword: "",
   selectedCode: requestedCode && /^\d{6}$/.test(requestedCode) ? requestedCode : null,
   selectedPositionCode: null,
@@ -214,6 +218,13 @@ async function loadData() {
     }
     render();
     renderManualExclusions();
+    if (restoreOperationPending) {
+      restoreOperationPending = false;
+      if (state.view === "operations" && savedView.operation) {
+        const button = [...document.querySelectorAll(".operation-links > *")].find(item => (item.id || item.getAttribute("href")) === savedView.operation);
+        button?.click();
+      }
+    }
   } catch (error) {
     elements.runStatus.textContent = "감시 데이터를 불러오지 못했습니다";
     elements.updatedAt.textContent = String(error);
@@ -886,6 +897,8 @@ function renderWatchQuotes() {
 document.querySelector("#watchQuotesButton").addEventListener("click", renderWatchQuotes);
 
 function openOperationContent(button, content) {
+  savedView = {view: state.view, operation: button.id || button.getAttribute("href")};
+  try { sessionStorage.setItem(VIEW_STORAGE_KEY, JSON.stringify(savedView)); } catch {}
   const panel = document.querySelector("#operationsPanel");
   const host = document.querySelector("#operationContent");
   host.querySelectorAll("dialog").forEach((dialog) => {
@@ -1996,6 +2009,7 @@ function formatShortTime(value) {
 document.querySelectorAll(".view-tab").forEach((button) => {
   button.addEventListener("click", () => {
     state.view = button.dataset.view;
+    try { sessionStorage.setItem(VIEW_STORAGE_KEY, JSON.stringify({view: state.view, operation: savedView.operation})); } catch {}
     state.keyword = "";
     elements.keyword.value = "";
     state.deepLinkPending = false;
@@ -2007,7 +2021,10 @@ document.querySelector("#operationExclude").addEventListener("click", () => {
   if (item) openExclusionDialog(item, "exclude");
 });
 elements.keyword.addEventListener("input", (event) => { state.keyword = event.target.value; render(); });
-elements.refreshButton.addEventListener("click", loadData);
+elements.refreshButton.addEventListener("click", async () => {
+  await loadData();
+  if (state.view === "operations") document.querySelector("#operationContent > iframe")?.contentWindow?.location.reload();
+});
 elements.criteriaButton.addEventListener("click", () => openOperationContent(elements.criteriaButton, elements.criteriaDialog));
 elements.criteriaDialogClose.addEventListener("click", () => elements.criteriaDialog.close());
 elements.criteriaDialog.addEventListener("click", (event) => {
