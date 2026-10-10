@@ -71,9 +71,16 @@ main { max-width: 1480px; margin: 0 auto; padding: 18px; display: grid; gap: 14p
 .analysis-combined > thead button { padding: 0; border: 0; background: transparent; color: inherit; font: inherit; cursor: pointer; }
 .analysis-combined > thead button[aria-pressed="true"] { color: #176b58; font-weight: 700; text-decoration: underline; }
 .analysis-combined > thead > tr:first-child > th:first-child { width: 15%; }
-.analysis-combined > thead > tr:first-child > th:last-child { width: 19%; }
+.analysis-combined > thead > tr:first-child > th:nth-last-child(2) { width: 18%; }
+.analysis-combined > thead > tr:first-child > th:last-child { width: 10%; }
 .analysis-combined > tbody > tr:not(.analysis-details-row) > td { white-space: nowrap; }
-.analysis-combined > tbody > tr:not(.analysis-details-row) > td:last-child { white-space: normal; font-size: 11px; }
+.analysis-combined > tbody > tr:not(.analysis-details-row) > td:nth-last-child(2) { white-space: normal; font-size: 11px; }
+.analysis-combined .analysis-current-heading { background: #bcdccc; color: #145b40; }
+.analysis-combined .analysis-current-cell { background: #e0f0e6; }
+.analysis-current-cell .analysis-detail { color: #145b40; font-weight: 700; }
+.analysis-details-row[data-days="current"] > td { background: #edf7f0; }
+.analysis-details-row[data-days="current"] .analysis-stocks th { background: #cde7d6; color: #145b40; }
+.analysis-details-row[data-days="current"] .analysis-stocks td { background: #edf7f0; border-color: #c7dfcf; }
 @media (max-width: 540px) {
   .analysis-combined > thead th, .analysis-combined > tbody > tr:not(.analysis-details-row) > td { padding: 8px 1px; font-size: 10px; }
   .analysis-combined > tbody > tr:not(.analysis-details-row) .analysis-swatch { width: 12px; height: 12px; }
