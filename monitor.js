@@ -139,6 +139,7 @@ function chartGroup(item) {
   return "unclassified";
 }
 const formatter = new Intl.NumberFormat("ko-KR", { maximumFractionDigits: 2 });
+const percentFormatter = new Intl.NumberFormat("ko-KR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 
 async function loadData() {
   if (inlineChartMode) {
@@ -868,7 +869,7 @@ function renderWatchQuotes() {
     const change = document.createElement("span");
     change.className = "watch-quote-price";
     change.dataset.direction = quote.direction;
-    change.textContent = quote.change == null ? "대기" : `${quote.change > 0 ? "+" : ""}${formatter.format(quote.change)}%`;
+    change.textContent = quote.change == null ? "대기" : `${quote.change > 0 ? "+" : ""}${percentFormatter.format(quote.change)}%`;
     price.title = quote.time ? `${formatDateTime(quote.time)} 수집 기준` : "가격 대기";
     const returns = watchReturns(item, quote);
     const period = document.createElement("span");
@@ -879,7 +880,7 @@ function renderWatchQuotes() {
       const cell = document.createElement("span");
       cell.className = "watch-quote-price";
       cell.dataset.direction = value == null ? "" : value > 0 ? "up" : value < 0 ? "down" : "flat";
-      cell.textContent = value == null ? "대기" : `${value > 0 ? "+" : ""}${formatter.format(value)}%${returns.provisional ? "*" : ""}`;
+      cell.textContent = value == null ? "대기" : `${value > 0 ? "+" : ""}${percentFormatter.format(value)}%${returns.provisional ? "*" : ""}`;
       cell.title = `${label} · 시스템 등록 시점 가격 기준${returns.baseline ? ` ${Math.round(returns.baseline).toLocaleString("ko-KR")}원` : " · 기준자료 없음"}`;
       return cell;
     };

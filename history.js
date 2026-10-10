@@ -1,5 +1,6 @@
 const state = { history: [], keyword: "", excludedCodes: new Set() };
 const formatter = new Intl.NumberFormat("ko-KR", { maximumFractionDigits: 2 });
+const percentFormatter = new Intl.NumberFormat("ko-KR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 const elements = {
   completedCount: document.querySelector("#completedCount"),
   evaluationNote: document.querySelector("#evaluationNote"),
@@ -74,7 +75,7 @@ function renderSummary() {
   const summaryFor = key => {
     const evaluated = results.filter(result => Number.isFinite(result[key]));
     const reached = evaluated.filter(result => result[key] >= 5);
-    return evaluated.length ? `${reached.length}종목 ${formatter.format(100 * reached.length / evaluated.length)}%` : "평가 대기";
+    return evaluated.length ? `${reached.length}종목 ${percentFormatter.format(100 * reached.length / evaluated.length)}%` : "평가 대기";
   };
   elements.completedCount.textContent = formatter.format(state.history.length);
   elements.evaluationNote.textContent = "관리기간 완료 종목만 표시 · 등록 다음 거래일부터 일봉 종가 기준 · 자료 부족은 해당 기간 집계 제외";
@@ -158,7 +159,7 @@ function returnClass(value) {
 
 function formatReturn(value) {
   return value != null && value !== "" && Number.isFinite(Number(value))
-    ? `${Number(value) >= 0 ? "+" : ""}${formatter.format(Number(value))}%`
+    ? `${Number(value) >= 0 ? "+" : ""}${percentFormatter.format(Number(value))}%`
     : "-";
 }
 
