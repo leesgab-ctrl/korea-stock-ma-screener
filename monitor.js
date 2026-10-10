@@ -1697,15 +1697,16 @@ function showMaTooltip(event) {
     }
     tooltip.append(line);
   }
-  const maximumSpread = maximumMaSpread(row);
-  const spread = document.createElement("div");
-  spread.style.padding = "1px 6px";
-  spread.style.lineHeight = "1.3";
-  spread.style.fontWeight = "700";
-  spread.textContent = maximumSpread !== null
-    ? `최대 간격 ${maximumSpread.toFixed(1)}%`
-    : "최대 간격 자료 없음";
-  tooltip.append(spread);
+  for (const [label, includeMa60] of [["5개 MA 최대간격", true], ["4개 MA 최대간격", false]]) {
+    const maximumSpread = maximumMaSpread(row, true, includeMa60);
+    const spread = document.createElement("div");
+    spread.style.padding = "1px 6px";
+    spread.style.lineHeight = "1.3";
+    spread.style.fontWeight = "700";
+    spread.textContent = `${label} ${maximumSpread !== null ? `${maximumSpread.toFixed(1)}%` : "자료 없음"}`;
+    spread.title = includeMa60 ? "MA3·10·20·40·60" : "MA3·10·20·40 (MA60 제외)";
+    tooltip.append(spread);
+  }
   tooltip.hidden = false;
   tooltip.style.left = `${Math.max(4, Math.min(localX + 12, rect.width - tooltip.offsetWidth - 4))}px`;
   tooltip.style.top = `${Math.max(4, Math.min(localY + 12, rect.height - tooltip.offsetHeight - 4))}px`;
