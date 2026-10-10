@@ -79,9 +79,6 @@ function renderHistory() {
     return String(item.name || "").toLowerCase().includes(keyword) || String(item.code || "").includes(keyword);
   }).sort((a, b) => String(b.registeredAt || "").localeCompare(String(a.registeredAt || ""))
     || String(a.name || a.code).localeCompare(String(b.name || b.code), "ko"));
-  elements.historyMeta.textContent = keyword
-    ? `전체 ${state.history.length}종목 중 ${records.length}종목`
-    : `저장 이력 ${state.history.length}종목`;
   elements.historyList.innerHTML = "";
   if (!records.length) {
     elements.historyList.innerHTML = `<div class="empty-list">${state.history.length ? "검색 결과가 없습니다." : "10거래일 관리가 끝난 종목부터 이력이 쌓입니다."}</div>`;
@@ -92,6 +89,10 @@ function renderHistory() {
   table.className = "history-table";
   table.innerHTML = "<thead><tr><th>종목명</th><th>등록일</th><th>등록가</th><th>최종가</th><th>목표달성일</th><th>달성기간</th><th>최고수익률</th><th>종료일</th></tr></thead><tbody></tbody>";
   const body = table.querySelector("tbody");
+  table.querySelectorAll("th").forEach((cell, index) => {
+    cell.dataset.short = ["종목", "등록일", "등록가", "최종가", "달성일", "기간", "최고%", "종료일"][index];
+    cell.title = cell.textContent;
+  });
   records.forEach((item) => {
     const result = historyEvaluation(item);
     const row = document.createElement("tr");
@@ -113,6 +114,7 @@ function renderHistory() {
     button.type = "button";
     button.className = "history-stock-button";
     button.textContent = item.name || item.code;
+    button.title = item.name || item.code;
     button.setAttribute("aria-expanded", "false");
     name.replaceWith(button);
     button.addEventListener("click", () => {
@@ -188,7 +190,7 @@ function escapeHtml(value) {
 }
 
 elements.refreshButton.addEventListener("click", loadHistory);
-elements.historyKeyword.addEventListener("input", (event) => {
+elements.historyKeyword?.addEventListener("input", (event) => {
   state.keyword = event.target.value;
   renderHistory();
 });
