@@ -191,6 +191,11 @@ async function loadData() {
       if (archived) {
         const end = (archived.verificationEndDate || archived.archivedAt || archived.outcome?.finalDate || "").slice(0, 10);
         const snapshot = structuredClone(archived);
+        const intraday = snapshot.displayCharts?.intraday;
+        if (intraday) {
+          intraday.series = [...new Map([...(intraday.history || []), ...(intraday.series || [])]
+            .map(row => [row.t, row])).values()].sort((a, b) => a.t.localeCompare(b.t));
+        }
         if (end) {
           for (const [kind, key] of [["intraday", "t"], ["daily", "d"]]) {
             const chart = snapshot.displayCharts?.[kind];
@@ -1154,7 +1159,7 @@ function renderDetail(item) {
     chartViewport.code = item.code;
     chartViewport.start = 0;
     chartViewport.count = null;
-    chartViewport.days = 5;
+    chartViewport.days = historyChartMode ? null : 5;
     chartViewport.endOffset = 0;
     chartPointers.clear();
   }
