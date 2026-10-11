@@ -1854,6 +1854,31 @@ elements.dailyChart.addEventListener("pointerdown", showDailyTooltip);
 elements.dailyChart.addEventListener("pointerleave", event => { if (event.pointerType !== "touch") hideDailyTooltip(); });
 document.addEventListener("pointerdown", event => { if (event.target !== elements.dailyChart) hideDailyTooltip(); });
 
+function dailyQuoteUnit(price) {
+  if (price < 2000) return 1;
+  if (price < 5000) return 5;
+  if (price < 20000) return 10;
+  if (price < 50000) return 50;
+  if (price < 200000) return 100;
+  if (price < 500000) return 500;
+  return 1000;
+}
+
+function dailyQuotePrice(price, rounding = Math.round) {
+  const unit = dailyQuoteUnit(price);
+  return Math.max(1, rounding(price / unit) * unit);
+}
+
+function dailyPriceTicks(min, max) {
+  return [...new Set(Array.from({ length: 5 }, (_, step) =>
+    dailyQuotePrice(max - (max - min) * step / 4)
+  ))];
+}
+
+function dailyPriceLabel(price) {
+  return price.toLocaleString("en-US", { maximumFractionDigits: 0 });
+}
+
 function drawDailyChart(series, preserveWindow = false) {
   if (!preserveWindow) {
     const code = selectedDetailItem()?.code;
@@ -1914,14 +1939,15 @@ function drawDailyChart(series, preserveWindow = false) {
   const min = Math.min(...values);
   const max = Math.max(...values);
   const rawSpread = Math.max(max - min, 1);
-  const priceMin = min - rawSpread * 0.04;
-  const priceMax = max + rawSpread * 0.04;
+  const priceMin = dailyQuotePrice(min - rawSpread * 0.04, Math.floor);
+  const priceMax = dailyQuotePrice(max + rawSpread * 0.04, Math.ceil);
   const spread = priceMax - priceMin;
+  const priceTicks = dailyPriceTicks(priceMin, priceMax);
   const mobile = window.innerWidth <= 540;
   ctx.font = mobile ? "10px Segoe UI" : "11px Segoe UI";
-  const priceLabel = (value) => mobile ? formatter.format(Math.round(value)) : formatter.format(value);
-  const labelWidth = Math.max(...[priceMin, priceMax].map((value) => ctx.measureText(priceLabel(value)).width));
-  const pad = { left: mobile ? Math.ceil(labelWidth) + 5 : 54, right: mobile ? 3 : 12, top: 28, bottom: 28 };
+  const priceLabel = dailyPriceLabel;
+  const labelWidth = Math.max(...priceTicks.map((value) => ctx.measureText(priceLabel(value)).width));
+  const pad = { left: mobile ? Math.ceil(labelWidth) + 5 : Math.max(54, Math.ceil(labelWidth) + 7), right: mobile ? 3 : 12, top: 28, bottom: 28 };
   const volumeHeight = Math.max(42, Math.round(height * 0.2));
   const volumeTop = height - pad.bottom - volumeHeight;
   const priceBottom = volumeTop - 24;
@@ -1949,11 +1975,11 @@ function drawDailyChart(series, preserveWindow = false) {
 
   ctx.strokeStyle = "#e2e8e4";
   ctx.lineWidth = 1;
-  for (let step = 0; step <= 4; step += 1) {
-    const yy = pad.top + (step / 4) * (priceBottom - pad.top);
+  for (const price of priceTicks) {
+    const yy = y(price);
     ctx.beginPath(); ctx.moveTo(pad.left, yy); ctx.lineTo(width - pad.right, yy); ctx.stroke();
     ctx.fillStyle = "#64746c"; ctx.font = mobile ? "10px Segoe UI" : "11px Segoe UI";
-    const label = priceLabel(priceMax - (spread * step) / 4);
+    const label = priceLabel(price);
     ctx.fillText(label, mobile ? pad.left - ctx.measureText(label).width - 4 : 3, yy + 4);
   }
 
