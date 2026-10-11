@@ -1949,7 +1949,7 @@ function drawDailyDeclineHigh(ctx, reference, visibleStart, count, x, y, pad, wi
   ctx.font = mobile ? '10px "Malgun Gothic"' : '11px "Malgun Gothic"';
   const label = `하락 중 최고종가 ${dailyPriceLabel(reference.price)}`;
   const labelWidth = ctx.measureText(label).width + 8;
-  const left = Math.max(pad.left, width - pad.right - labelWidth);
+  const left = pad.left;
   const top = Math.max(pad.top + 22, Math.min(priceBottom - 16, yy - 18));
   ctx.fillStyle = "rgba(255,255,255,.94)";
   ctx.fillRect(left, top, labelWidth, 16);

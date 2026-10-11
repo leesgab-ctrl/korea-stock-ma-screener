@@ -50,6 +50,7 @@ draw(ctx, { index: 15, date: 'day-15', price: 4300 }, 10, 60, index => 40 + inde
 assert.deepEqual(calls.find(row => row[0] === 'dash'), ['dash', 6, 4]);
 assert.deepEqual(calls.find(row => row[0] === 'start'), ['start', 60, 43]);
 assert.deepEqual(calls.find(row => row[0] === 'end'), ['end', 276, 43]);
+assert.equal(calls.find(row => row[0] === 'fillText')[2], 44, 'Reference label stays at the plot left edge');
 assert.ok(calls.find(row => row[0] === 'fillText')[3] >= 62, 'Reference label avoids the registration label row');
 calls.length = 0;
 draw(ctx, { index: 15, price: 4300 }, 20, 10, index => 40 + index * 4, price => price / 100,
