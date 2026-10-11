@@ -886,21 +886,23 @@ function watchReturns(item, quote) {
 }
 
 function maTrendData(item, date = watchQuoteDates([item]).at(-1)) {
-  const rows = (item.displayCharts?.intraday?.series || []).filter(row => row.complete !== false && row.t.slice(0, 10) === date)
-    .map(row => ({...row,
-      m3: Number.isFinite(row.m3) && row.m3 > 0 ? row.m3 : null,
-      m10: Number.isFinite(row.m10) && row.m10 > 0 ? row.m10 : null}));
+  const source = item.displayCharts?.intraday?.series || [];
   const daily = item.displayCharts?.daily?.history?.length ? item.displayCharts.daily.history
     : item.displayCharts?.daily?.series || item.dailyChart?.series || [];
   const prior = daily.filter(row => row.d < date && row.complete !== false && Number.isFinite(row.c) && row.c > 0)
     .sort((a, b) => a.d.localeCompare(b.d)).at(-1);
   const quoteClose = item.intraday?.quoteTime?.slice(0, 10) === date ? item.intraday.quotePreviousClose : null;
   const previousClose = prior?.c ?? (Number.isFinite(quoteClose) && quoteClose > 0 ? quoteClose : null);
-  return {rows, previousClose};
+  const priorDate = prior?.d ?? [...new Set(source.filter(row => row.t.slice(0, 10) < date).map(row => row.t.slice(0, 10)))].sort().at(-1);
+  const rows = source.filter(row => row.complete !== false && [priorDate, date].includes(row.t.slice(0, 10)))
+    .map(row => ({...row,
+      m3: Number.isFinite(row.m3) && row.m3 > 0 ? row.m3 : null,
+      m10: Number.isFinite(row.m10) && row.m10 > 0 ? row.m10 : null}));
+  return {rows, previousClose, sessionStart: rows.findIndex(row => row.t.slice(0, 10) === date)};
 }
 
 function drawMaTrend(canvas, item, date) {
-  const {rows, previousClose} = maTrendData(item, date);
+  const {rows, previousClose, sessionStart} = maTrendData(item, date);
   const width = 96, height = 36, pad = 3;
   const ratio = window.devicePixelRatio || 1;
   canvas.width = Math.round(width * ratio);
@@ -913,18 +915,14 @@ function drawMaTrend(canvas, item, date) {
   const valid = rows.filter(row => [row.m3, row.m10].every(value => Number.isFinite(value) && value > 0));
   const last = valid.at(-1);
   canvas.title = last
-    ? `${formatDateTime(last.t)} · 당일 개장 이후 ${rows.length}개 완성 30분봉 · MA3(초록) ${formatter.format(last.m3)} · MA10(주황) ${formatter.format(last.m10)}${previousClose !== null ? ` · 전일 종가(회색) ${formatter.format(previousClose)}` : ""}`
+    ? `${formatDateTime(last.t)} · 전일→당일 실제 30분봉 MA 연결 · ${rows.length}개 완성봉 · MA3(초록) ${formatter.format(last.m3)} · MA10(주황) ${formatter.format(last.m10)}${previousClose !== null ? ` · 전일 종가(회색) ${formatter.format(previousClose)}` : ""}`
     : `MA3·MA10 추세 자료 부족${previousClose !== null ? ` · 전일 종가(회색) ${formatter.format(previousClose)}` : ""}`;
   canvas.setAttribute("aria-label", canvas.title);
   if (!values.length) return;
-  const distance = previousClose !== null ? Math.max(...values.map(value => Math.abs(value - previousClose))) : null;
-  const min = distance !== null ? previousClose - distance : Math.min(...values);
-  const max = distance !== null ? previousClose + distance : Math.max(...values);
+  const min = Math.min(...values), max = Math.max(...values);
   const spread = Math.max(max - min, Number.EPSILON);
-  // New bars push the opening reference left while the latest value stays right.
-  const step = (width - pad * 2) / Math.max(22, rows.length);
-  const originX = width - pad - rows.length * step;
-  const x = index => originX + (index + 1) * step;
+  const x = index => rows.length > 1 ? pad + index / (rows.length - 1) * (width - pad * 2) : width - pad;
+  const originX = sessionStart < 0 ? width - pad : x(Math.max(0, sessionStart - 0.5));
   const y = value => max === min ? height / 2 : pad + (max - value) / spread * (height - pad * 2);
   if (previousClose !== null) {
     ctx.beginPath();
