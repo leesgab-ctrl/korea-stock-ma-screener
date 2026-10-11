@@ -912,25 +912,45 @@ function drawMaTrend(canvas, item, date) {
   if (previousClose !== null) values.push(previousClose);
   const valid = rows.filter(row => [row.m3, row.m10].every(value => Number.isFinite(value) && value > 0));
   const last = valid.at(-1);
-  canvas.title = last && valid.length >= 2
+  canvas.title = last
     ? `${formatDateTime(last.t)} · 당일 개장 이후 ${rows.length}개 완성 30분봉 · MA3(초록) ${formatter.format(last.m3)} · MA10(주황) ${formatter.format(last.m10)}${previousClose !== null ? ` · 전일 종가(회색) ${formatter.format(previousClose)}` : ""}`
-    : "MA3·MA10 추세 자료 부족";
+    : `MA3·MA10 추세 자료 부족${previousClose !== null ? ` · 전일 종가(회색) ${formatter.format(previousClose)}` : ""}`;
   canvas.setAttribute("aria-label", canvas.title);
-  if (valid.length < 2) return;
-  const min = Math.min(...values), max = Math.max(...values);
+  if (!values.length) return;
+  const distance = previousClose !== null ? Math.max(...values.map(value => Math.abs(value - previousClose))) : null;
+  const min = distance !== null ? previousClose - distance : Math.min(...values);
+  const max = distance !== null ? previousClose + distance : Math.max(...values);
   const spread = Math.max(max - min, Number.EPSILON);
-  const x = index => pad + index / Math.max(1, rows.length - 1) * (width - pad * 2);
+  // New bars push the opening reference left while the latest value stays right.
+  const step = (width - pad * 2) / Math.max(22, rows.length);
+  const originX = width - pad - rows.length * step;
+  const x = index => originX + (index + 1) * step;
   const y = value => max === min ? height / 2 : pad + (max - value) / spread * (height - pad * 2);
   if (previousClose !== null) {
     ctx.beginPath();
     ctx.strokeStyle = "#c5cbca";
     ctx.lineWidth = 1;
-    ctx.moveTo(pad, y(previousClose));
-    ctx.lineTo(width - pad, y(previousClose));
+    ctx.moveTo(0, y(previousClose));
+    ctx.lineTo(width, y(previousClose));
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(originX, 0);
+    ctx.lineTo(originX, height);
     ctx.stroke();
   }
   drawLine(ctx, rows, "m3", "#34a853", 1.5, x, y);
   drawLine(ctx, rows, "m10", "#d97706", 1.5, x, y);
+  if (rows.length === 1) {
+    for (const [key, color] of [["m3", "#34a853"], ["m10", "#d97706"]]) {
+      if (rows[0][key] === null) continue;
+      ctx.beginPath();
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 1.5;
+      ctx.moveTo(x(0) - 1, y(rows[0][key]));
+      ctx.lineTo(x(0) + 1, y(rows[0][key]));
+      ctx.stroke();
+    }
+  }
 }
 
 function renderWatchQuotes(coreOnly = false) {
