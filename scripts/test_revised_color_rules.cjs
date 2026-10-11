@@ -1,0 +1,43 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const vm = require('node:vm');
+const source = fs.readFileSync(path.join(__dirname, '..', 'monitor.js'), 'utf8');
+const context = vm.createContext({});
+vm.runInContext(source.slice(source.indexOf('function chartPhases('), source.indexOf('function drawChart('))
+  + source.slice(source.indexOf('function candidateColorNotice('), source.indexOf('function compareCandidateSpread(')), context);
+const base = { m3: 103, m10: 102, m20: 101, m40: 100, m60: 99, phase: 'before' };
+const classify = (fields) => context.phaseDisplay({ ...base, ...fields });
+assert.equal(classify({ referencePullback: true, ma60Observation: true, phase: 'confirmed' }).phase, 'reference');
+assert.equal(classify({ ma60Observation: true, phase: 'confirmed' }).phase, 'observation');
+assert.equal(classify({ m3: 89, m20: 90, phase: 'confirmed' }).phase, 'confirmed');
+assert.equal(classify({ m3: 89, m20: 90, phase: 'fast' }).phase, 'fast');
+assert.equal(classify({ m3: 89, m20: 90 }).phase, 'pullback');
+assert.equal(classify({}).phase, 'before');
+const compactPurple = classify({ ma60Observation: true, ma10Rising: true, m3: 100, m10: 100.2, m20: 100.3, m40: 100.4, m60: 100.1 });
+assert.equal(compactPurple.compact, true);
+assert.equal(compactPurple.color, '#b69bd5');
+assert.equal(classify({ ma60Observation: true, ma10Rising: true }).color, '#cfb8e8');
+const missing = classify({ m60: null, referencePullback: true });
+assert.equal(missing.color, '#fce4ec');
+assert.equal(missing.spread, null);
+
+const previous = { t: '2026-10-08T09:00', complete: true, m3: 100.5, m10: 100.6, m20: 100.7, m40: 100, m60: 100 };
+const current = { ...previous, t: '2026-10-08T09:30', m40: 100.2 };
+const incomplete = { ...current, t: '2026-10-08T10:00', complete: false, m3: 500 };
+const notice = context.candidateColorNotice({ displayCharts: { intraday: { series: [previous, current, incomplete] } } });
+assert.equal(notice.phase, 'reference');
+assert.equal(notice.color, context.phaseBackground(context.chartPhases([previous, current]).at(-1)));
+assert.equal(notice.time, current.t);
+assert.equal(notice.message, '이평선 최대간격이 0.7%로 곧 변곡점이 예상됩니다.');
+assert.ok(!notice.message.includes('*'));
+assert.equal(context.candidateColorNotice({}), null);
+const gray = context.candidateColorNotice({ displayCharts: { intraday: { series: [{ ...previous, m3: 104, m10: 102, m20: 101, m40: 100, m60: 99 }] } } });
+assert.equal(gray.message, '');
+
+const monitor = fs.readFileSync(path.join(__dirname, 'update_candidate_monitor.py'), 'utf8');
+assert.ok(monitor.includes('update_paper(payload, current)'));
+assert.ok(!monitor.includes('def paper_notice('));
+assert.ok(!monitor.includes('update_paper(payload, current, paper_notice)'));
+assert.ok(monitor.includes('notify_colors(payload, current'));
+console.log('Revised color priority, notices, numeric spread, and paper-alert suppression tests passed.');

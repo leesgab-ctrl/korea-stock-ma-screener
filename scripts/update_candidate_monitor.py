@@ -1646,19 +1646,7 @@ def main() -> None:
         from paper_trading import update_paper
         if payload.get("paperTrading") is None:
             payload.pop("paperTrading", None)
-        def paper_notice(candidate, position):
-            topic = os.environ.get("NTFY_TOPIC")
-            if not topic or args.no_notify:
-                return
-            message = {"topic": topic, "title": f"{candidate['name']} 가상매수 등록",
-                       "message": f"포착가격 {position['buyPrice']:,.0f}원\n조정저점·제안 손절가 {position['stopPrice']:,.0f}원\n예상 손실률 {position['stopPct']}%\n목표가 {position['targetPrice']:,.0f}원\n실제 주문이 아닌 1주 가상기록입니다.",
-                       "click": monitor_link(candidate['code']), "priority": 4}
-            request = urllib.request.Request("https://ntfy.sh", data=json.dumps(message).encode(), headers={"Content-Type": "application/json"})
-            try:
-                urllib.request.urlopen(request, timeout=15).close()
-            except Exception as exc:
-                payload.setdefault("paperNotificationErrors", []).append(str(exc))
-        update_paper(payload, current, paper_notice)
+        update_paper(payload, current)
         payload.setdefault("summary", {}).update({
             "active": len(payload.get("candidates", [])),
             "signals": 0, "signalHistory": 0, "newAlerts": 0, "pendingNotifications": 0,

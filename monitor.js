@@ -589,6 +589,26 @@ function candidateObservation(item) {
   return { purple, spread, compact: spread !== null && spread <= 0.8 + 1e-12 };
 }
 
+function candidateColorNotice(item) {
+  const rows = (item.displayCharts?.intraday?.series || []).filter(row => row.complete !== false);
+  const last = chartPhases(rows).at(-1);
+  if (!last) return null;
+  const display = phaseDisplay(last);
+  const messages = {
+    pullback: "MA20이 하락 중인 상황으로, 하락을 멈추고 상승할 때까지 대기해야 합니다. 상승이 시작되면 연두색으로 변경됩니다.",
+    fast: "MA20이 MA40 아래로 내려간 상태로, 상승을 위해서는 MA3·MA10이 MA40/MA60 위로 올라오는지 확인할 때까지 기다려야 합니다.",
+    confirmed: display.level > 0
+      ? "MA20이 회복하고 이평선 간격도 좁아져 관찰이 필요한 시점입니다."
+      : "MA20이 상승하여 회복 기준선을 통과하였습니다.",
+    reference: display.level > 0 && display.spread !== null
+      ? `이평선 최대간격이 ${display.spread.toFixed(1)}%로 곧 변곡점이 예상됩니다.`
+      : "이평선 밀착 중입니다. MA10을 잘 봐주세요.",
+    observation: "일봉 MA5 근접·십자형 확인 대상입니다."
+      + (display.level > 0 ? " 올라오는 MA60과의 이격을 고려하여 판단이 필요합니다." : ""),
+  };
+  return { ...display, message: messages[display.phase] || "", time: last.t };
+}
+
 function compareCandidateSpread(a, b) {
   const priority = Number(candidateObservation(b).purple) - Number(candidateObservation(a).purple);
   if (priority) return priority;
@@ -632,15 +652,14 @@ function renderCandidates(candidates) {
     node.querySelector(".candidate-quote").textContent = quoteText(quote);
     const maximumSpread = candidateMaximumSpread(item);
     const outlook = candidateOutlook(item);
-    const observation = candidateObservation(item);
-    if (observation.purple || observation.compact) {
+    const observation = candidateColorNotice(item);
+    const noticeRow = node.querySelector(".candidate-actions");
+    if (observation) noticeRow.style.backgroundColor = observation.color;
+    if (observation?.message) {
       const notice = document.createElement("div");
       notice.className = "candidate-observation";
-      const messages = [];
-      if (observation.purple) messages.push("일봉 MA5 근접·십자형 확인 대상입니다. (30분봉 보라색 관찰)");
-      if (observation.compact) messages.push(`30분봉 MA3·10·20·40·60의 전체 최대간격이 ${observation.spread.toFixed(1)}%로 좁혀진 종목입니다.`);
-      notice.textContent = messages.join("\n");
-      const noticeRow = node.querySelector(".candidate-actions");
+      notice.textContent = observation.message;
+      notice.title = `${formatDateTime(observation.time)} 완성 30분봉 기준`;
       noticeRow.classList.add("has-observation");
       noticeRow.append(notice);
     }
@@ -1477,30 +1496,39 @@ function maximumMaSpread(row, rounded = true, includeMa60 = true) {
   return rounded ? Number(spread.toFixed(1)) : spread;
 }
 
-function phaseBackground(row) {
-  if (row.ma60Observation) return row.ma10Rising ? "#cfb8e8" : "#eee4f6";
+function phaseDisplay(row) {
   const palettes = {
     before: ["#e9edf0", "#d0d8de", "#b7c3cd", "#9fadb9"],
     pullback: ["#fff7d1", "#ffedaa", "#ffe17a", "#ffd34d"],
     fast: ["#eef8d6", "#dfefb3", "#cde58c", "#badb68"],
     confirmed: ["#dff2e7", "#c3e6d2", "#a5d8bb", "#87cba4"],
     reference: ["#fce4ec", "#f8cbdc", "#f2abc6", "#e98bab"],
+    observation: ["#eee4f6", "#cfb8e8", "#b69bd5"],
   };
   const rawSpread = maximumMaSpread(row, false);
   const yellow = rawSpread !== null && rawSpread >= 2
     && Number.isFinite(row.m60) && row.m60 > 0
     && row.m20 < row.m40 && row.m3 < row.m60;
-  const backgroundPhase = yellow ? "pullback"
-    : row.referencePullback ? "reference"
-    : row.phase === "pullback" ? "before" : row.phase;
+  const backgroundPhase = row.referencePullback ? "reference"
+    : row.ma60Observation ? "observation"
+    : row.phase === "confirmed" ? "confirmed"
+    : row.phase === "fast" ? "fast"
+    : yellow ? "pullback" : "before";
   const palette = palettes[backgroundPhase] || palettes.before;
   const spread = maximumMaSpread(row, true, backgroundPhase !== "reference");
-  if (spread === null) return palette[0];
-  const level = backgroundPhase === "before" ? (spread <= 0.5 ? 1 : 0)
+  const level = backgroundPhase === "observation" ? (row.ma10Rising ? 1 : 0)
+    : spread === null ? 0
+    : backgroundPhase === "before" ? (spread <= 0.5 ? 1 : 0)
     : spread <= 0.5 ? 2 : spread < 1 ? 1 : 0;
   const fullSpread = maximumMaSpread(row);
   const extraLevel = fullSpread !== null && fullSpread <= 0.8 ? 1 : 0;
-  return palette[Math.min(level + extraLevel, palette.length - 1)];
+  const displayLevel = Math.min(level + extraLevel, palette.length - 1);
+  return { phase: backgroundPhase, color: palette[displayLevel], level: displayLevel,
+    compact: extraLevel > 0, spread: fullSpread };
+}
+
+function phaseBackground(row) {
+  return phaseDisplay(row).color;
 }
 
 function drawChart(series, dailyMa10, recoveryHistory = {}) {
