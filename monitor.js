@@ -956,7 +956,17 @@ function renderWatchQuotes() {
     summary.append(name, group, swatches, period, price, change, returnCell(returns.maximum, "일봉 종가 최고수익률"), returnCell(returns.current, "최신 수집 현재가 수익률"));
     row.append(summary);
     row.addEventListener("toggle", () => {
-      if (row.open && !row.querySelector("iframe")) appendInlineChart(row, item, `watch-${item.code}`);
+      if (row.open && !row.querySelector("iframe")) {
+        const notice = candidateColorNotice(item);
+        const comment = document.createElement("p");
+        comment.className = "watch-quote-comment";
+        comment.textContent = notice?.message || statusLabels[item.status] || "관찰 중";
+        comment.title = `${notice?.time ? formatDateTime(notice.time) + " 완성 30분봉 기준 · " : ""}${comment.textContent}`;
+        comment.classList.toggle("is-dark", (notice?.level || 0) > 0);
+        if (notice) comment.style.backgroundColor = notice.color;
+        row.append(comment);
+        appendInlineChart(row, item, `watch-${item.code}`);
+      }
     });
     table.append(row);
   }
