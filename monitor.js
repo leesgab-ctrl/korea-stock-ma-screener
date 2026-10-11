@@ -658,6 +658,7 @@ function renderCandidates(candidates) {
     if (observation?.message) {
       const notice = document.createElement("div");
       notice.className = "candidate-observation";
+      notice.classList.toggle("is-dark", observation.level > 0);
       notice.textContent = observation.message;
       notice.title = `${formatDateTime(observation.time)} 완성 30분봉 기준`;
       noticeRow.classList.add("has-observation");
@@ -1907,6 +1908,56 @@ function dailyPriceLabel(price) {
   return price.toLocaleString("en-US", { maximumFractionDigits: 0 });
 }
 
+function dailyDeclineHigh(series, endIndex = series.length - 1) {
+  const end = Math.min(endIndex, series.length - 1);
+  if (end < 1) return null;
+  const validMa = index => Number.isFinite(series[index]?.m60) && series[index].m60 > 0;
+  if (!validMa(end) || !validMa(end - 1)) return null;
+  const start = Math.max(0, end - 59);
+  const firstMa = series.slice(start, end + 1).find(row => Number.isFinite(row.m60) && row.m60 > 0)?.m60;
+  if (firstMa == null || series[end].m60 >= firstMa) return null;
+  const turning = series[end].m60 >= series[end - 1].m60;
+  let slowing = false;
+  if (end >= 10 && Array.from({ length: 11 }, (_, i) => end - i).every(validMa)) {
+    const recentSlope = (series[end].m60 / series[end - 5].m60 - 1) * 100;
+    const priorSlope = (series[end - 5].m60 / series[end - 10].m60 - 1) * 100;
+    slowing = priorSlope < 0 && recentSlope < 0 && recentSlope > priorSlope;
+  }
+  if (!turning && !slowing) return null;
+  let highest = null;
+  // Only falling MA60 sessions qualify; later rising-session highs never move this level.
+  for (let index = start; index <= end; index += 1) {
+    const row = series[index];
+    if (!validMa(index) || !validMa(index - 1) || row.m60 >= series[index - 1].m60
+      || !Number.isFinite(row.c) || row.c <= 0) continue;
+    if (!highest || row.c > highest.price) highest = { index, date: row.d, price: row.c };
+  }
+  return highest;
+}
+
+function drawDailyDeclineHigh(ctx, reference, visibleStart, count, x, y, pad, width, priceBottom, mobile) {
+  if (!reference || !count) return;
+  const yy = y(reference.price);
+  const start = Math.max(pad.left, x(reference.index - visibleStart));
+  const end = x(count - 1);
+  ctx.save();
+  ctx.strokeStyle = "#b49a00";
+  ctx.lineWidth = 1.4;
+  ctx.setLineDash([6, 4]);
+  ctx.beginPath(); ctx.moveTo(start, yy); ctx.lineTo(end, yy); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.font = mobile ? '10px "Malgun Gothic"' : '11px "Malgun Gothic"';
+  const label = `하락 중 최고종가 ${dailyPriceLabel(reference.price)}`;
+  const labelWidth = ctx.measureText(label).width + 8;
+  const left = Math.max(pad.left, width - pad.right - labelWidth);
+  const top = Math.max(pad.top + 22, Math.min(priceBottom - 16, yy - 18));
+  ctx.fillStyle = "rgba(255,255,255,.94)";
+  ctx.fillRect(left, top, labelWidth, 16);
+  ctx.fillStyle = "#786600";
+  ctx.fillText(label, left + 4, top + 12);
+  ctx.restore();
+}
+
 function drawDailyChart(series, preserveWindow = false) {
   if (!preserveWindow) {
     const code = selectedDetailItem()?.code;
@@ -1927,6 +1978,7 @@ function drawDailyChart(series, preserveWindow = false) {
   dailyHover.history = selectedDetailItem()?.displayCharts?.daily?.history || [];
   dailyHover.pad = null;
   const canvas = elements.dailyChart;
+  canvas.title = "";
   const ratio = window.devicePixelRatio || 1;
   const width = canvas.clientWidth || 800;
   const height = canvas.clientHeight || 300;
@@ -1949,6 +2001,10 @@ function drawDailyChart(series, preserveWindow = false) {
   });
   const allChartSeries = series.map((row, index) => ({ ...row, m10: row.m10 ?? ma10[index] }));
   const chartSeries = allChartSeries.slice(dailyViewport.start, dailyViewport.start + dailyViewport.count);
+  const declineHigh = dailyDeclineHigh(allChartSeries, dailyViewport.start + chartSeries.length - 1);
+  elements.dailyChart.title = declineHigh
+    ? `${declineHigh.date} · MA60 하락 중 최고종가 ${dailyPriceLabel(declineHigh.price)}원 · 최근 60봉 기준`
+    : "";
   dailyHover.series = chartSeries;
   dailyHover.history = allChartSeries;
   document.querySelectorAll('[data-daily-bars]').forEach(button => button.setAttribute('aria-pressed', String(Number(button.dataset.dailyBars) === dailyViewport.count)));
@@ -1964,6 +2020,7 @@ function drawDailyChart(series, preserveWindow = false) {
     ? completedSessions.reduce((sum, row) => sum + Number(row.v), 0) / 20
     : null;
   const values = chartSeries.flatMap((row) => [row.h, row.l, row.c, row.m5, row.m10, row.m20, row.m60]).filter((value) => value != null);
+  if (declineHigh) values.push(declineHigh.price);
   const min = Math.min(...values);
   const max = Math.max(...values);
   const rawSpread = Math.max(max - min, 1);
@@ -2069,6 +2126,7 @@ function drawDailyChart(series, preserveWindow = false) {
     ctx.fillText(label, Math.min(center, width - pad.right - ctx.measureText(label).width), height - 8);
   });
   drawRegistrationMarker(ctx, chartSeries, "d", chartViewport.registeredAt, x, pad, width, height);
+  drawDailyDeclineHigh(ctx, declineHigh, dailyViewport.start, chartSeries.length, x, y, pad, width, priceBottom, mobile);
 }
 
 function drawRegistrationMarker(ctx, series, key, registeredAt, x, pad, width, height, options = {}) {
