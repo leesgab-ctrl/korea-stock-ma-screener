@@ -885,11 +885,22 @@ function watchReturns(item, quote) {
     current: baseline && quote.price && Date.parse(quote.time) >= Date.parse(item.registeredAt) ? (quote.price / baseline - 1) * 100 : null};
 }
 
-function drawMaTrend(canvas, item) {
-  const rows = (item.displayCharts?.intraday?.series || []).filter(row => row.complete !== false).slice(-20)
+function maTrendData(item, date = watchQuoteDates([item]).at(-1)) {
+  const rows = (item.displayCharts?.intraday?.series || []).filter(row => row.complete !== false && row.t.slice(0, 10) === date)
     .map(row => ({...row,
       m3: Number.isFinite(row.m3) && row.m3 > 0 ? row.m3 : null,
       m10: Number.isFinite(row.m10) && row.m10 > 0 ? row.m10 : null}));
+  const daily = item.displayCharts?.daily?.history?.length ? item.displayCharts.daily.history
+    : item.displayCharts?.daily?.series || item.dailyChart?.series || [];
+  const prior = daily.filter(row => row.d < date && row.complete !== false && Number.isFinite(row.c) && row.c > 0)
+    .sort((a, b) => a.d.localeCompare(b.d)).at(-1);
+  const quoteClose = item.intraday?.quoteTime?.slice(0, 10) === date ? item.intraday.quotePreviousClose : null;
+  const previousClose = prior?.c ?? (Number.isFinite(quoteClose) && quoteClose > 0 ? quoteClose : null);
+  return {rows, previousClose};
+}
+
+function drawMaTrend(canvas, item, date) {
+  const {rows, previousClose} = maTrendData(item, date);
   const width = 96, height = 36, pad = 3;
   const ratio = window.devicePixelRatio || 1;
   canvas.width = Math.round(width * ratio);
@@ -898,10 +909,11 @@ function drawMaTrend(canvas, item) {
   ctx.scale(ratio, ratio);
   ctx.clearRect(0, 0, width, height);
   const values = rows.flatMap(row => [row.m3, row.m10]).filter(value => Number.isFinite(value) && value > 0);
+  if (previousClose !== null) values.push(previousClose);
   const valid = rows.filter(row => [row.m3, row.m10].every(value => Number.isFinite(value) && value > 0));
   const last = valid.at(-1);
   canvas.title = last && valid.length >= 2
-    ? `${formatDateTime(last.t)} · 최근 ${rows.length}개 완성 30분봉 · MA3(초록) ${formatter.format(last.m3)} · MA10(주황) ${formatter.format(last.m10)}`
+    ? `${formatDateTime(last.t)} · 당일 개장 이후 ${rows.length}개 완성 30분봉 · MA3(초록) ${formatter.format(last.m3)} · MA10(주황) ${formatter.format(last.m10)}${previousClose !== null ? ` · 전일 종가(회색) ${formatter.format(previousClose)}` : ""}`
     : "MA3·MA10 추세 자료 부족";
   canvas.setAttribute("aria-label", canvas.title);
   if (valid.length < 2) return;
@@ -909,6 +921,14 @@ function drawMaTrend(canvas, item) {
   const spread = Math.max(max - min, Number.EPSILON);
   const x = index => pad + index / Math.max(1, rows.length - 1) * (width - pad * 2);
   const y = value => max === min ? height / 2 : pad + (max - value) / spread * (height - pad * 2);
+  if (previousClose !== null) {
+    ctx.beginPath();
+    ctx.strokeStyle = "#c5cbca";
+    ctx.lineWidth = 1;
+    ctx.moveTo(pad, y(previousClose));
+    ctx.lineTo(width - pad, y(previousClose));
+    ctx.stroke();
+  }
   drawLine(ctx, rows, "m3", "#34a853", 1.5, x, y);
   drawLine(ctx, rows, "m10", "#d97706", 1.5, x, y);
 }
@@ -1046,7 +1066,7 @@ function renderWatchQuotes(coreOnly = false) {
   if (!entries.length) meta.textContent = coreOnly ? "현재 핵심종목 조건에 해당하는 종목이 없습니다." : "현재 감시대상 종목이 없습니다.";
   if (coreOnly) document.querySelector("#coreContent").replaceChildren(content);
   else openOperationContent(document.querySelector("#watchQuotesButton"), content);
-  for (const [canvas, item] of trends) drawMaTrend(canvas, item);
+  for (const [canvas, item] of trends) drawMaTrend(canvas, item, today);
 }
 document.querySelector("#watchQuotesButton").addEventListener("click", () => renderWatchQuotes());
 document.querySelector("#priceAnalysisButton").addEventListener("click", () => renderPriceAnalysis());
