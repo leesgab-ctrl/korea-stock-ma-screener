@@ -49,7 +49,7 @@ h2 { font-size: 17px; }
 .topbar .criteria-button { background: #fff; color: var(--green); }
 
 main { max-width: 1480px; margin: 0 auto; padding: 18px; display: grid; gap: 14px; }
-.main-tabs { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); border: 1px solid var(--line); }
+.main-tabs { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); border: 1px solid var(--line); }
 .view-tab { min-width: 0; min-height: 52px; padding: 10px 4px; border: 0; border-right: 1px solid var(--line); border-bottom: 3px solid transparent; background: transparent; color: var(--muted); cursor: pointer; font-weight: 700; font-size: 14px; display: flex; justify-content: center; align-items: center; gap: 4px; }
 .view-tab:last-child { border-right: 0; }
 .view-tab.active { color: var(--green); border-bottom-color: var(--green); background: var(--green-soft); }
@@ -136,7 +136,13 @@ main { max-width: 1480px; margin: 0 auto; padding: 18px; display: grid; gap: 14p
 .watch-quote-price[data-direction="up"] { color: #c12d36; }
 .watch-quote-price[data-direction="down"] { color: #2463b5; }
 .watch-quote-time { font-size: 12px; color: #62746e; margin: 8px 0; }
+.core-quotes .watch-quotes-title { margin-top: 0; }
+.core-quotes .watch-quote-header, .core-quotes .watch-quote-row > summary { grid-template-columns: minmax(80px, 1fr) 40px 68px 60px 90px 65px 76px 76px 96px; }
+.ma-trend { display: block; width: 96px; max-width: 100%; }
+.ma-trend canvas { display: block; width: 100%; height: auto; aspect-ratio: 8 / 3; }
+.ma-trend-label { display: flex; align-items: center; justify-content: center; gap: 4px; font-size: 11px; }
 @media (max-width: 800px) {
+  .view-tab { font-size: 11px; flex-direction: column; gap: 2px; white-space: nowrap; }
   .watch-quote-header, .watch-quote-row > summary { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px 4px; padding: 12px 4px; }
   .watch-quote-header { font-size: 11px; }
   .watch-quote-header small { font-size: 10px; }
@@ -514,6 +520,9 @@ body.inline-chart-mode .detail-content { padding-top: 0; }
 .history-chart-row iframe { display: block; width: 100%; height: 1100px; border: 0; }
 @media (max-width: 800px) {
   .watch-quote-header, .watch-quote-row > summary { grid-template-columns: minmax(0, 1.4fr) minmax(0, .45fr) minmax(0, .9fr) minmax(0, 1.1fr) minmax(0, .8fr); gap: 4px; }
+  .core-quotes .watch-quote-header, .core-quotes .watch-quote-row > summary { grid-template-columns: minmax(0, 1.25fr) 26px 52px minmax(0, 1fr) 40px 68px; }
+  .core-quotes .ma-trend { width: 68px; }
+  .core-quotes .ma-trend-label { font-size: 9px; gap: 2px; }
   .watch-quote-header > :nth-child(4), .watch-quote-row > summary > :nth-child(4),
   .watch-quote-header > :nth-child(7), .watch-quote-row > summary > :nth-child(7),
   .watch-quote-header > :nth-child(8), .watch-quote-row > summary > :nth-child(8) { display: none; }
@@ -527,6 +536,11 @@ body.inline-chart-mode .detail-content { padding-top: 0; }
   .history-table td:first-child > span { display: none; }
   .history-table th:nth-child(6), .history-table td:nth-child(6) { display: none; }
   .history-chart-row td { display: table-cell; }
+}
+@media (max-width: 360px) {
+  .view-tab { font-size: 9px; }
+  .core-quotes .watch-quote-header, .core-quotes .watch-quote-row > summary { grid-template-columns: minmax(0, 1.25fr) 22px 48px minmax(0, 1fr) 34px 54px; gap: 3px; }
+  .core-quotes .ma-trend { width: 54px; }
 }
 @media (max-width: 540px) {
   .history-table th:nth-child(2), .history-table td:nth-child(2) { display: none; }

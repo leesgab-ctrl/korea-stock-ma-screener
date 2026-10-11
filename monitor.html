@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#176b58">
     <title>A-G 30분봉 신호 감시</title>
-    <link rel="stylesheet" href="monitor.css?v=20261011-6">
+    <link rel="stylesheet" href="monitor.css?v=20261011-7">
   </head>
   <body>
     <header class="topbar">
@@ -21,12 +21,14 @@
 
     <main>
       <nav class="main-tabs" aria-label="감시 메뉴" role="tablist">
+        <button class="view-tab" data-view="core" type="button" role="tab" aria-selected="false">핵심종목</button>
         <button class="view-tab" data-view="new" type="button" role="tab" aria-selected="false">신규종목</button>
         <button class="view-tab active" data-view="reference" type="button" role="tab" aria-selected="true">상승조정형</button>
         <button class="view-tab" data-view="target" type="button" role="tab" aria-selected="false">조정회복형</button>
         <button class="view-tab" data-view="positions" type="button" role="tab" aria-selected="false">보유종목</button>
         <button class="view-tab" data-view="operations" type="button" role="tab" aria-selected="false">운영관리</button>
       </nav>
+      <section id="corePanel" class="hidden" aria-label="핵심종목"><div id="coreContent"></div></section>
       <section id="operationsPanel" class="hidden" aria-label="운영관리">
         <div class="operation-links">
           <button id="watchQuotesButton" class="external-link" type="button">주가현황</button>
@@ -306,6 +308,6 @@
       <div class="position-form"><h2>사용자 선정 제외</h2><div id="excludedList"></div><button id="excludedListClose" type="button">닫기</button></div>
     </dialog>
   <script src="price-analysis.js?v=20261010-48"></script>
-  <script src="monitor.js?v=20261011-6"></script>
+  <script src="monitor.js?v=20261011-7"></script>
   </body>
 </html>

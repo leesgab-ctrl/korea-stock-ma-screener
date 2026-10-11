@@ -22,7 +22,7 @@ const state = {
   payload: null,
   lastLoadedAt: 0,
   positions: null,
-  view: !requestedCode && ["new", "reference", "target", "positions", "operations"].includes(savedView.view) ? savedView.view : "reference",
+  view: !requestedCode && ["core", "new", "reference", "target", "positions", "operations"].includes(savedView.view) ? savedView.view : "reference",
   keyword: "",
   selectedCode: requestedCode && /^\d{6}$/.test(requestedCode) ? requestedCode : null,
   selectedPositionCode: null,
@@ -107,7 +107,7 @@ const statusLabels = {
 };
 const statusPriority = { signal: 0, rising: 1, waiting60: 2, setup: 3, signaled: 4, watching: 5, insufficient: 6, ineligible: 7, excluded: 8 };
 const tierLabels = { core: "핵심 A-G", expanded: "확대 A-G" };
-const viewLabels = { new: "신규종목", target: "조정회복형", reference: "상승조정형", positions: "보유종목", operations: "운영관리" };
+const viewLabels = { core: "핵심종목", new: "신규종목", target: "조정회복형", reference: "상승조정형", positions: "보유종목", operations: "운영관리" };
 function newRegistrationLabel(item) {
   const today = new Intl.DateTimeFormat("en-CA", {timeZone: "Asia/Seoul", year: "numeric", month: "2-digit", day: "2-digit"}).format(new Date());
   const records = [...(state.payload?.candidates || []), ...(state.payload?.history || [])];
@@ -268,9 +268,11 @@ function render() {
   document.querySelector(".toolbar").classList.toggle("hidden", !candidateView);
   document.querySelector(".positions-panel").classList.toggle("hidden", state.view !== "positions");
   document.querySelector("#operationsPanel").classList.toggle("hidden", state.view !== "operations");
+  document.querySelector("#corePanel").classList.toggle("hidden", state.view !== "core");
   document.querySelector("#viewTitle").textContent = viewLabels[state.view];
   renderOperations(activeCandidates);
   if (document.querySelector("#watchQuotesButton").classList.contains("operation-active")) renderWatchQuotes();
+  if (state.view === "core") renderWatchQuotes(true);
   if (candidateView) renderCandidates(activeCandidates);
   const closedPositions = (state.positions?.positions || []).filter((item) => item.status === "closed");
   renderPositions(openPositions, closedPositions);
@@ -336,9 +338,11 @@ function scrollSelectedChart() {
 }
 
 function renderViewCounts(candidates, positions) {
+  const dates = watchQuoteDates(candidates);
   document.querySelectorAll(".view-tab").forEach((button) => {
     const view = button.dataset.view;
-    const count = view === "positions" ? positions.length : candidates.filter((item) => view === "new" ? Boolean(newRegistrationLabel(item)) : chartGroup(item) === view).length;
+    const count = view === "positions" ? positions.length : candidates.filter((item) => view === "core" ? isCoreCandidate(item, dates)
+      : view === "new" ? Boolean(newRegistrationLabel(item)) : chartGroup(item) === view).length;
     button.replaceChildren();
     const label = document.createElement("span");
     label.textContent = viewLabels[view];
@@ -619,6 +623,26 @@ function compareCandidateSpread(a, b) {
   return (left !== null && right !== null ? left - right : 0) || a.name.localeCompare(b.name, "ko");
 }
 
+function watchQuoteDates(items) {
+  return [...new Set(items.flatMap(item => (item.displayCharts?.intraday?.series || []).map(row => row.t.slice(0, 10))))].sort().slice(-2);
+}
+
+function watchColorSnapshots(item, dates = watchQuoteDates([item])) {
+  const rows = item.displayCharts?.intraday?.series || [];
+  return dates.map(date => {
+    const prefix = rows.filter(row => row.complete !== false && row.t.slice(0, 10) <= date);
+    const last = prefix.at(-1);
+    const phase = last?.t.slice(0, 10) === date ? chartPhases(prefix).at(-1) : null;
+    return {date, phase, display: phase ? phaseDisplay(phase) : null};
+  });
+}
+
+function isCoreCandidate(item, dates) {
+  return watchColorSnapshots(item, dates).some(({display}) => display
+    && (["reference", "observation"].includes(display.phase) && display.level > 0
+      || display.phase === "before" && display.compact));
+}
+
 function renderCandidates(candidates) {
   restoreDetailPanel();
   const visible = filteredCandidates(candidates).sort(["target", "reference"].includes(state.view) ? compareCandidateSpread : (a, b) =>
@@ -861,10 +885,41 @@ function watchReturns(item, quote) {
     current: baseline && quote.price && Date.parse(quote.time) >= Date.parse(item.registeredAt) ? (quote.price / baseline - 1) * 100 : null};
 }
 
-function renderWatchQuotes() {
+function drawMaTrend(canvas, item) {
+  const rows = (item.displayCharts?.intraday?.series || []).filter(row => row.complete !== false).slice(-20)
+    .map(row => ({...row,
+      m3: Number.isFinite(row.m3) && row.m3 > 0 ? row.m3 : null,
+      m10: Number.isFinite(row.m10) && row.m10 > 0 ? row.m10 : null}));
+  const width = 96, height = 36, pad = 3;
+  const ratio = window.devicePixelRatio || 1;
+  canvas.width = Math.round(width * ratio);
+  canvas.height = Math.round(height * ratio);
+  const ctx = canvas.getContext("2d");
+  ctx.scale(ratio, ratio);
+  ctx.clearRect(0, 0, width, height);
+  const values = rows.flatMap(row => [row.m3, row.m10]).filter(value => Number.isFinite(value) && value > 0);
+  const valid = rows.filter(row => [row.m3, row.m10].every(value => Number.isFinite(value) && value > 0));
+  const last = valid.at(-1);
+  canvas.title = last && valid.length >= 2
+    ? `${formatDateTime(last.t)} · 최근 ${rows.length}개 완성 30분봉 · MA3(초록) ${formatter.format(last.m3)} · MA10(주황) ${formatter.format(last.m10)}`
+    : "MA3·MA10 추세 자료 부족";
+  canvas.setAttribute("aria-label", canvas.title);
+  if (valid.length < 2) return;
+  const min = Math.min(...values), max = Math.max(...values);
+  const spread = Math.max(max - min, Number.EPSILON);
+  const x = index => pad + index / Math.max(1, rows.length - 1) * (width - pad * 2);
+  const y = value => max === min ? height / 2 : pad + (max - value) / spread * (height - pad * 2);
+  drawLine(ctx, rows, "m3", "#34a853", 1.5, x, y);
+  drawLine(ctx, rows, "m10", "#d97706", 1.5, x, y);
+}
+
+function renderWatchQuotes(coreOnly = false) {
   const content = document.createElement("div");
-  content.className = "watch-quotes";
-  const items = state.payload?.candidates || [];
+  content.className = `watch-quotes${coreOnly ? " core-quotes" : ""}`;
+  const candidates = state.payload?.candidates || [];
+  const tradingDates = watchQuoteDates(candidates);
+  const items = coreOnly ? candidates.filter(item => isCoreCandidate(item, tradingDates)) : candidates;
+  const trends = [];
   const entries = items.map(item => ({item, quote: displayQuote(item)})).sort((a, b) => {
     if (a.quote.change == null && b.quote.change != null) return 1;
     if (a.quote.change != null && b.quote.change == null) return -1;
@@ -873,12 +928,11 @@ function renderWatchQuotes() {
   const meta = document.createElement("p");
   const heading = document.createElement("h2");
   heading.className = "watch-quotes-title";
-  heading.textContent = "감시대상 주가현황";
+  heading.textContent = coreOnly ? "핵심종목" : "감시대상 주가현황";
   content.append(heading);
   meta.className = "watch-quote-time";
   meta.textContent = `${entries.length}종목 · 전일 종가 대비 등락률 순 · 최신 수집 가격 기준`;
   content.append(meta);
-  const tradingDates = [...new Set(items.flatMap(item => (item.displayCharts?.intraday?.series || []).map(row => row.t.slice(0, 10))))].sort();
   const today = tradingDates.at(-1);
   const priorDate = tradingDates.at(-2);
   meta.textContent += today ? ` · 기준 ${today}` : "";
@@ -900,6 +954,17 @@ function renderWatchQuotes() {
     }
     header.append(cell);
   }
+  if (coreOnly) {
+    const label = document.createElement("span");
+    label.className = "ma-trend-label";
+    for (const [text, color] of [["MA3", "#34a853"], ["MA10", "#d97706"]]) {
+      const part = document.createElement("span");
+      part.textContent = text;
+      part.style.color = color;
+      label.append(part);
+    }
+    header.append(label);
+  }
   const table = document.createElement("div");
   table.className = "watch-quote-table";
   content.append(table);
@@ -917,9 +982,9 @@ function renderWatchQuotes() {
     group.textContent = { reference: "상승", target: "조정", insufficient: "대기", unclassified: "대기" }[chartGroup(item)] || "대기";
     const swatches = document.createElement("span");
     swatches.className = "watch-quote-swatches";
-    const phases = chartPhases(item.displayCharts?.intraday?.series || []);
+    const snapshots = watchColorSnapshots(item, tradingDates);
     for (const [label, date] of [["전일 최종", priorDate], ["오늘", today]]) {
-      const phase = phases.filter(row => row.t.slice(0, 10) === date && (label !== "전일 최종" || row.complete !== false)).at(-1);
+      const phase = snapshots.find(snapshot => snapshot.date === date)?.phase;
       const swatch = document.createElement("span");
       swatch.className = "watch-quote-swatch";
       if (phase) swatch.style.backgroundColor = phaseBackground(phase);
@@ -954,6 +1019,14 @@ function renderWatchQuotes() {
       return cell;
     };
     summary.append(name, group, swatches, period, price, change, returnCell(returns.maximum, "일봉 종가 최고수익률"), returnCell(returns.current, "최신 수집 현재가 수익률"));
+    if (coreOnly) {
+      const trend = document.createElement("span");
+      trend.className = "ma-trend";
+      const canvas = document.createElement("canvas");
+      trend.append(canvas);
+      summary.append(trend);
+      trends.push([canvas, item]);
+    }
     row.append(summary);
     row.addEventListener("toggle", () => {
       if (row.open && !row.querySelector("iframe")) {
@@ -970,10 +1043,12 @@ function renderWatchQuotes() {
     });
     table.append(row);
   }
-  if (!entries.length) meta.textContent = "현재 감시대상 종목이 없습니다.";
-  openOperationContent(document.querySelector("#watchQuotesButton"), content);
+  if (!entries.length) meta.textContent = coreOnly ? "현재 핵심종목 조건에 해당하는 종목이 없습니다." : "현재 감시대상 종목이 없습니다.";
+  if (coreOnly) document.querySelector("#coreContent").replaceChildren(content);
+  else openOperationContent(document.querySelector("#watchQuotesButton"), content);
+  for (const [canvas, item] of trends) drawMaTrend(canvas, item);
 }
-document.querySelector("#watchQuotesButton").addEventListener("click", renderWatchQuotes);
+document.querySelector("#watchQuotesButton").addEventListener("click", () => renderWatchQuotes());
 document.querySelector("#priceAnalysisButton").addEventListener("click", () => renderPriceAnalysis());
 document.querySelector("#shapeAnalysisButton").addEventListener("click", () => renderPriceAnalysis(true));
 const MEMO_STORAGE_KEY = "koreaStockMonitor.memo";
