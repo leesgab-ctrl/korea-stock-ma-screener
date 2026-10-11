@@ -1576,7 +1576,7 @@ function drawChart(series, dailyMa10, recoveryHistory = {}) {
   ctx.font = mobile ? "10px Segoe UI" : "11px Segoe UI";
   const priceLabel = (value) => formatter.format(Math.round(value));
   const labelWidth = Math.max(...[priceMin, priceMax].map((value) => ctx.measureText(priceLabel(value)).width));
-  const pad = { left: mobile ? Math.ceil(labelWidth) + 5 : 54, right: mobile ? 3 : 12, top: 42, bottom: 28 };
+  const pad = { left: mobile ? Math.ceil(labelWidth) + 5 : 54, right: mobile ? 3 : 12, top: mobile ? 24 : 42, bottom: 28 };
   const volumeHeight = Math.max(44, Math.round(height * 0.2));
   const volumeTop = height - pad.bottom - volumeHeight;
   const priceBottom = volumeTop - 10;
