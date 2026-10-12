@@ -1455,7 +1455,7 @@ function renderDetail(item) {
   } else if (!item.positionDetail && rebound) {
     elements.signalMessage.textContent = `밀착 후 재상승 · ${formatDateTime(rebound.time)} · 포착가격 ${formatter.format(rebound.price)}원 · MA10 조정 후 MA3 → MA20 상향 돌파 (별도 관찰 신호)`;
   }
-  const fullSeries = native?.series || [];
+  const fullSeries = chartSeriesWithMa120(native);
   if (chartViewport.count == null && fullSeries.length) {
     const dates = [...new Set(fullSeries.map(row => row.t.slice(0, 10)))].slice(historyChartMode ? 0 : -5);
     chartViewport.start = fullSeries.findIndex(row => dates.includes(row.t.slice(0, 10)));
@@ -1718,6 +1718,28 @@ function phaseBackground(row) {
   return phaseDisplay(row).color;
 }
 
+function chartSeriesWithMa120(chart) {
+  const series = chart?.series || [];
+  // Older saved charts retain native closes even when MA120 was not stored.
+  const bars = new Map((chart?.history || []).map(row => [row.t, row]));
+  series.forEach(row => bars.set(row.t, row));
+  const averages = new Map();
+  const closes = [];
+  let sum = 0;
+  for (const row of [...bars.values()].sort((a, b) => a.t.localeCompare(b.t))) {
+    if (!Number.isFinite(row.c) || row.c <= 0) {
+      closes.length = 0;
+      sum = 0;
+    } else {
+      closes.push(row.c);
+      sum += row.c;
+      if (closes.length > 120) sum -= closes.shift();
+    }
+    averages.set(row.t, closes.length === 120 ? Math.round(sum / 120 * 100) / 100 : null);
+  }
+  return series.map(row => ({ ...row, m120: Object.hasOwn(row, "m120") ? row.m120 : averages.get(row.t) }));
+}
+
 function drawChart(series, dailyMa10, recoveryHistory = {}) {
   hideMaTooltip();
   maHover.pad = null;
@@ -1752,7 +1774,7 @@ function drawChart(series, dailyMa10, recoveryHistory = {}) {
     ctx.fillText("표시할 30분봉 데이터가 부족합니다.", 20, 35);
     return;
   }
-  const values = series.flatMap((row) => [row.h, row.l, row.c, row.m3, row.m20, row.m40, row.m60, dailyMa10]).filter((value) => value != null);
+  const values = series.flatMap((row) => [row.h, row.l, row.c, row.m3, row.m20, row.m40, row.m60, row.m120, dailyMa10]).filter((value) => value != null);
   const min = Math.min(...values);
   const max = Math.max(...values);
   const rawSpread = Math.max(max - min, 1);
@@ -1764,6 +1786,23 @@ function drawChart(series, dailyMa10, recoveryHistory = {}) {
   const priceLabel = (value) => formatter.format(Math.round(value));
   const labelWidth = Math.max(...[priceMin, priceMax].map((value) => ctx.measureText(priceLabel(value)).width));
   const pad = { left: mobile ? Math.ceil(labelWidth) + 5 : 54, right: mobile ? 3 : 12, top: mobile ? 24 : 42, bottom: 28 };
+  ctx.font = "11px Segoe UI";
+  const legend = [];
+  const legendLeft = mobile ? 0 : pad.left;
+  let legendX = legendLeft;
+  let legendY = 15;
+  const legendEntries = [["MA3", "#34a853"], ["MA10", "#d97706"], ["MA20", "#e53935"], ["MA40", "#9a641d"], ["MA60", "#3167ad"], ["MA120", "#8e44ad"]];
+  if (dailyMa10 != null) legendEntries.push(["일봉 MA10", "#d97706"]);
+  for (const [label, color] of legendEntries) {
+    const entryWidth = 14 + ctx.measureText(label).width + 9;
+    if (legendX > legendLeft && legendX + entryWidth - 9 > width - pad.right) {
+      legendX = legendLeft;
+      legendY += 18;
+    }
+    legend.push({ label, color, x: legendX, y: legendY });
+    legendX += entryWidth;
+  }
+  pad.top = Math.max(pad.top, legendY + 9);
   const volumeHeight = Math.max(44, Math.round(height * 0.2));
   const volumeTop = height - pad.bottom - volumeHeight;
   const priceBottom = volumeTop - 10;
@@ -1827,31 +1866,18 @@ function drawChart(series, dailyMa10, recoveryHistory = {}) {
   drawLine(ctx, series, "m20", "#e53935", 2.2, x, y);
   drawLine(ctx, series, "m40", "#9a641d", 2.2, x, y);
   drawLine(ctx, series, "m60", "#3167ad", 2.2, x, y);
+  drawLine(ctx, series, "m120", "#8e44ad", 1.8, x, y);
   drawVolumeDivider(ctx, pad.left, width - pad.right, volumeTop - 5);
   if (dailyMa10 != null) {
     ctx.strokeStyle = "#d97706"; ctx.lineWidth = 1.5; ctx.setLineDash([6, 4]);
     ctx.beginPath(); ctx.moveTo(pad.left, y(dailyMa10)); ctx.lineTo(width - pad.right, y(dailyMa10)); ctx.stroke(); ctx.setLineDash([]);
   }
   ctx.font = "11px Segoe UI";
-  if (mobile) {
-    let legendX = 0;
-    for (const [label, color] of [["MA3", "#34a853"], ["MA10", "#d97706"], ["MA20", "#e53935"], ["MA40", "#9a641d"], ["MA60", "#3167ad"]]) {
-      ctx.fillStyle = color;
-      ctx.fillRect(legendX, 9, 10, label === "MA3" ? 1.1 : 2);
-      ctx.fillStyle = "#48574f";
-      ctx.fillText(label, legendX + 14, 15);
-      legendX += 14 + ctx.measureText(label).width + 9;
-    }
-  } else {
-  ctx.fillStyle = "#34a853"; ctx.fillRect(pad.left, 9, 14, 1.1); ctx.fillStyle = "#48574f"; ctx.fillText("MA3", pad.left + 19, 15);
-  ctx.fillStyle = "#e53935"; ctx.fillRect(pad.left + 58, 9, 14, 3); ctx.fillStyle = "#48574f"; ctx.fillText("MA20", pad.left + 77, 15);
-  ctx.fillStyle = "#9a641d"; ctx.fillRect(pad.left + 126, 9, 14, 3); ctx.fillStyle = "#48574f"; ctx.fillText("MA40", pad.left + 145, 15);
-  ctx.fillStyle = "#3167ad"; ctx.fillRect(pad.left + 194, 9, 14, 3); ctx.fillStyle = "#48574f"; ctx.fillText("MA60", pad.left + 213, 15);
-  if (dailyMa10 != null) {
-    ctx.fillStyle = "#d97706"; ctx.fillRect(pad.left, 27, 14, 3); ctx.fillStyle = "#48574f"; ctx.fillText("일봉 MA10", pad.left + 19, 33);
-  } else {
-    ctx.fillStyle = "#d97706"; ctx.fillRect(pad.left, 27, 14, 2); ctx.fillStyle = "#48574f"; ctx.fillText("MA10", pad.left + 19, 33);
-  }
+  for (const entry of legend) {
+    ctx.fillStyle = entry.color;
+    ctx.fillRect(entry.x, entry.y - 6, 10, entry.label === "MA3" ? 1.1 : 2);
+    ctx.fillStyle = "#48574f";
+    ctx.fillText(entry.label, entry.x + 14, entry.y);
   }
   ctx.fillStyle = "#64746c";
   const dateIndexes = [0];
@@ -1911,6 +1937,11 @@ function showMaTooltip(event) {
   const date = document.createElement("strong");
   date.textContent = formatDateTime(row.t);
   tooltip.append(date);
+  const ma120 = document.createElement("div");
+  ma120.style.color = "#8e44ad";
+  ma120.style.padding = "1px 6px";
+  ma120.textContent = `MA120 ${Number.isFinite(row.m120) ? formatter.format(row.m120) + "원" : "자료 부족"}`;
+  tooltip.append(ma120);
   for (const [key, base, label, color] of [["m3", "m20", "MA3~MA20", "#34a853"], ["m10", "m20", "MA10~MA20", "#d97706"], ["m20", "m40", "MA20~MA40", "#9a641d"], ["m20", "m60", "MA20~MA60", "#3167ad"]]) {
     const line = document.createElement("div");
     line.style.color = color;

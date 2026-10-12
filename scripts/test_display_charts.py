@@ -65,6 +65,23 @@ class DisplayChartTests(unittest.TestCase):
                 for day in range(1, 21)]
         chart = self.fetch(rows, "day")
         self.assertEqual(chart["series"][9]["m10"], 105.5)
+        self.assertTrue(all("m120" not in row for row in chart["series"]))
+
+    def test_intraday_ma120_warmup_and_native_cache(self):
+        rows = [self.row((self.now - dt.timedelta(minutes=30 * (120 - index))).strftime("%Y%m%d%H%M%S"), 100 + index)
+                for index in range(121)]
+        prior = self.fetch(rows[:119])
+        self.assertTrue(all(row["m120"] is None for row in prior["series"]))
+        chart = self.fetch(rows[119:], previous=prior)
+        self.assertIsNone(chart["series"][118]["m120"])
+        self.assertEqual(chart["series"][119]["m120"], 159.5)
+        self.assertEqual(chart["series"][120]["m120"], 160.5)
+        self.assertEqual(chart["series"][119]["m60"], 189.5)
+        without_ma120 = [{key: value for key, value in row.items() if key != "m120"} for row in chart["series"]]
+        monitor.apply_display_phases(without_ma120)
+        for actual, expected in zip(chart["series"], without_ma120):
+            self.assertEqual(actual["phase"], expected["phase"])
+            self.assertEqual(actual.get("phaseTarget"), expected.get("phaseTarget"))
 
     def test_refresh_failure_preserves_analysis(self):
         payload = {"candidates": [{"code": "007810", "status": "signal", "intraday": {"riseCount": 5},

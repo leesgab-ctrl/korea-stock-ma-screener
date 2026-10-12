@@ -740,7 +740,7 @@ def fetch_display_chart(
         history.update(fresh)
     limit = 600 if intraday else 250
     rows = [history[key] for key in sorted(history)][-limit:]
-    windows = (3, 10, 20, 40, 60) if intraday else (5, 10, 20, 60)
+    windows = (3, 10, 20, 40, 60, 120) if intraday else (5, 10, 20, 60)
     averages = {window: rolling_average([row["c"] for row in rows], window) for window in windows}
     series = [
         {**row, **{f"m{window}": round(averages[window][index], 2) if averages[window][index] is not None else None for window in windows}}
