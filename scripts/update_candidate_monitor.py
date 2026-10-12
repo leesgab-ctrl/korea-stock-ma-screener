@@ -25,12 +25,17 @@ TRACKING_RULE_VERSION = 5
 OUTCOME_RULE_VERSION = 3
 CORE_TIER = "core"
 EXPANDED_TIER = "expanded"
+AK_TIER = "expanded_ak"
+AK_SEARCH_ENABLED = True
 STRATEGY = {
     "candidateWindowTradingDays": 10,
     "candidateTiers": {
         CORE_TIER: "기존 A-G(A 거래량 +200%, E 종가 +1%)",
         EXPANDED_TIER: "확대 A-G(A 거래량 +150%, E 종가 +0.5%)",
+        AK_TIER: "확대 A-K(최근 3일 중 +10% 상승 후 당일 -2% 이하 조정)",
     },
+    "akSearchEnabled": AK_SEARCH_ENABLED,
+    "akDivergenceRule": "MA10 > MA20, MA10-MA20 간격이 전일보다 확대",
     "minuteTimeframe": "30분봉",
     "maRule": "MA20 5회 상승 후 MA3가 조정 깊이에 따른 MA40 또는 MA60 돌파",
     "entry": "신호봉 완성 후 다음 30분봉부터 HTS 현재가 확인",
@@ -120,6 +125,64 @@ def evaluate_ag(rows: list[dict[str, Any]], index: int) -> dict[str, Any] | None
         "checks": checks,
         "coreChecks": core_checks,
         "values": {key: round(value, 2) for key, value in values.items()},
+    }
+
+
+def evaluate_ak(rows: list[dict[str, Any]], index: int) -> dict[str, Any] | None:
+    if index < 119 or index >= len(rows):
+        return None
+    recent = rows[index - 119:index + 1]
+    if not all(isinstance(row.get("close"), (int, float)) and math.isfinite(row["close"]) and row["close"] > 0 for row in recent):
+        return None
+    volumes = [row.get("volume") for row in rows[index - 20:index]]
+    if not all(isinstance(value, (int, float)) and math.isfinite(value) and value >= 0 for value in volumes):
+        return None
+    volume_ma20 = sum(volumes) / 20
+    if volume_ma20 <= 0:
+        return None
+
+    def ma(period, offset=0):
+        return sum(row["close"] for row in rows[index - offset - period + 1:index - offset + 1]) / period
+
+    def change(before, after):
+        return 100 * (rows[index - after]["close"] / rows[index - before]["close"] - 1)
+
+    ma10, ma20 = ma(10), ma(20)
+    prior10, prior20 = ma(10, 1), ma(20, 1)
+    ma40 = [ma(40, offset) for offset in (4, 3, 2, 1)]
+    ma5, ma120 = ma(5), ma(120)
+    ma10_six, ma60_six = ma(10, 6), ma(60, 6)
+    epsilon = max(ma10, ma20, *ma40, ma120) * 1e-12
+    values = {
+        "volumeSpikePct": 100 * (volumes[-1] / volume_ma20 - 1),
+        "signalClosePct": change(1, 0),
+        "riseFourToThreePct": change(4, 3),
+        "riseThreeToTwoPct": change(3, 2),
+        "riseTwoToOnePct": change(2, 1),
+        "ma10": ma10, "ma20": ma20, "ma10Previous": prior10, "ma20Previous": prior20,
+        "ma5": ma5, "ma120": ma120, "ma10SixBarsAgo": ma10_six, "ma60SixBarsAgo": ma60_six,
+    }
+    checks = {
+        "A": values["volumeSpikePct"] >= 200 - 1e-9,
+        "B": all(current > previous + epsilon for previous, current in zip(ma40, ma40[1:])),
+        "C": values["signalClosePct"] <= -2 + 1e-9,
+        "D": ma10 > ma20 + epsilon and ma10 - ma20 > prior10 - prior20 + epsilon,
+        "G": ma5 <= ma120 + epsilon,
+        "H": ma10_six <= ma60_six + epsilon,
+        "I": values["riseThreeToTwoPct"] >= 10 - 1e-9,
+        "J": values["riseTwoToOnePct"] >= 10 - 1e-9,
+        "K": values["riseFourToThreePct"] >= 10 - 1e-9,
+    }
+    if not all(checks[key] for key in "ABCDGH") or not any(checks[key] for key in "IJK"):
+        return None
+    return {
+        "candidateTier": AK_TIER, "screeningFamily": "A-K",
+        "close": rows[index]["close"], "spikeDate": rows[index - 1]["date"],
+        "preSpikeDate": rows[index - 2]["date"], "preSpikeClose": rows[index - 2]["close"],
+        "preSpikeLow": rows[index - 2].get("low"), "patternStartDate": rows[index - 4]["date"],
+        "checks": checks, "logic": "A and B and C and D and G and H and (I or J or K)",
+        "divergenceRule": STRATEGY["akDivergenceRule"],
+        "values": {key: round(value, 4) for key, value in values.items()},
     }
 
 
@@ -263,6 +326,7 @@ def archive_candidate(candidate: dict[str, Any], archived_at: str, reason: str) 
         "dailyChart": candidate.get("dailyChart", {}),
         "registrationDayBars": candidate.get("registrationDayBars", []),
         "agValues": candidate.get("daily", {}).get("values", {}),
+        "daily": candidate.get("daily", {}),
         "statusAtClose": candidate.get("status"),
         "signalTime": intraday.get("signalTime"),
         "signalPrice": intraday.get("signalPrice"),
@@ -397,11 +461,22 @@ def build_daily_candidates(stock_data: Path, previous: dict[str, Any]) -> dict[s
         existing_dates = {
             date for (code, date) in previous_candidates if code == stock["c"]
         }
+        active_ag = any(code == stock["c"] and item.get("candidateTier") != AK_TIER
+                        and registration_age(item, calendar, latest_date) < 10
+                        and not target_completed_before(item, latest_date)
+                        for (code, _date), item in previous_candidates.items())
         for index in range(22, len(rows)):
             current_result = rows[index]["date"] == latest_date == now_kst().date().isoformat()
             if not current_result and rows[index]["date"] not in existing_dates:
                 continue
-            result = evaluate_ag(rows, index)
+            prior_match = previous_candidates.get((stock["c"], rows[index]["date"]), {})
+            if prior_match.get("candidateTier") == AK_TIER:
+                result = evaluate_ak(rows, index)
+            else:
+                result = evaluate_ag(rows, index)
+                # A-K adds new stocks without replacing an active A-G registration.
+                if result is None and current_result and AK_SEARCH_ENABLED and not active_ag:
+                    result = evaluate_ak(rows, index)
             if result:
                 latest_match = (index, result)
         if latest_match is None:
@@ -1352,7 +1427,7 @@ def notify_ntfy(topic: str, candidate: dict[str, Any], recovery=None) -> None:
     intraday = candidate["intraday"]
     signal_start = dt.datetime.fromisoformat(intraday["signalTime"]) if not recovery else None
     signal_complete = (signal_start + dt.timedelta(minutes=1 if signal_start.time() == dt.time(15, 30) else 30)) if signal_start else None
-    tier_label = "핵심 후보" if candidate.get("candidateTier") == CORE_TIER else "확대 후보"
+    tier_label = "확대 A-K" if candidate.get("candidateTier") == AK_TIER else "핵심 후보" if candidate.get("candidateTier") == CORE_TIER else "확대 후보"
     message = "" if recovery else (
         f"{candidate['name']}({candidate['code']})\n"
         f"후보등급: {tier_label}\n"
@@ -1548,6 +1623,7 @@ def enrich(
         "total": len(payload.get("candidates", [])),
         "coreCandidates": tier_counts[CORE_TIER],
         "expandedCandidates": tier_counts[EXPANDED_TIER],
+        "expandedAkCandidates": tier_counts[AK_TIER],
         "signals": status_counts["signal"],
         "signalHistory": status_counts["signaled"],
         "setup": status_counts["setup"],

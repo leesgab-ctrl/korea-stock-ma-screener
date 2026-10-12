@@ -106,8 +106,11 @@ const statusLabels = {
   waiting60: "MA3 돌파 대기",
 };
 const statusPriority = { signal: 0, rising: 1, waiting60: 2, setup: 3, signaled: 4, watching: 5, insufficient: 6, ineligible: 7, excluded: 8 };
-const tierLabels = { core: "핵심 A-G", expanded: "확대 A-G" };
+const tierLabels = { core: "핵심 A-G", expanded: "확대 A-G", expanded_ak: "확대 A-K" };
 const viewLabels = { core: "핵심종목", new: "신규종목", target: "조정회복형", reference: "상승조정형", positions: "보유종목", operations: "운영관리" };
+function screeningFamily(item) {
+  return item.candidateTier === "expanded_ak" ? "A-K" : "A-G";
+}
 function newRegistrationLabel(item) {
   const today = new Intl.DateTimeFormat("en-CA", {timeZone: "Asia/Seoul", year: "numeric", month: "2-digit", day: "2-digit"}).format(new Date());
   const records = [...(state.payload?.candidates || []), ...(state.payload?.history || [])];
@@ -399,7 +402,7 @@ function renderOperations(candidates) {
   list.replaceChildren();
   for (const item of [...insufficient, ...unclassified]) {
     const row = document.createElement("li");
-    row.textContent = `${item.name} (${item.code}) · ${chartGroup(item) === "insufficient" ? (item.status === "insufficient" ? "A-G 기준자료 부족" : "차트 자료 부족·갱신 대기") : "정배열·조정 분류 확인"}`;
+    row.textContent = `${item.name} (${item.code}) · ${chartGroup(item) === "insufficient" ? (item.status === "insufficient" ? `${screeningFamily(item)} 기준자료 부족` : "차트 자료 부족·갱신 대기") : "정배열·조정 분류 확인"}`;
     list.append(row);
   }
   const select = document.querySelector("#operationStock");
@@ -743,7 +746,7 @@ function renderCandidates(candidates) {
       node.querySelector(".candidate-status").textContent = `밀착 후 재상승 ${formatDateTime(rebound.time)}`;
     }
     node.querySelector(".candidate-tier").textContent = [tierLabels[item.candidateTier || "core"], newRegistrationLabel(item)].filter(Boolean).join(" · ");
-    node.querySelector(".candidate-days").textContent = `A-G ${item.dailySignalDate} · ${item.tradingDaysRemaining}일 남음`;
+    node.querySelector(".candidate-days").textContent = `${screeningFamily(item)} ${item.dailySignalDate} · ${item.tradingDaysRemaining}일 남음`;
     node.querySelector(".candidate-price").textContent = quoteTime ? `${quoteTime.slice(5, 10)} ${quoteTime.slice(11, 16)} ${intraday.quoteTime ? "수집가" : "30분봉 종가"}` : "분봉 대기";
     const status = node.querySelector(".candidate-status");
     if (status.textContent.trim() === "관찰 중") status.hidden = true;
@@ -1474,6 +1477,7 @@ function renderDetail(item) {
 }
 
 function signalCopy(item, intraday) {
+  const family = screeningFamily(item);
   if (item.status === "signal" || item.status === "signaled") {
     const lead = item.status === "signal" ? "조건이 방금 확정됐습니다." : "과거 감시 중 조건이 확정된 이력입니다.";
     const estimate = intraday.baselineInferred ? " 초기 하향교차 시점은 네이버 과거 데이터 범위로 추정했습니다." : "";
@@ -1482,11 +1486,11 @@ function signalCopy(item, intraday) {
   if (item.status === "rising") {
     return `MA20이 MA40 아래에서 반등해 ${intraday.riseCount || 0}회 연속 상승 중입니다. 5회가 완성될 때까지 관찰합니다.`;
   }
-  if (item.status === "setup") return "A-G 확정 후 MA20이 MA40 아래로 내려왔습니다. 반등이 시작되어 1/5가 되는지 관찰하는 매수 준비 단계입니다.";
+  if (item.status === "setup") return `${family} 확정 후 MA20이 MA40 아래로 내려왔습니다. 반등이 시작되어 1/5가 되는지 관찰하는 매수 준비 단계입니다.`;
   if (item.status === "waiting60") return `MA20 5회 상승이 확인됐습니다. 조정 깊이에 따라 MA3가 ${intraday.entryTarget || "목표 이동평균선"}을 돌파한 완성봉까지 기다립니다.`;
   if (item.status === "excluded") return "MA20이 MA40·MA60 아래에서 3개 완료봉 이상 연속 하락한 구조적 약세 상태입니다. 후보 기간 중 반등 조건이 생기면 다시 판정합니다.";
-  if (item.status === "insufficient") return "A-G 발생일의 30분봉 MA20·MA40 기준값과 후속 교차를 현재 네이버 제공 범위에서 확인할 수 없습니다. 신규 후보부터 기준값을 자동 저장합니다.";
-  if (item.status === "ineligible") return "A-G 발생일 마감 시 MA20이 MA40 위에 있지 않아 30분봉 후속 감시에서 제외했습니다.";
+  if (item.status === "insufficient") return `${family} 발생일의 30분봉 MA20·MA40 기준값과 후속 교차를 현재 네이버 제공 범위에서 확인할 수 없습니다. 신규 후보부터 기준값을 자동 저장합니다.`;
+  if (item.status === "ineligible") return `${family} 발생일 마감 시 MA20이 MA40 위에 있지 않아 30분봉 후속 감시에서 제외했습니다.`;
   if (intraday.dataStatus === "error") return "네이버 분봉을 가져오지 못했습니다. 다음 예약 실행에서 다시 시도합니다.";
   return "MA20의 5회 상승을 관찰합니다. MA20이 MA40까지만 조정되면 MA3→MA40, MA60 아래까지 조정되면 MA3→MA60 돌파를 기다립니다. 일봉 MA10은 참고선입니다.";
 }

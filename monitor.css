@@ -282,6 +282,7 @@ dialog.inline-operation-dialog { position: static; width: 100%; max-width: none;
 .criteria-tier-note span { display: flex; align-items: flex-start; gap: 7px; }
 .tier-swatch { width: 10px; height: 10px; flex: 0 0 10px; margin-top: 3px; border-radius: 2px; background: var(--green); }
 .tier-swatch.expanded { background: var(--blue); }
+.tier-swatch.expanded-ak { background: #0d6b66; }
 .criteria-steps { margin: 0; padding-left: 22px; display: grid; gap: 9px; font-size: 13px; line-height: 1.5; }
 .criteria-steps li::marker { color: var(--green); font-weight: 800; }
 .criteria-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
@@ -349,6 +350,7 @@ dialog.inline-operation-dialog { position: static; width: 100%; max-width: none;
 .candidate-identity { display: flex; align-items: center; gap: 7px; }
 .candidate-tier { padding: 2px 5px; border: 1px solid #b9d5c8; border-radius: 4px; background: #f2faf6; color: var(--green); font-size: 10px; font-weight: 800; }
 .candidate[data-tier="expanded"] .candidate-tier { border-color: #b8cdea; background: #f2f7fd; color: var(--blue); }
+.candidate[data-tier="expanded_ak"] .candidate-tier { border-color: #9ecfc9; background: #edf8f6; color: #0d6b66; }
 .candidate-status { color: var(--green); font-size: 12px; font-weight: 800; }
 .candidate[data-status="signal"] .candidate-status { color: var(--red); }
 .candidate[data-status="signaled"] .candidate-status { color: var(--blue); }
