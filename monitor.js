@@ -22,7 +22,7 @@ const state = {
   payload: null,
   lastLoadedAt: 0,
   positions: null,
-  view: !requestedCode && ["core", "new", "reference", "target", "positions", "operations"].includes(savedView.view) ? savedView.view : "reference",
+  view: requestedCode ? "reference" : "core",
   keyword: "",
   selectedCode: requestedCode && /^\d{6}$/.test(requestedCode) ? requestedCode : null,
   selectedPositionCode: null,
@@ -226,6 +226,7 @@ async function loadData() {
     elements.runStatus.textContent = "감시 데이터를 불러오지 못했습니다";
     elements.updatedAt.textContent = String(error);
     elements.candidateList.innerHTML = '<div class="empty-list">잠시 후 다시 시도해 주세요.</div>';
+    if (!document.querySelector("#corePanel").classList.contains("hidden")) document.querySelector("#coreContent").innerHTML = '<div class="empty-list">감시 데이터를 불러오지 못했습니다. 잠시 후 새로고침해 주세요.</div>';
   } finally {
     elements.refreshButton.disabled = false;
     if (state.pendingExclusions.size) exclusionPollTimer = setTimeout(loadData, 10000);
@@ -643,6 +644,11 @@ function isCoreCandidate(item, dates) {
       || display.phase === "before" && display.compact));
 }
 
+function isTodayRising(item, date) {
+  const quote = displayQuote(item);
+  return Number.isFinite(quote.change) && quote.change > 0 && quote.time?.slice(0, 10) === date;
+}
+
 function renderCandidates(candidates) {
   restoreDetailPanel();
   const visible = filteredCandidates(candidates).sort(["target", "reference"].includes(state.view) ? compareCandidateSpread : (a, b) =>
@@ -952,11 +958,29 @@ function drawMaTrend(canvas, item, date) {
 }
 
 function renderWatchQuotes(coreOnly = false) {
-  const content = document.createElement("div");
-  content.className = `watch-quotes${coreOnly ? " core-quotes" : ""}`;
   const candidates = state.payload?.candidates || [];
   const tradingDates = watchQuoteDates(candidates);
-  const items = coreOnly ? candidates.filter(item => isCoreCandidate(item, tradingDates)) : candidates;
+  if (coreOnly) {
+    const core = buildWatchQuotes(candidates.filter(item => isCoreCandidate(item, tradingDates)), tradingDates, {
+      title: "핵심종목", showTrend: true, keyPrefix: "core", emptyText: "현재 핵심종목 조건에 해당하는 종목이 없습니다.",
+    });
+    const rising = buildWatchQuotes(candidates.filter(item => isTodayRising(item, tradingDates.at(-1))), tradingDates, {
+      title: "오늘상승종목", showTrend: true, keyPrefix: "today-rising", emptyText: "현재 전일 종가보다 상승한 감시대상 종목이 없습니다.",
+    });
+    document.querySelector("#coreContent").replaceChildren(core, rising);
+  } else {
+    openOperationContent(document.querySelector("#watchQuotesButton"), buildWatchQuotes(candidates, tradingDates, {
+      title: "감시대상 주가현황", keyPrefix: "watch", emptyText: "현재 감시대상 종목이 없습니다.",
+    }));
+  }
+}
+
+function buildWatchQuotes(items, tradingDates, {title, showTrend = false, keyPrefix, emptyText}) {
+  const content = document.createElement("div");
+  content.className = `watch-quotes${showTrend ? " core-quotes" : ""}`;
+  content.dataset.list = keyPrefix;
+  content.setAttribute("role", "region");
+  content.setAttribute("aria-label", title);
   const trends = [];
   const entries = items.map(item => ({item, quote: displayQuote(item)})).sort((a, b) => {
     if (a.quote.change == null && b.quote.change != null) return 1;
@@ -966,7 +990,7 @@ function renderWatchQuotes(coreOnly = false) {
   const meta = document.createElement("p");
   const heading = document.createElement("h2");
   heading.className = "watch-quotes-title";
-  heading.textContent = coreOnly ? "핵심종목" : "감시대상 주가현황";
+  heading.textContent = title;
   content.append(heading);
   meta.className = "watch-quote-time";
   meta.textContent = `${entries.length}종목 · 전일 종가 대비 등락률 순 · 최신 수집 가격 기준`;
@@ -992,7 +1016,7 @@ function renderWatchQuotes(coreOnly = false) {
     }
     header.append(cell);
   }
-  if (coreOnly) {
+  if (showTrend) {
     const label = document.createElement("span");
     label.className = "ma-trend-label";
     for (const [text, color] of [["MA3", "#34a853"], ["MA10", "#d97706"]]) {
@@ -1010,6 +1034,7 @@ function renderWatchQuotes(coreOnly = false) {
   for (const {item, quote} of entries) {
     const row = document.createElement("details");
     row.className = "watch-quote-row";
+    row.dataset.code = item.code;
     row.dataset.group = chartGroup(item);
     const summary = document.createElement("summary");
     const name = document.createElement("span");
@@ -1057,7 +1082,7 @@ function renderWatchQuotes(coreOnly = false) {
       return cell;
     };
     summary.append(name, group, swatches, period, price, change, returnCell(returns.maximum, "일봉 종가 최고수익률"), returnCell(returns.current, "최신 수집 현재가 수익률"));
-    if (coreOnly) {
+    if (showTrend) {
       const trend = document.createElement("span");
       trend.className = "ma-trend";
       const canvas = document.createElement("canvas");
@@ -1076,15 +1101,14 @@ function renderWatchQuotes(coreOnly = false) {
         comment.classList.toggle("is-dark", (notice?.level || 0) > 0);
         if (notice) comment.style.backgroundColor = notice.color;
         row.append(comment);
-        appendInlineChart(row, item, `watch-${item.code}`);
+        appendInlineChart(row, item, `${keyPrefix}-${item.code}`);
       }
     });
     table.append(row);
   }
-  if (!entries.length) meta.textContent = coreOnly ? "현재 핵심종목 조건에 해당하는 종목이 없습니다." : "현재 감시대상 종목이 없습니다.";
-  if (coreOnly) document.querySelector("#coreContent").replaceChildren(content);
-  else openOperationContent(document.querySelector("#watchQuotesButton"), content);
+  if (!entries.length) meta.textContent = emptyText;
   for (const [canvas, item] of trends) drawMaTrend(canvas, item, today);
+  return content;
 }
 document.querySelector("#watchQuotesButton").addEventListener("click", () => renderWatchQuotes());
 document.querySelector("#priceAnalysisButton").addEventListener("click", () => renderPriceAnalysis());

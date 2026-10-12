@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#176b58">
     <title>A-G 30분봉 신호 감시</title>
-    <link rel="stylesheet" href="monitor.css?v=20261012-1">
+    <link rel="stylesheet" href="monitor.css?v=20261012-2">
   </head>
   <body>
     <header class="topbar">
@@ -21,14 +21,14 @@
 
     <main>
       <nav class="main-tabs" aria-label="감시 메뉴" role="tablist">
-        <button class="view-tab" data-view="core" type="button" role="tab" aria-selected="false">핵심종목</button>
+        <button class="view-tab active" data-view="core" type="button" role="tab" aria-selected="true">핵심종목</button>
         <button class="view-tab" data-view="new" type="button" role="tab" aria-selected="false">신규종목</button>
-        <button class="view-tab active" data-view="reference" type="button" role="tab" aria-selected="true">상승조정형</button>
+        <button class="view-tab" data-view="reference" type="button" role="tab" aria-selected="false">상승조정형</button>
         <button class="view-tab" data-view="target" type="button" role="tab" aria-selected="false">조정회복형</button>
         <button class="view-tab" data-view="positions" type="button" role="tab" aria-selected="false">보유종목</button>
         <button class="view-tab" data-view="operations" type="button" role="tab" aria-selected="false">운영관리</button>
       </nav>
-      <section id="corePanel" class="hidden" aria-label="핵심종목"><div id="coreContent"></div></section>
+      <section id="corePanel" aria-label="핵심종목"><div id="coreContent"><div class="empty-list">감시 데이터를 불러오는 중입니다.</div></div></section>
       <section id="operationsPanel" class="hidden" aria-label="운영관리">
         <div class="operation-links">
           <button id="watchQuotesButton" class="external-link" type="button">주가현황</button>
@@ -78,7 +78,7 @@
         <div id="positionList" class="position-list"><div class="empty-list">보유종목을 불러오는 중입니다.</div></div>
       </section>
 
-      <section class="toolbar" aria-label="후보 필터">
+      <section class="toolbar hidden" aria-label="후보 필터">
         <h2 id="viewTitle">포착대상종목</h2>
         <label class="search-field">
           <span>종목 검색</span>
@@ -86,7 +86,7 @@
         </label>
       </section>
 
-      <section class="workspace">
+      <section class="workspace hidden">
         <section class="candidate-panel" aria-label="활성 후보">
           <div class="section-heading">
             <div><p id="candidateMeta">불러오는 중</p></div>
@@ -308,6 +308,6 @@
       <div class="position-form"><h2>사용자 선정 제외</h2><div id="excludedList"></div><button id="excludedListClose" type="button">닫기</button></div>
     </dialog>
   <script src="price-analysis.js?v=20261010-48"></script>
-  <script src="monitor.js?v=20261011-10"></script>
+  <script src="monitor.js?v=20261012-1"></script>
   </body>
 </html>
