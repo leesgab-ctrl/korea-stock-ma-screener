@@ -614,6 +614,35 @@ function candidateColorNotice(item) {
   return { ...display, message: messages[display.phase] || "", time: last.t };
 }
 
+function coreStockComment(item, now = new Date()) {
+  const notice = candidateColorNotice(item);
+  const fallback = { ...notice, message: notice?.message || statusLabels[item.status] || "관찰 중", direction: "" };
+  const parts = Object.fromEntries(new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Seoul", year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", hourCycle: "h23",
+  }).formatToParts(now).map(part => [part.type, part.value]));
+  const minutes = Number(parts.hour) * 60 + Number(parts.minute);
+  if (minutes < 540 || minutes > 660) return fallback;
+  const today = `${parts.year}-${parts.month}-${parts.day}`;
+  const rows = (item.displayCharts?.intraday?.series || [])
+    .filter(row => row.complete !== false && row.t?.slice(0, 10) === today && row.t.slice(11, 16) <= `${parts.hour}:${parts.minute}`);
+  const prior = rows.at(-2), last = rows.at(-1);
+  const comment = { ...fallback, morning: true, time: last?.t || "", message: "주가추세를 지켜봐야 하는시점인것 같습니다." };
+  if (!prior || !last || ![prior.m3, prior.m10, last.m3, last.m10].every(value => Number.isFinite(value) && value > 0)) return comment;
+  const gap = last.m3 - last.m10;
+  const priorGap = prior.m3 - prior.m10;
+  const epsilon = Math.max(last.m3, last.m10, prior.m3, prior.m10) * 1e-12;
+  if (Math.abs(gap) <= Math.abs(priorGap) + epsilon) return comment;
+  if (gap > epsilon && last.m3 > prior.m3 + epsilon && last.m10 > prior.m10 + epsilon) {
+    comment.direction = "up";
+    comment.message = "주가가 상승중으로 혹시 매수를 고려할 경우 3ma가 하락,또는 이평수평이 예상되는 가격으로 매수를 고려할 수 있습니다.";
+  } else if (gap < -epsilon && last.m3 < prior.m3 - epsilon && last.m10 < prior.m10 - epsilon) {
+    comment.direction = "down";
+    comment.message = "주가가 하락중으로 매수를 고려할 시점이 아니니 기다려 주시기 바랍니다.";
+  }
+  return comment;
+}
+
 function compareCandidateSpread(a, b) {
   const priority = Number(candidateObservation(b).purple) - Number(candidateObservation(a).purple);
   if (priority) return priority;
@@ -638,10 +667,11 @@ function watchColorSnapshots(item, dates = watchQuoteDates([item])) {
   });
 }
 
-function isCoreCandidate(item, dates) {
-  return watchColorSnapshots(item, dates).some(({display}) => display
+function isCoreCandidate(item, dates = watchQuoteDates([item])) {
+  const priorDate = dates.at(-2);
+  return watchColorSnapshots(item, dates).some(({date, display}) => display
     && (["reference", "observation"].includes(display.phase) && display.level > 0
-      || display.phase === "before" && display.compact));
+      || priorDate && date === priorDate && display.phase === "before" && display.compact));
 }
 
 function isTodayRising(item, date) {
@@ -1090,17 +1120,22 @@ function buildWatchQuotes(items, tradingDates, {title, showTrend = false, keyPre
       summary.append(trend);
       trends.push([canvas, item]);
     }
+    const appendComment = (parent, core = false) => {
+      const notice = core ? coreStockComment(item) : candidateColorNotice(item);
+      const comment = document.createElement("p");
+      comment.className = `watch-quote-comment${core ? " core-stock-comment" : ""}`;
+      comment.textContent = notice?.message || statusLabels[item.status] || "관찰 중";
+      comment.title = `${notice?.time ? formatDateTime(notice.time) + " 완성 30분봉 기준 · " : notice?.morning ? "오늘 완성 30분봉 자료 대기 · " : ""}${comment.textContent}`;
+      comment.classList.toggle("is-dark", (notice?.level || 0) > 0);
+      if (notice) comment.style.backgroundColor = notice.color;
+      if (core) comment.dataset.direction = notice.direction;
+      parent.append(comment);
+    };
+    if (keyPrefix === "core") appendComment(summary, true);
     row.append(summary);
     row.addEventListener("toggle", () => {
       if (row.open && !row.querySelector("iframe")) {
-        const notice = candidateColorNotice(item);
-        const comment = document.createElement("p");
-        comment.className = "watch-quote-comment";
-        comment.textContent = notice?.message || statusLabels[item.status] || "관찰 중";
-        comment.title = `${notice?.time ? formatDateTime(notice.time) + " 완성 30분봉 기준 · " : ""}${comment.textContent}`;
-        comment.classList.toggle("is-dark", (notice?.level || 0) > 0);
-        if (notice) comment.style.backgroundColor = notice.color;
-        row.append(comment);
+        if (keyPrefix !== "core") appendComment(row);
         appendInlineChart(row, item, `${keyPrefix}-${item.code}`);
       }
     });

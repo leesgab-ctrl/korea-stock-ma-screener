@@ -25,12 +25,27 @@ assert.equal(snapshots[0].phase.t, rows[1].t);
 assert.equal(snapshots[0].display.color, context.phaseDisplay(context.chartPhases(rows).at(-1)).color);
 assert.equal(context.watchColorSnapshots({displayCharts: {intraday: {series: [...rows, {...rows[1], t: '2026-10-09T09:00', complete: false}]}}})[1].phase, null,
   'An incomplete today candle cannot masquerade as the final completed today color');
-context.watchColorSnapshots = item => [{display: item.notice}];
+const dates = ['2026-10-08', '2026-10-12'];
+context.watchColorSnapshots = item => [{date: item.date || dates[0], display: item.notice}];
 for (const [phase, level, compact, expected] of [
   ['reference', 1, false, true], ['reference', 3, true, true],
   ['observation', 1, false, true], ['observation', 2, true, true],
   ['before', 2, true, true], ['before', 1, false, false],
   ['reference', 0, false, false], ['observation', 0, false, false],
   ['confirmed', 3, true, false], ['fast', 3, true, false], ['pullback', 2, false, false],
-]) assert.equal(context.isCoreCandidate({notice: {phase, level, compact}}), expected, `${phase}, level ${level}, X ${compact}`);
+]) assert.equal(context.isCoreCandidate({notice: {phase, level, compact}}, dates), expected, `${phase}, level ${level}, X ${compact}`);
+assert.equal(context.isCoreCandidate({date: dates[1], notice: {phase: 'before', level: 1, compact: true}}, dates), false,
+  'Today-only gray X must not qualify');
+assert.equal(context.isCoreCandidate({date: dates[0], notice: {phase: 'before', level: 1, compact: true}}, [dates[0]]), false,
+  'Gray X cannot qualify without a previous trading date');
+for (const phase of ['reference', 'observation']) {
+  assert.equal(context.isCoreCandidate({date: dates[1], notice: {phase, level: 1, compact: false}}, dates), true,
+    'Today dark pink/purple still qualifies without X');
+}
+context.watchColorSnapshots = () => [
+  {date: dates[0], display: {phase: 'before', level: 0, compact: false}},
+  {date: dates[1], display: {phase: 'before', level: 1, compact: true}},
+];
+assert.equal(context.isCoreCandidate({}, dates), false,
+  'Yesterday plain gray plus today gray X must be excluded (Jeil Technos regression)');
 console.log('Core candidate color/X filtering tests passed.');
