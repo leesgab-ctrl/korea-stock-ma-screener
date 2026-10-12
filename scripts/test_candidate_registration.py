@@ -39,6 +39,11 @@ class CurrentSearchRegistrationTests(unittest.TestCase):
     def test_does_not_backfill_missed_previous_day(self):
         self.assertEqual(self.build(1)["candidates"], [])
 
+    def test_daily_rebuild_preserves_core_morning_notification_deduplication(self):
+        tracking = {"2026-10-08": {"001440": {"status": "sent"}}}
+        result = self.build(0, {"coreMorningNotificationState": tracking})
+        self.assertEqual(result["coreMorningNotificationState"], tracking)
+
     def test_registers_current_result_now(self):
         candidate = self.build(0)["candidates"][0]
         self.assertEqual(candidate["dailySignalDate"], "2026-10-08")

@@ -81,9 +81,10 @@ class DisplayChartTests(unittest.TestCase):
             original = {"candidates": [{"code": "007810", "status": "signal"}], "notifiedSignals": ["saved"]}
             path.write_text(json.dumps(original))
             args = mock.Mock(mode="charts", output=str(path), now=self.now.isoformat(), github_output=None)
-            with mock.patch.object(monitor, "parse_args", return_value=args), mock.patch.object(monitor, "enrich") as enrich, mock.patch.object(monitor, "refresh_display_charts") as refresh:
+            with mock.patch.object(monitor, "parse_args", return_value=args), mock.patch.object(monitor, "enrich") as enrich, mock.patch.object(monitor, "refresh_display_charts") as refresh, mock.patch("core_morning_notifications.notify") as morning:
                 monitor.main()
             enrich.assert_not_called()
+            morning.assert_not_called()
             refresh.assert_called_once()
             self.assertEqual(json.loads(path.read_text()), original)
 

@@ -94,12 +94,17 @@ def send(topic, candidate, payload, row, state, kind, current):
     lows = {r["d"]: r["l"] for r in daily if r.get("d", "") < row["t"][:10] and isinstance(r.get("l"), (int, float)) and r["l"] > 0}
     dates = sorted(lows)[-3:]
     stop = min(lows[d] for d in dates) if len(dates) == 3 else None
-    label = {"purple": "진한 보라색 조정 관찰", "convergenceBreakout": "MA40·60 밀집 후 MA3 상향돌파 매수 후보"}.get(kind, "전체 5개 MA 밀착")
-    message = f"{candidate['name']}({candidate['code']})\n- 전체 5개 MA 최대간격 {state['spread']:.2f}%\n- 포착기준매수가 {row['c']:,.0f}원"
-    if stop is not None and stop < row["c"]:
-        message += f"\n- 손절기준 {(stop / row['c'] - 1) * 100:+.2f}% {stop:,.0f}원"
+    label = {"purple": "진한 보라색 조정 관찰", "convergenceBreakout": "MA40·60 밀집 후 MA3 상향돌파 매수 후보", "coreMorningMa3": "핵심종목 아침 MA3 상승"}.get(kind, "전체 5개 MA 밀착")
+    if kind == "coreMorningMa3":
+        message = (f"핵심종목 {candidate['name']} 가 전일대비 MA 3이 2회이상 상승하였습니다.\n"
+                   "매수를 고려한다면 MA3이 급히 상승시 하락안정을 고려하여 판단하기 바랍니다.\n"
+                   f"- 전일 최종 / 09:30 / 10:00 확정 MA3: {state['previousMa3']:,.2f} / {state['firstMa3']:,.2f} / {state['secondMa3']:,.2f}")
     else:
-        message += "\n- 손절기준 산정 불가 · 매수 판단 보류"
+        message = f"{candidate['name']}({candidate['code']})\n- 전체 5개 MA 최대간격 {state['spread']:.2f}%\n- 포착기준매수가 {row['c']:,.0f}원"
+        if stop is not None and stop < row["c"]:
+            message += f"\n- 손절기준 {(stop / row['c'] - 1) * 100:+.2f}% {stop:,.0f}원"
+        else:
+            message += "\n- 손절기준 산정 불가 · 매수 판단 보류"
     message += f"\n- 확인시간 {current:%Y-%m-%d %H:%M}분\n- 기준봉 {row['t']}\n조건 관찰 알림 · 실제 주문 아님"
     snapshot = copy.deepcopy(candidate)
     chart = snapshot["displayCharts"]["intraday"]

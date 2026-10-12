@@ -513,6 +513,7 @@ def build_daily_candidates(stock_data: Path, previous: dict[str, Any]) -> dict[s
         "paperTrading": previous.get("paperTrading"),
         "holdingCharts": previous.get("holdingCharts", {}),
         "notifiedSignals": previous.get("notifiedSignals", []),
+        "coreMorningNotificationState": previous.get("coreMorningNotificationState", {}),
     }
 
 
@@ -1657,6 +1658,10 @@ def main() -> None:
         from color_notifications import notify as notify_colors
         color_alerts, color_changed = notify_colors(payload, current, os.getenv("NTFY_TOPIC", "").strip(), args.no_notify)
         alerts += color_alerts
+        from core_morning_notifications import notify as notify_core_morning
+        core_alerts, core_changed = notify_core_morning(payload, current, os.getenv("NTFY_TOPIC", "").strip(), args.no_notify)
+        alerts += core_alerts
+        color_changed = color_changed or core_changed
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
     write_github_output(args.github_output, alerts, pending)
