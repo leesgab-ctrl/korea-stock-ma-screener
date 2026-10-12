@@ -65,7 +65,20 @@ class DisplayChartTests(unittest.TestCase):
                 for day in range(1, 21)]
         chart = self.fetch(rows, "day")
         self.assertEqual(chart["series"][9]["m10"], 105.5)
-        self.assertTrue(all("m120" not in row for row in chart["series"]))
+        self.assertTrue(all(row["m120"] is None for row in chart["series"]))
+
+    def test_daily_ma120_uses_hidden_history_and_cache(self):
+        rows = [{"localDate": (self.now.date() - dt.timedelta(days=179 - index)).strftime("%Y%m%d"),
+                 "openPrice": 100 + index, "highPrice": 102 + index, "lowPrice": 99 + index,
+                 "closePrice": 100 + index, "accumulatedTradingVolume": 1000} for index in range(180)]
+        prior = self.fetch(rows[:119], "day")
+        self.assertTrue(all(row["m120"] is None for row in prior["series"]))
+        chart = self.fetch(rows[119:], "day", prior)
+        self.assertEqual(len(chart["series"]), 60)
+        self.assertEqual(len(chart["history"]), 180)
+        self.assertEqual(chart["series"][0]["m120"], 160.5)
+        self.assertEqual(chart["series"][-1]["m120"], 219.5)
+        self.assertEqual(chart["series"][-1]["m60"], 249.5)
 
     def test_intraday_ma120_warmup_and_native_cache(self):
         rows = [self.row((self.now - dt.timedelta(minutes=30 * (120 - index))).strftime("%Y%m%d%H%M%S"), 100 + index)

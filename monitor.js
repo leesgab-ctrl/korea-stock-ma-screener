@@ -1472,7 +1472,7 @@ function renderDetail(item) {
   const incompleteWarmup = native?.series?.some((row) => row.m60 == null);
   document.querySelector("#chartSource").textContent = `네이버 KRX 원본 · ${latest ? formatDateTime(latest.t) : "자료 대기"}${native?.dataStatus === "stale" ? " · 갱신 지연" : ""}${incompleteWarmup ? " · 초기 MA60 자료 부족" : ""} · 가상판정 동일 원본`;
   const latestDailyDate = dailySeries.at(-1)?.d;
-  elements.dailyChartMeta.textContent = `${latestDailyDate || "일봉 대기"} · 네이버 일봉 · MA5 · MA10 · MA20 · MA60${daily?.dataStatus === "stale" ? " · 갱신 지연" : ""}`;
+  elements.dailyChartMeta.textContent = `${latestDailyDate || "일봉 대기"} · 네이버 일봉 · MA5 · MA10 · MA20 · MA60 · MA120${daily?.dataStatus === "stale" ? " · 갱신 지연" : ""}`;
   drawDailyChart(dailySeries);
 }
 
@@ -1718,15 +1718,15 @@ function phaseBackground(row) {
   return phaseDisplay(row).color;
 }
 
-function chartSeriesWithMa120(chart) {
+function chartSeriesWithMa120(chart, timeKey = "t") {
   const series = chart?.series || [];
   // Older saved charts retain native closes even when MA120 was not stored.
-  const bars = new Map((chart?.history || []).map(row => [row.t, row]));
-  series.forEach(row => bars.set(row.t, row));
+  const bars = new Map((chart?.history || []).map(row => [row[timeKey], row]));
+  series.forEach(row => bars.set(row[timeKey], row));
   const averages = new Map();
   const closes = [];
   let sum = 0;
-  for (const row of [...bars.values()].sort((a, b) => a.t.localeCompare(b.t))) {
+  for (const row of [...bars.values()].sort((a, b) => a[timeKey].localeCompare(b[timeKey]))) {
     if (!Number.isFinite(row.c) || row.c <= 0) {
       closes.length = 0;
       sum = 0;
@@ -1735,9 +1735,9 @@ function chartSeriesWithMa120(chart) {
       sum += row.c;
       if (closes.length > 120) sum -= closes.shift();
     }
-    averages.set(row.t, closes.length === 120 ? Math.round(sum / 120 * 100) / 100 : null);
+    averages.set(row[timeKey], closes.length === 120 ? Math.round(sum / 120 * 100) / 100 : null);
   }
-  return series.map(row => ({ ...row, m120: Object.hasOwn(row, "m120") ? row.m120 : averages.get(row.t) }));
+  return series.map(row => ({ ...row, m120: Object.hasOwn(row, "m120") ? row.m120 : averages.get(row[timeKey]) }));
 }
 
 function drawChart(series, dailyMa10, recoveryHistory = {}) {
@@ -2089,6 +2089,10 @@ function showDailyTooltip(event) {
     line.textContent = `${label} ${formatter.format(value)}원 (${pct == null ? "기준자료 없음" : `${pct >= 0 ? "+" : ""}${pct.toFixed(2)}%`})`;
     tooltip.append(line);
   }
+  const ma120 = document.createElement("div");
+  ma120.style.color = "#8e44ad";
+  ma120.textContent = `MA120 ${Number.isFinite(row.m120) ? formatter.format(row.m120) + "원" : "자료 부족"}`;
+  tooltip.append(ma120);
   tooltip.hidden = false;
   const left = Math.max(4, Math.min(localX + 12, rect.width - tooltip.offsetWidth - 4));
   const top = Math.max(4, Math.min(localY + 12, rect.height - tooltip.offsetHeight - 4));
@@ -2179,7 +2183,8 @@ function drawDailyChart(series, preserveWindow = false) {
   if (!preserveWindow) {
     const code = selectedDetailItem()?.code;
     const history = selectedDetailItem()?.displayCharts?.daily?.history || [];
-    dailyViewport.series = [...new Map([...history, ...series].map(row => [row.d, row])).values()].sort((a, b) => a.d.localeCompare(b.d));
+    const merged = [...new Map([...history, ...series].map(row => [row.d, row])).values()].sort((a, b) => a.d.localeCompare(b.d));
+    dailyViewport.series = chartSeriesWithMa120({ series: merged }, "d");
     if (dailyViewport.code !== code) {
       dailyViewport.code = code;
       dailyViewport.endOffset = 0;
@@ -2236,7 +2241,7 @@ function drawDailyChart(series, preserveWindow = false) {
   const averageVolume = completedSessions.length === 20 && completedSessions.every((row) => Number.isFinite(Number(row.v)))
     ? completedSessions.reduce((sum, row) => sum + Number(row.v), 0) / 20
     : null;
-  const values = chartSeries.flatMap((row) => [row.h, row.l, row.c, row.m5, row.m10, row.m20, row.m60]).filter((value) => value != null);
+  const values = chartSeries.flatMap((row) => [row.h, row.l, row.c, row.m5, row.m10, row.m20, row.m60, row.m120]).filter((value) => value != null);
   if (declineHigh) values.push(declineHigh.price);
   const min = Math.min(...values);
   const max = Math.max(...values);
@@ -2250,6 +2255,21 @@ function drawDailyChart(series, preserveWindow = false) {
   const priceLabel = dailyPriceLabel;
   const labelWidth = Math.max(...priceTicks.map((value) => ctx.measureText(priceLabel(value)).width));
   const pad = { left: mobile ? Math.ceil(labelWidth) + 5 : Math.max(54, Math.ceil(labelWidth) + 7), right: mobile ? 3 : 12, top: 28, bottom: 28 };
+  ctx.font = "11px Segoe UI";
+  const legend = [];
+  const legendLeft = mobile ? 0 : pad.left;
+  let legendX = legendLeft;
+  let legendY = 15;
+  for (const [label, color] of [["MA5", "#34a853"], ["MA10", "#d97706"], ["MA20", "#e53935"], ["MA60", "#3167ad"], ["MA120", "#8e44ad"]]) {
+    const entryWidth = 14 + ctx.measureText(label).width + 9;
+    if (legendX > legendLeft && legendX + entryWidth - 9 > width - pad.right) {
+      legendX = legendLeft;
+      legendY += 18;
+    }
+    legend.push({ label, color, x: legendX, y: legendY });
+    legendX += entryWidth;
+  }
+  pad.top = Math.max(pad.top, legendY + 9);
   const volumeHeight = Math.max(42, Math.round(height * 0.2));
   const volumeTop = height - pad.bottom - volumeHeight;
   const priceBottom = volumeTop - 24;
@@ -2327,20 +2347,30 @@ function drawDailyChart(series, preserveWindow = false) {
   drawLine(ctx, chartSeries, "m10", "#d97706", 1.8, x, y);
   drawLine(ctx, chartSeries, "m20", "#e53935", 2.1, x, y);
   drawLine(ctx, chartSeries, "m60", "#3167ad", 2.1, x, y);
+  drawLine(ctx, chartSeries, "m120", "#8e44ad", 1.8, x, y);
   drawVolumeDivider(ctx, pad.left, width - pad.right, volumeTop - 22);
   ctx.font = "11px Segoe UI";
-  ctx.fillStyle = "#34a853"; ctx.fillRect(pad.left, 9, 14, 3); ctx.fillStyle = "#48574f"; ctx.fillText("MA5", pad.left + 19, 15);
-  ctx.fillStyle = "#d97706"; ctx.fillRect(pad.left + 60, 9, 14, 3); ctx.fillStyle = "#48574f"; ctx.fillText("MA10", pad.left + 79, 15);
-  ctx.fillStyle = "#e53935"; ctx.fillRect(pad.left + 132, 9, 14, 3); ctx.fillStyle = "#48574f"; ctx.fillText("MA20", pad.left + 151, 15);
-  ctx.fillStyle = "#3167ad"; ctx.fillRect(pad.left + 204, 9, 14, 3); ctx.fillStyle = "#48574f"; ctx.fillText("MA60", pad.left + 223, 15);
+  for (const entry of legend) {
+    ctx.fillStyle = entry.color;
+    ctx.fillRect(entry.x, entry.y - 6, 10, 2);
+    ctx.fillStyle = "#48574f";
+    ctx.fillText(entry.label, entry.x + 14, entry.y);
+  }
 
   const labelStep = Math.max(1, Math.ceil(series.length / 5));
+  const lastDateLabel = chartSeries.at(-1).d.slice(5);
+  const lastDateX = Math.min(x(chartSeries.length - 1), width - pad.right - ctx.measureText(lastDateLabel).width);
+  let dateLabelEnd = -Infinity;
   chartSeries.forEach((row, index) => {
     if (index % labelStep !== 0 && index !== chartSeries.length - 1) return;
     const label = row.d.slice(5);
     const center = x(index);
+    const labelWidth = ctx.measureText(label).width;
+    const labelX = Math.min(center, width - pad.right - labelWidth);
+    if (index !== chartSeries.length - 1 && (labelX < dateLabelEnd + 6 || labelX + labelWidth + 6 > lastDateX)) return;
     ctx.fillStyle = "#64746c";
-    ctx.fillText(label, Math.min(center, width - pad.right - ctx.measureText(label).width), height - 8);
+    ctx.fillText(label, labelX, height - 8);
+    dateLabelEnd = labelX + labelWidth;
   });
   drawRegistrationMarker(ctx, chartSeries, "d", chartViewport.registeredAt, x, pad, width, height);
   drawDailyDeclineHigh(ctx, declineHigh, dailyViewport.start, chartSeries.length, x, y, pad, width, priceBottom, mobile);
