@@ -114,7 +114,7 @@ main { max-width: 1480px; margin: 0 auto; padding: 18px; display: grid; gap: 14p
 .history-page .summary strong { font-size: 20px; }
 .history-page .summary span { font-size: 12px; }
 .history-end-label { display: block; padding: 10px 12px; margin-bottom: 12px; background: #e4ebe8; color: #174b3f; font-size: 15px; }
-#operationsPanel, #operationContent, .watch-quotes { min-width: 0; }
+#corePanel, #operationsPanel, #operationContent, .watch-quotes { min-width: 0; }
 .watch-quotes-title { margin: 24px 0 4px; font-size: 18px; }
 .watch-quote-table { width: 100%; }
 .watch-quote-header, .watch-quote-row > summary { grid-template-columns: minmax(80px, 1fr) 40px 68px 60px 90px 65px 76px 76px; box-sizing: border-box; }
@@ -137,6 +137,7 @@ main { max-width: 1480px; margin: 0 auto; padding: 18px; display: grid; gap: 14p
 .watch-quote-price[data-direction="down"] { color: #2463b5; }
 .watch-quote-time { font-size: 12px; color: #62746e; margin: 8px 0; }
 .core-quotes .watch-quotes-title { margin-top: 0; }
+.core-quotes .watch-quote-row > .inline-stock-chart { width: calc(100% - 22px); margin-left: 11px; margin-right: 11px; }
 .core-quotes .watch-quote-header, .core-quotes .watch-quote-row > summary { grid-template-columns: minmax(80px, 1fr) 40px 68px 60px 90px 65px 76px 76px 96px; }
 .ma-trend { display: block; width: 96px; max-width: 100%; }
 .ma-trend canvas { display: block; width: 100%; height: auto; aspect-ratio: 8 / 3; }
