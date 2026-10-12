@@ -34,6 +34,9 @@ assert.ok(!notice.message.includes('*'));
 assert.equal(context.candidateColorNotice({}), null);
 const gray = context.candidateColorNotice({ displayCharts: { intraday: { series: [{ ...previous, m3: 104, m10: 102, m20: 101, m40: 100, m60: 99 }] } } });
 assert.equal(gray.message, '');
+const yellow = context.candidateColorNotice({displayCharts: {intraday: {series: [{...previous, m3: 89, m20: 90, m40: 100, m60: 99}]}}});
+assert.equal(yellow.phase, 'pullback');
+assert.equal(yellow.message, '20MA가 MA40아래로 하락중인 상황으로 하락을 멈추고 상승시까지 기다려야 합니다. 상승시작하면 연두색으로 색이 변경됩니다.');
 
 const monitor = fs.readFileSync(path.join(__dirname, 'update_candidate_monitor.py'), 'utf8');
 assert.ok(monitor.includes('update_paper(payload, current)'));

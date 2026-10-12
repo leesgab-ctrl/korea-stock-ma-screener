@@ -600,7 +600,7 @@ function candidateColorNotice(item) {
   if (!last) return null;
   const display = phaseDisplay(last);
   const messages = {
-    pullback: "MA20이 하락 중인 상황으로, 하락을 멈추고 상승할 때까지 대기해야 합니다. 상승이 시작되면 연두색으로 변경됩니다.",
+    pullback: "20MA가 MA40아래로 하락중인 상황으로 하락을 멈추고 상승시까지 기다려야 합니다. 상승시작하면 연두색으로 색이 변경됩니다.",
     fast: "MA20이 MA40 아래로 내려간 상태로, 상승을 위해서는 MA3·MA10이 MA40/MA60 위로 올라오는지 확인할 때까지 기다려야 합니다.",
     confirmed: display.level > 0
       ? "MA20이 회복하고 이평선 간격도 좁아져 관찰이 필요한 시점입니다."
