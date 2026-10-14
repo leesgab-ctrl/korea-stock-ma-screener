@@ -14,7 +14,7 @@ def recovery_states(bars):
     for index, row in enumerate(bars):
         state = {"phase": phase, "recoveryActive": phase == "fast",
                  "recoveryReached60": False, "recoveryMa10Breakout": False,
-                 "recoveryCycle": cycle, "recoveryFailed": failed}
+                 "recoveryCycle": cycle, "recoveryFailed": failed, "recoveryStrengthened": crossed40}
         if row.get("complete") is False:
             result.append(state)
             continue
@@ -51,6 +51,7 @@ def recovery_states(bars):
                         state["recoveryMa10Breakout"] = True
                         crossed40 = True
             previous = row
-        state.update(phase=phase, recoveryActive=phase == "fast", recoveryCycle=cycle, recoveryFailed=failed)
+        state.update(phase=phase, recoveryActive=phase == "fast", recoveryCycle=cycle,
+                     recoveryFailed=failed, recoveryStrengthened=crossed40)
         result.append(state)
     return result

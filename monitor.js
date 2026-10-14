@@ -608,7 +608,9 @@ function candidateColorNotice(item) {
       : "20MA가 MA40아래로 하락중인 상황으로 하락을 멈추고 상승시까지 기다려야 합니다. 상승시작하면 연두색으로 색이 변경됩니다.",
     fast: last.recoveryReached60
       ? "MA20 하락 조정 후 MA3가 MA20을 넘어 MA60까지 상향 돌파했습니다."
-      : "MA20 하락 조정 후 MA3가 MA20을 상향 돌파하여 MA60 회복을 시도하고 있습니다.",
+      : last.recoveryStrengthened
+        ? "MA10이 MA40을 상향 돌파해 회복 신호가 강화됐습니다. MA3의 MA60 회복을 관찰합니다."
+        : "MA20 하락 조정 후 MA3가 MA20을 상향 돌파하여 회복을 시도하고 있습니다. MA10의 MA40 돌파를 관찰합니다.",
     confirmed: "MA3가 MA60을 상향 돌파한 이후의 회복 상태를 관찰 중입니다.",
     reference: display.level > 0 && display.spread !== null
       ? `이평선 최대간격이 ${display.spread.toFixed(1)}%로 곧 변곡점이 예상됩니다.`
@@ -1625,7 +1627,7 @@ function recoveryStages(series) {
   let previous = null, phase = "before", armed = false, finishPending = false, crossed40 = false, cycle = null, failed = false;
   return series.map((row, index) => {
     const state = { phase, recoveryActive: phase === "fast", recoveryReached60: false,
-      recoveryMa10Breakout: false, recoveryCycle: cycle, recoveryFailed: failed };
+      recoveryMa10Breakout: false, recoveryCycle: cycle, recoveryFailed: failed, recoveryStrengthened: crossed40 };
     if (row.complete === false) return state;
     const valid = [row.m3, row.m10, row.m20, row.m40, row.m60].every(value => Number.isFinite(value) && value > 0);
     if (!valid) {
@@ -1653,7 +1655,8 @@ function recoveryStages(series) {
       }
       previous = row;
     }
-    return { ...state, phase, recoveryActive: phase === "fast", recoveryCycle: cycle, recoveryFailed: failed };
+    return { ...state, phase, recoveryActive: phase === "fast", recoveryCycle: cycle,
+      recoveryFailed: failed, recoveryStrengthened: crossed40 };
   });
 }
 
@@ -1740,7 +1743,8 @@ function phaseDisplay(row) {
     : spread <= 0.5 ? 2 : spread < 1 ? 1 : 0;
   const fullSpread = maximumMaSpread(row);
   const extraLevel = fullSpread !== null && fullSpread <= 0.8 ? 1 : 0;
-  const displayLevel = row.recoveryActive ? palette.length - 1 : Math.min(level + extraLevel, palette.length - 1);
+  const displayLevel = row.recoveryActive ? (row.recoveryStrengthened ? palette.length - 1 : 0)
+    : Math.min(level + extraLevel, palette.length - 1);
   return { phase: backgroundPhase, color: palette[displayLevel], level: displayLevel,
     compact: extraLevel > 0, spread: fullSpread };
 }

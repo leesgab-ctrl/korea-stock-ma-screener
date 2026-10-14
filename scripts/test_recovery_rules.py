@@ -38,6 +38,7 @@ class RecoveryRulesTest(unittest.TestCase):
         self.assertEqual(result["phase"], "pullback")
         self.assertTrue(result["recoveryFailed"])
         self.assertFalse(result["recoveryActive"])
+        self.assertFalse(result["recoveryStrengthened"])
         self.assertFalse(recovery_states(rows + [{**touch, "complete": False}])[-1]["recoveryFailed"])
         rows += [touch, {**touch, "t": "2026-10-15T11:00:00+09:00", "m3": 97, "m10": 98},
                  {**touch, "t": "2026-10-15T11:30:00+09:00", "m3": 100, "m10": 99}]
@@ -91,6 +92,8 @@ class RecoveryRulesTest(unittest.TestCase):
         self.assertFalse(result[4]["recoveryReached60"], "Touching MA60 is not a breakout")
         self.assertEqual([i for i, r in enumerate(result) if r["recoveryMa10Breakout"]], [5])
         self.assertTrue(result[5]["recoveryMa10Breakout"], "MA3 above MA60 must not suppress the alert")
+        self.assertTrue(all(not row["recoveryStrengthened"] for row in result[:5]))
+        self.assertTrue(result[5]["recoveryStrengthened"])
 
     def test_incomplete_and_missing_values_do_not_trigger(self):
         rows = bars()[:6]
@@ -99,6 +102,7 @@ class RecoveryRulesTest(unittest.TestCase):
         self.assertTrue(state["recoveryActive"])
         self.assertFalse(state["recoveryReached60"])
         self.assertFalse(state["recoveryMa10Breakout"])
+        self.assertFalse(state["recoveryStrengthened"])
         rows[-1]["complete"] = True
         rows[-2]["m10"] = None
         self.assertFalse(recovery_states(rows)[-1]["recoveryMa10Breakout"])
