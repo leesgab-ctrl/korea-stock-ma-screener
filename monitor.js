@@ -603,7 +603,9 @@ function candidateColorNotice(item) {
   if (!last) return null;
   const display = phaseDisplay(last);
   const messages = {
-    pullback: "20MA가 MA40아래로 하락중인 상황으로 하락을 멈추고 상승시까지 기다려야 합니다. 상승시작하면 연두색으로 색이 변경됩니다.",
+    pullback: last.recoveryFailed
+      ? "MA3가 MA10 이하로 내려와 회복 시도가 중단되었습니다. 다시 MA20을 상향 돌파하는지 기다립니다."
+      : "20MA가 MA40아래로 하락중인 상황으로 하락을 멈추고 상승시까지 기다려야 합니다. 상승시작하면 연두색으로 색이 변경됩니다.",
     fast: last.recoveryReached60
       ? "MA20 하락 조정 후 MA3가 MA20을 넘어 MA60까지 상향 돌파했습니다."
       : "MA20 하락 조정 후 MA3가 MA20을 상향 돌파하여 MA60 회복을 시도하고 있습니다.",
@@ -1620,22 +1622,29 @@ function chartPhases(series) {
 }
 
 function recoveryStages(series) {
-  let previous = null, phase = "before", armed = false, finishPending = false, crossed40 = false, cycle = null;
+  let previous = null, phase = "before", armed = false, finishPending = false, crossed40 = false, cycle = null, failed = false;
   return series.map((row, index) => {
     const state = { phase, recoveryActive: phase === "fast", recoveryReached60: false,
-      recoveryMa10Breakout: false, recoveryCycle: cycle };
+      recoveryMa10Breakout: false, recoveryCycle: cycle, recoveryFailed: failed };
     if (row.complete === false) return state;
     const valid = [row.m3, row.m10, row.m20, row.m40, row.m60].every(value => Number.isFinite(value) && value > 0);
     if (!valid) {
-      previous = null; phase = "before"; armed = false; finishPending = false; crossed40 = false; cycle = null;
+      previous = null; phase = "before"; armed = false; finishPending = false; crossed40 = false; cycle = null; failed = false;
     } else {
       if (finishPending) { phase = "confirmed"; finishPending = false; }
       if (previous) {
         if (previous.m20 >= previous.m40 && row.m20 < row.m40) {
           phase = "pullback"; armed = true; finishPending = false; crossed40 = false; cycle = row.t ?? String(index);
+          failed = false;
+        } else if (armed && phase === "confirmed" && row.m20 < row.m40 && row.m3 <= row.m20) {
+          phase = "pullback"; finishPending = false; crossed40 = false; cycle = row.t ?? String(index);
+          failed = row.m3 <= row.m10;
         }
         if (armed) {
-          if (phase === "pullback" && previous.m3 <= previous.m20 && row.m3 > row.m20) phase = "fast";
+          if (phase === "pullback" && previous.m3 <= previous.m20 && row.m3 > row.m20) { phase = "fast"; failed = false; }
+          if (["fast", "confirmed"].includes(phase) && row.m3 <= row.m10) {
+            phase = "pullback"; finishPending = false; crossed40 = false; failed = true; cycle = row.t ?? String(index);
+          }
           if (phase === "fast" && row.m3 > row.m60) { state.recoveryReached60 = true; finishPending = true; }
           if (!crossed40 && previous.m10 <= previous.m40 && row.m10 > row.m40) {
             state.recoveryMa10Breakout = true; crossed40 = true;
@@ -1644,7 +1653,7 @@ function recoveryStages(series) {
       }
       previous = row;
     }
-    return { ...state, phase, recoveryActive: phase === "fast", recoveryCycle: cycle };
+    return { ...state, phase, recoveryActive: phase === "fast", recoveryCycle: cycle, recoveryFailed: failed };
   });
 }
 
@@ -1716,7 +1725,8 @@ function phaseDisplay(row) {
   const yellow = rawSpread !== null && rawSpread >= 2
     && Number.isFinite(row.m60) && row.m60 > 0
     && row.m20 < row.m40 && row.m3 < row.m60;
-  const backgroundPhase = row.recoveryActive ? "fast"
+  const backgroundPhase = row.recoveryFailed ? "pullback"
+    : row.recoveryActive ? "fast"
     : row.referencePullback ? "reference"
     : row.ma60Observation ? "observation"
     : row.phase === "confirmed" ? "confirmed"

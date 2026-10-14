@@ -1,7 +1,9 @@
 import copy
 import datetime as dt
+import json
 import unittest
 import urllib.parse
+from pathlib import Path
 from unittest.mock import Mock, patch
 
 import color_notifications as colors
@@ -9,7 +11,7 @@ from recovery_rules import recovery_states
 
 
 def bars():
-    values = [(103, 104, 102), (96, 98, 97), (99, 98, 99), (101, 99, 100),
+    values = [(103, 104, 102), (96, 98, 97), (99, 98, 98), (101, 99, 100),
               (110, 101, 99), (111, 102, 101), (112, 103, 99), (113, 104, 102)]
     start = dt.datetime.fromisoformat("2026-10-15T09:00:00+09:00")
     return [{"t": (start + dt.timedelta(minutes=30 * index)).isoformat(), "m3": m3,
@@ -18,6 +20,70 @@ def bars():
 
 
 class RecoveryRulesTest(unittest.TestCase):
+    def test_sizitronics_returns_to_yellow_after_ma3_loses_ma10(self):
+        rows = json.loads((Path(__file__).parent / "fixtures/sizitronics-recovery.json").read_text())
+        result = recovery_states(rows)
+        self.assertTrue(result[3]["recoveryActive"])
+        self.assertTrue(result[5]["recoveryFailed"])
+        self.assertEqual(result[5]["phase"], "pullback")
+        self.assertTrue(result[6]["recoveryFailed"])
+        self.assertTrue(result[8]["recoveryActive"])
+        self.assertFalse(result[8]["recoveryFailed"])
+        self.assertTrue(result[9]["recoveryFailed"])
+
+    def test_ma3_at_or_below_ma10_cancels_until_new_ma20_cross(self):
+        rows = bars()[:3]
+        touch = {**rows[-1], "t": "2026-10-15T10:30:00+09:00", "m3": 100, "m10": 100}
+        result = recovery_states(rows + [touch])[-1]
+        self.assertEqual(result["phase"], "pullback")
+        self.assertTrue(result["recoveryFailed"])
+        self.assertFalse(result["recoveryActive"])
+        self.assertFalse(recovery_states(rows + [{**touch, "complete": False}])[-1]["recoveryFailed"])
+        rows += [touch, {**touch, "t": "2026-10-15T11:00:00+09:00", "m3": 97, "m10": 98},
+                 {**touch, "t": "2026-10-15T11:30:00+09:00", "m3": 100, "m10": 99}]
+        self.assertTrue(recovery_states(rows)[-1]["recoveryActive"])
+        self.assertFalse(recovery_states(rows)[-1]["recoveryFailed"])
+
+    def test_ma3_below_ma10_also_cancels_completed_recovery(self):
+        rows = bars()[:7]
+        rows += [{**rows[-1], "m3": 100, "m10": 100, "t": "2026-10-15T12:30:00+09:00"}]
+        self.assertEqual(recovery_states(rows)[-1]["phase"], "pullback")
+        self.assertTrue(recovery_states(rows)[-1]["recoveryFailed"])
+
+    def test_daesung_second_recovery_without_new_ma20_ma40_cross(self):
+        rows = json.loads((Path(__file__).parent / "fixtures/daesung-recovery.json").read_text())
+        result = recovery_states(rows)
+        self.assertEqual([r["phase"] for r in result],
+                         ["before", "pullback", "fast", "fast", "confirmed", "pullback", "fast", "fast", "fast", "confirmed"])
+        self.assertNotEqual(result[5]["recoveryCycle"], result[1]["recoveryCycle"])
+        self.assertTrue(result[7]["recoveryMa10Breakout"])
+        self.assertTrue(result[8]["recoveryReached60"])
+        self.assertFalse(result[9]["recoveryActive"])
+
+    def test_recovery_rearm_requires_ma20_below_ma40_and_completed_bar(self):
+        rows = json.loads((Path(__file__).parent / "fixtures/daesung-recovery.json").read_text())[:5]
+        touch = {**rows[-1], "m3": rows[-1]["m20"], "m10": 4600, "t": "2026-10-12T11:00:00+09:00"}
+        self.assertEqual(recovery_states(rows + [{**touch, "complete": False}])[-1]["phase"], "confirmed")
+        self.assertEqual(recovery_states(rows + [{**touch, "m20": 4800}])[-1]["phase"], "confirmed")
+        self.assertEqual(recovery_states(rows + [touch])[-1]["phase"], "pullback")
+
+    def test_second_ma3_pullback_rearms_notification_without_ma20_cross(self):
+        rows = bars()
+        for row in rows[2:]:
+            row["m20"] = 99 if row is not rows[2] else 98
+        rows[6]["m3"] = 98
+        rows[7]["m3"] = 100
+        result = recovery_states(rows)
+        self.assertEqual([i for i, row in enumerate(result) if row["recoveryMa10Breakout"]], [5, 7])
+        payload = self.payload(rows[:5])
+        sender = Mock()
+        self.notify(payload, sender=sender)
+        payload["candidates"][0]["displayCharts"]["intraday"]["series"] = rows[:6]
+        self.assertEqual(self.notify(payload, sender=sender)[0], 1)
+        payload["candidates"][0]["displayCharts"]["intraday"]["series"] = rows
+        self.assertEqual(self.notify(payload, "2026-10-15T13:01:00+09:00", sender=sender)[0], 1)
+        self.assertEqual(self.notify(payload, "2026-10-15T13:01:00+09:00", sender=sender)[0], 0)
+
     def test_interval_and_one_ma10_cross_per_cycle(self):
         result = recovery_states(bars())
         self.assertEqual([r["phase"] for r in result], ["before", "pullback", "fast", "fast", "fast", "fast", "confirmed", "confirmed"])
