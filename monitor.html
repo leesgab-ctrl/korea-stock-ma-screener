@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#176b58">
     <title>A-G 30분봉 신호 감시</title>
-    <link rel="stylesheet" href="monitor.css?v=20261012-4">
+    <link rel="stylesheet" href="monitor.css?v=20261015-1">
   </head>
   <body>
     <header class="topbar">
@@ -116,7 +116,7 @@
               <span>남은 기간 <strong id="remainingDays">-</strong></span>
             </div>
             <p id="chartSource" class="chart-source" style="display:none"></p>
-            <div class="phase-legend"><span class="phase-reference">이평선 밀착</span><span class="phase-ma60" title="MA40·MA60 상승 중 MA20이 MA40 아래가 되면 MA3이 MA20 아래인 첫 봉부터 소급 표시 · MA3이 MA60 아래 1% 이내면 진하게 · 매수 신호 아님">조정 관찰</span><span class="phase-pullback">하락 조정</span><span class="phase-fast">MA3 돌파</span><span class="phase-confirmed">MA20 돌파</span></div>
+            <div class="phase-legend"><span class="phase-reference">이평선 밀착</span><span class="phase-ma60" title="MA40·MA60 상승 중 MA20이 MA40 아래가 되면 MA3이 MA20 아래인 첫 봉부터 소급 표시 · MA3이 MA60 아래 1% 이내면 진하게 · 매수 신호 아님">조정 관찰</span><span class="phase-pullback">하락 조정</span><span class="phase-fast" title="MA20 하락 조정 후 MA3→MA20 상향돌파부터 MA3→MA60 상향돌파 봉까지">MA3 회복 중</span><span class="phase-confirmed">MA60 돌파 후</span></div>
             <div class="chart-controls" role="group" aria-label="30분봉 표시 기간">
               <button type="button" data-chart-days="1">1일</button>
               <button type="button" data-chart-days="2">2일</button>
@@ -236,7 +236,7 @@
         <section>
           <div class="criteria-section-heading"><strong>화면 분류·차트 표시</strong></div>
           <p>상승조정형은 등록 이후 최근 4개 완성봉에서 MA20이 MA40 위를 유지하고 MA40이 3회 연속 상승한 종목입니다. 조정회복형은 등록 이후 MA20이 MA40 아래로 실제 하향 교차하고 아직 아래인 종목입니다. 나머지는 분류 대기입니다. 등록 이전 봉은 이평선 계산에만 사용하며 상태 배경과 매수신호를 표시하지 않습니다.</p>
-          <p>차트 배경은 핑크색 → 보라색 → 녹색 → 연두색 → 노란색 → 회색 순으로 우선 표시합니다. 전체 5개 MA 간격이 0.8% 이하면 X 표시와 함께 배경을 한 단계 더 진하게 표시합니다. MA60 아래까지 조정되면 MA60, 그 외는 MA40을 회복 기준선으로 사용합니다. 가상매수 판정과 기록은 유지하지만 가상매수 등록 알림은 보내지 않습니다.</p>
+          <p>MA20이 MA40 아래로 조정된 뒤 MA3가 MA20을 상향 돌파한 봉부터 MA60을 상향 돌파한 봉까지는 진한 연두색으로 우선 표시합니다. 이후 봉은 회복 상태로 표시합니다. 나머지 구간은 핑크색 → 보라색 → 녹색 → 연두색 → 노란색 → 회색 순으로 표시하며, 전체 5개 MA 간격이 0.8% 이하면 X 표시를 유지합니다. MA10이 MA40을 상향 돌파한 완성봉에서 조정 흐름당 한 번 문자 알림을 보내며 MA3 위치는 발송 제한이 아닌 참고사항입니다. 가상매수 판정과 기록은 유지하지만 가상매수 등록 알림은 보내지 않습니다.</p>
         </section>
 
         <section>
@@ -329,6 +329,6 @@
       <div class="position-form"><h2>사용자 선정 제외</h2><div id="excludedList"></div><button id="excludedListClose" type="button">닫기</button></div>
     </dialog>
   <script src="price-analysis.js?v=20261010-48"></script>
-  <script src="monitor.js?v=20261012-6"></script>
+  <script src="monitor.js?v=20261015-1"></script>
   </body>
 </html>

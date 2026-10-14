@@ -604,10 +604,10 @@ function candidateColorNotice(item) {
   const display = phaseDisplay(last);
   const messages = {
     pullback: "20MA가 MA40아래로 하락중인 상황으로 하락을 멈추고 상승시까지 기다려야 합니다. 상승시작하면 연두색으로 색이 변경됩니다.",
-    fast: "MA20이 MA40 아래로 내려간 상태로, 상승을 위해서는 MA3·MA10이 MA40/MA60 위로 올라오는지 확인할 때까지 기다려야 합니다.",
-    confirmed: display.level > 0
-      ? "MA20이 회복하고 이평선 간격도 좁아져 관찰이 필요한 시점입니다."
-      : "MA20이 상승하여 회복 기준선을 통과하였습니다.",
+    fast: last.recoveryReached60
+      ? "MA20 하락 조정 후 MA3가 MA20을 넘어 MA60까지 상향 돌파했습니다."
+      : "MA20 하락 조정 후 MA3가 MA20을 상향 돌파하여 MA60 회복을 시도하고 있습니다.",
+    confirmed: "MA3가 MA60을 상향 돌파한 이후의 회복 상태를 관찰 중입니다.",
     reference: display.level > 0 && display.spread !== null
       ? `이평선 최대간격이 ${display.spread.toFixed(1)}%로 곧 변곡점이 예상됩니다.`
       : "이평선 밀착 중입니다. MA10을 잘 봐주세요.",
@@ -1605,26 +1605,46 @@ for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) {
 
 function chartPhases(series) {
   const observations = ma60Observations(series);
-  let previous = null, phase = "before", deep = false, recovery = false;
+  const recovery = recoveryStages(series);
+  let previous = null;
   return series.map((original, index) => {
-    const row = {...original, ...observations[index], phase: "before", referencePullback: false};
-    if (row.complete === false) { row.phase = phase; row.referencePullback = previous?.referencePullback || false; return row; }
-    if (previous) {
-      if (previous.m20 >= previous.m40 && row.m20 < row.m40) { recovery = true; phase = "pullback"; deep = false; }
-      if (recovery) {
-        deep ||= row.m20 < row.m60;
-        const target = deep ? "m60" : "m40";
-        if (previous.m3 <= previous[target] && row.m3 > row[target]) phase = "fast";
-        if (previous.m20 <= previous[target] && row.m20 > row[target]) { phase = "confirmed"; recovery = false; }
-      }
-    }
-    row.phase = phase;
+    const row = {...original, ...observations[index], ...recovery[index], referencePullback: false};
+    if (row.complete === false) { row.referencePullback = previous?.referencePullback || false; return row; }
     row.referencePullback = Boolean(previous && row.m40 > previous.m40 && row.m20 > row.m40
       && row.m10 > 0 && row.m20 > 0 && row.m40 > 0
       && Math.abs(row.m20 - row.m10) / row.m20 < 0.01
       && (row.m20 - row.m40) / row.m40 < 0.01);
     previous = row;
     return row;
+  });
+}
+
+function recoveryStages(series) {
+  let previous = null, phase = "before", armed = false, finishPending = false, crossed40 = false, cycle = null;
+  return series.map((row, index) => {
+    const state = { phase, recoveryActive: phase === "fast", recoveryReached60: false,
+      recoveryMa10Breakout: false, recoveryCycle: cycle };
+    if (row.complete === false) return state;
+    const valid = [row.m3, row.m10, row.m20, row.m40, row.m60].every(value => Number.isFinite(value) && value > 0);
+    if (!valid) {
+      previous = null; phase = "before"; armed = false; finishPending = false; crossed40 = false; cycle = null;
+    } else {
+      if (finishPending) { phase = "confirmed"; finishPending = false; }
+      if (previous) {
+        if (previous.m20 >= previous.m40 && row.m20 < row.m40) {
+          phase = "pullback"; armed = true; finishPending = false; crossed40 = false; cycle = row.t ?? String(index);
+        }
+        if (armed) {
+          if (phase === "pullback" && previous.m3 <= previous.m20 && row.m3 > row.m20) phase = "fast";
+          if (phase === "fast" && row.m3 > row.m60) { state.recoveryReached60 = true; finishPending = true; }
+          if (!crossed40 && previous.m10 <= previous.m40 && row.m10 > row.m40) {
+            state.recoveryMa10Breakout = true; crossed40 = true;
+          }
+        }
+      }
+      previous = row;
+    }
+    return { ...state, phase, recoveryActive: phase === "fast", recoveryCycle: cycle };
   });
 }
 
@@ -1696,7 +1716,8 @@ function phaseDisplay(row) {
   const yellow = rawSpread !== null && rawSpread >= 2
     && Number.isFinite(row.m60) && row.m60 > 0
     && row.m20 < row.m40 && row.m3 < row.m60;
-  const backgroundPhase = row.referencePullback ? "reference"
+  const backgroundPhase = row.recoveryActive ? "fast"
+    : row.referencePullback ? "reference"
     : row.ma60Observation ? "observation"
     : row.phase === "confirmed" ? "confirmed"
     : row.phase === "fast" ? "fast"
@@ -1709,7 +1730,7 @@ function phaseDisplay(row) {
     : spread <= 0.5 ? 2 : spread < 1 ? 1 : 0;
   const fullSpread = maximumMaSpread(row);
   const extraLevel = fullSpread !== null && fullSpread <= 0.8 ? 1 : 0;
-  const displayLevel = Math.min(level + extraLevel, palette.length - 1);
+  const displayLevel = row.recoveryActive ? palette.length - 1 : Math.min(level + extraLevel, palette.length - 1);
   return { phase: backgroundPhase, color: palette[displayLevel], level: displayLevel,
     compact: extraLevel > 0, spread: fullSpread };
 }

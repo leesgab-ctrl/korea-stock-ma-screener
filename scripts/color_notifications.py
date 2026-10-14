@@ -10,10 +10,12 @@ from pathlib import Path
 import threading
 import urllib.parse
 import urllib.request
+from recovery_rules import recovery_states
 
 
 def states(bars):
     result = []
+    recovery = recovery_states(bars)
     confirmed = False
     convergence_armed = False
     convergence_confirmed = False
@@ -62,7 +64,8 @@ def states(bars):
         spread = (max(values) / min(values) - 1) * 100 if valid else None
         # The agreed alert uses all five averages, not the four-line pink palette.
         compact = valid and spread <= .8 + 1e-12
-        result.append({"purple": purple, "compact": compact, "spread": spread, "convergenceBreakout": breakout})
+        result.append({"purple": purple, "compact": compact, "spread": spread, "convergenceBreakout": breakout,
+                       "recoveryMa10Breakout": recovery[i]["recoveryMa10Breakout"]})
     return result
 
 
@@ -94,11 +97,17 @@ def send(topic, candidate, payload, row, state, kind, current):
     lows = {r["d"]: r["l"] for r in daily if r.get("d", "") < row["t"][:10] and isinstance(r.get("l"), (int, float)) and r["l"] > 0}
     dates = sorted(lows)[-3:]
     stop = min(lows[d] for d in dates) if len(dates) == 3 else None
-    label = {"purple": "진한 보라색 조정 관찰", "convergenceBreakout": "MA40·60 밀집 후 MA3 상향돌파 매수 후보", "coreMorningMa3": "핵심종목 아침 MA3 상승"}.get(kind, "전체 5개 MA 밀착")
+    label = {"purple": "진한 보라색 조정 관찰", "convergenceBreakout": "MA40·60 밀집 후 MA3 상향돌파 매수 후보", "coreMorningMa3": "핵심종목 아침 MA3 상승", "recoveryMa10Breakout": "조정 후 MA10·MA40 상향돌파"}.get(kind, "전체 5개 MA 밀착")
     if kind == "coreMorningMa3":
         message = (f"핵심종목 {candidate['name']} 가 전일대비 MA 3이 2회이상 상승하였습니다.\n"
                    "매수를 고려한다면 MA3이 급히 상승시 하락안정을 고려하여 판단하기 바랍니다.\n"
                    f"- 전일 최종 / 09:30 / 10:00 확정 MA3: {state['previousMa3']:,.2f} / {state['firstMa3']:,.2f} / {state['secondMa3']:,.2f}")
+    elif kind == "recoveryMa10Breakout":
+        message = (f"하락 중이던 {candidate['name']}의 MA10이 MA40을 상향 돌파했습니다.\n"
+                   "매수를 고려한다면 MA3이 MA60 아래에 있는지 확인하여 판단하시기 바랍니다.\n"
+                   f"- MA10 {row['m10']:,.2f} / MA40 {row['m40']:,.2f}\n"
+                   f"- MA3 {row['m3']:,.2f} / MA60 {row['m60']:,.2f}\n"
+                   f"- 기준봉 종가 {row['c']:,.0f}원")
     else:
         message = f"{candidate['name']}({candidate['code']})\n- 전체 5개 MA 최대간격 {state['spread']:.2f}%\n- 포착기준매수가 {row['c']:,.0f}원"
         if stop is not None and stop < row["c"]:
@@ -123,11 +132,35 @@ def send(topic, candidate, payload, row, state, kind, current):
             raise RuntimeError("Attachment not confirmed")
 
 
+def initialize_recovery_baselines(payload):
+    """Seed the new channel without sending or advancing existing alert cursors."""
+    tracking = payload.get("colorNotificationState", {})
+    changed = False
+    for candidate in payload.get("candidates", []):
+        registered = candidate.get("registeredAt")
+        if not registered:
+            continue
+        bars = [b for b in candidate.get("displayCharts", {}).get("intraday", {}).get("series", []) if b.get("complete")]
+        if not bars:
+            continue
+        key = candidate["code"] + "|" + registered
+        saved = tracking.get(key)
+        if saved and saved.get("recoveryRuleVersion") == 1:
+            continue
+        if saved is None:
+            saved = {"last": bars[-1]["t"], **states(bars)[-1]}
+        tracking[key] = {**saved, "recoveryRuleVersion": 1, "recoveryBaseline": bars[-1]["t"]}
+        changed = True
+    if changed:
+        payload["colorNotificationState"] = tracking
+    return changed
+
+
 def notify(payload, current, topic, no_notify=False, sender=send):
     if no_notify or not topic:
         return 0, False
+    changed = initialize_recovery_baselines(payload)
     tracking = payload.setdefault("colorNotificationState", {})
-    changed = False
     count = 0
     for candidate in payload.get("candidates", []):
         registered = candidate.get("registeredAt")
@@ -138,29 +171,26 @@ def notify(payload, current, topic, no_notify=False, sender=send):
             continue
         flags = states(bars)
         key = candidate["code"] + "|" + registered
-        saved = tracking.get(key)
-        if saved is None:
-            # First deployment establishes a baseline and never replays old signals.
-            tracking[key] = {"last": bars[-1]["t"], **flags[-1]}
-            changed = True
-            continue
+        saved = tracking[key]
         for b, state in zip(bars, flags):
             if b["t"] <= saved["last"] or b["t"] < registered:
                 continue
             completion = dt.datetime.fromisoformat(b["t"]) + dt.timedelta(minutes=1 if b["t"][11:16] == "15:30" else 30)
             if completion > current:
                 continue
-            kinds = [kind for kind in ("compact", "purple", "convergenceBreakout") if state[kind] and not saved.get(kind)]
+            kinds = [kind for kind in ("compact", "purple", "convergenceBreakout", "recoveryMa10Breakout")
+                     if state[kind] and not saved.get(kind)
+                     and (kind != "recoveryMa10Breakout" or b["t"] > saved["recoveryBaseline"])]
             if kinds and dt.timedelta(0) <= current - completion <= dt.timedelta(minutes=90):
                 try:
                     # Simultaneous conditions produce one notification, not two.
-                    kind = "convergenceBreakout" if "convergenceBreakout" in kinds else "purple" if "purple" in kinds else "compact"
+                    kind = next(kind for kind in ("recoveryMa10Breakout", "convergenceBreakout", "purple", "compact") if kind in kinds)
                     sender(topic, candidate, payload, b, state, kind, current)
                 except Exception as exc:
                     payload.setdefault("colorNotificationErrors", []).append(str(exc))
                     break
                 count += 1
-            saved = {"last": b["t"], **state}
+            saved = {**saved, "last": b["t"], **state}
             tracking[key] = saved
             changed = True
     return count, changed

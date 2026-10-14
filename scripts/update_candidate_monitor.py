@@ -11,6 +11,7 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
+from recovery_rules import recovery_states
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -614,30 +615,9 @@ def fetch_minute_rows(code: str, count: int) -> list[dict[str, Any]]:
 
 def apply_display_phases(series: list[dict[str, Any]]) -> None:
     """Visual cross stages only; never used by the buy-signal evaluator."""
-    phase, target = "before", None
-    previous = None
-    for row in series:
-        row["phase"] = phase
-        row["phaseTarget"] = target
-        if row.get("complete") is False:
-            continue
-        if any(row.get(f"m{window}") is None for window in (3, 20, 40, 60)):
-            previous = None
-            continue
-        if previous is not None:
-            down40 = previous["m20"] >= previous["m40"] and row["m20"] < row["m40"]
-            down60 = previous["m20"] >= previous["m60"] and row["m20"] < row["m60"]
-            if down40 or down60:
-                target = 60 if down60 or row["m20"] < row["m60"] else 40
-                phase = "pullback"
-            if target is not None:
-                key = f"m{target}"
-                if previous["m20"] <= previous[key] and row["m20"] > row[key]:
-                    phase = "confirmed"
-                elif phase == "pullback" and previous["m3"] <= previous[key] and row["m3"] > row[key]:
-                    phase = "fast"
-        row["phase"], row["phaseTarget"] = phase, target
-        previous = row
+    for row, state in zip(series, recovery_states(series)):
+        row.update(state)
+        row["phaseTarget"] = 60 if state["phase"] in ("fast", "confirmed") else 40 if state["phase"] == "pullback" else None
 
 
 def apply_reference_rebound(series: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -1730,7 +1710,10 @@ def main() -> None:
         })
         alerts, pending = 0, 0
     color_changed = False
-    if args.mode != "charts":
+    if args.mode == "charts":
+        from color_notifications import initialize_recovery_baselines
+        initialize_recovery_baselines(payload)
+    else:
         from color_notifications import notify as notify_colors
         color_alerts, color_changed = notify_colors(payload, current, os.getenv("NTFY_TOPIC", "").strip(), args.no_notify)
         alerts += color_alerts

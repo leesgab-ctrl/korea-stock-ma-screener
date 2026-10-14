@@ -134,12 +134,13 @@ class DisplayChartTests(unittest.TestCase):
                 monitor.refresh_display_charts({"candidates": [{"code": "199800"}]}, self.now, path)
             self.assertEqual(fetch.call_count, 2)
 
-    def test_phase_shallow_deep_and_new_cycle(self):
+    def test_recovery_interval_includes_ma60_breakout_and_new_cycle(self):
         def row(m20, m3, complete=True):
-            return dict(m20=m20, m3=m3, m40=100, m60=90, complete=complete)
-        series = [row(105, 103), row(98, 97), row(99, 101), row(102, 104),
-                  row(88, 87), row(89, 91), row(91, 93), row(87, 89, complete=False)]
+            return dict(m20=m20, m3=m3, m10=m3 - 1, m40=100, m60=110, complete=complete)
+        series = [row(105, 103), row(98, 97), row(98, 99), row(102, 111), row(103, 112),
+                  row(99, 95), row(99, 101), row(99, 120, complete=False), row(99, 102)]
         monitor.apply_display_phases(series)
         self.assertEqual([row["phase"] for row in series],
-                         ["before", "pullback", "fast", "confirmed", "pullback", "fast", "confirmed", "confirmed"])
-        self.assertEqual([row["phaseTarget"] for row in series[1:]], [40, 40, 40, 60, 60, 60, 60])
+                         ["before", "pullback", "fast", "fast", "confirmed", "pullback", "fast", "fast", "fast"])
+        self.assertTrue(series[3]["recoveryReached60"])
+        self.assertEqual([row["phaseTarget"] for row in series[1:]], [40, 60, 60, 60, 40, 60, 60, 60])
