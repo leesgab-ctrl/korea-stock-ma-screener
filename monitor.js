@@ -144,7 +144,7 @@ function chartGroup(item) {
 const formatter = new Intl.NumberFormat("ko-KR", { maximumFractionDigits: 2 });
 const percentFormatter = new Intl.NumberFormat("ko-KR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 
-async function loadData() {
+async function loadData({ pollOnly = false } = {}) {
   if (inlineChartMode) {
     const key = new URLSearchParams(window.location.search).get("chartKey");
     const source = window.parent.getMonitorInlineChart?.(key);
@@ -158,6 +158,7 @@ async function loadData() {
     return;
   }
   if (elements.refreshButton.disabled) return;
+  const previousContent = pollOnly ? JSON.stringify([state.payload, state.positions]) : null;
   clearTimeout(exclusionPollTimer);
   elements.refreshButton.disabled = true;
   try {
@@ -216,8 +217,14 @@ async function loadData() {
     if (state.selectedCode && !candidates.some((item) => item.code === state.selectedCode)) {
       state.selectedCode = null;
     }
-    render();
-    renderManualExclusions();
+    // Pending requests poll every 10 seconds; unchanged charts must keep their frames and viewport.
+    if (!pollOnly || state.loadFailed || previousContent !== JSON.stringify([state.payload, state.positions])) {
+      render();
+      renderManualExclusions();
+    } else {
+      renderMonitorStatus();
+    }
+    state.loadFailed = false;
     if (restoreOperationPending) {
       restoreOperationPending = false;
       if (state.view === "operations" && savedView.operation) {
@@ -226,14 +233,23 @@ async function loadData() {
       }
     }
   } catch (error) {
+    state.loadFailed = true;
     elements.runStatus.textContent = "감시 데이터를 불러오지 못했습니다";
     elements.updatedAt.textContent = String(error);
     elements.candidateList.innerHTML = '<div class="empty-list">잠시 후 다시 시도해 주세요.</div>';
     if (!document.querySelector("#corePanel").classList.contains("hidden")) document.querySelector("#coreContent").innerHTML = '<div class="empty-list">감시 데이터를 불러오지 못했습니다. 잠시 후 새로고침해 주세요.</div>';
   } finally {
     elements.refreshButton.disabled = false;
-    if (state.pendingExclusions.size) exclusionPollTimer = setTimeout(loadData, 10000);
+    if (state.pendingExclusions.size) exclusionPollTimer = setTimeout(() => loadData({ pollOnly: true }), 10000);
   }
+}
+
+function renderMonitorStatus() {
+  const { summary = {}, generatedAt } = state.payload;
+  elements.runStatus.textContent = state.pendingExclusions.size ? "제외·복원 요청 접수 · 서버 반영 확인 중" : state.exclusionMessage || (summary.dataErrors ? `분봉 오류 ${summary.dataErrors}건` : "클라우드 감시 정상");
+  elements.updatedAt.textContent = generatedAt ? `마지막 갱신 ${formatDateTime(generatedAt)}` : "갱신 기록 없음";
+  elements.pushState.textContent = summary.pushConfigured ? "휴대폰 푸시 연결" : "푸시 연결 대기";
+  elements.pushState.className = `status-chip${summary.pushConfigured ? "" : " rising"}`;
 }
 
 function render() {
@@ -262,10 +278,7 @@ function render() {
   elements.detectedCount.textContent = validationSummary.totalDetected ?? candidates.length;
   elements.targetRate.textContent = `${formatter.format(validationSummary.reached5PctRate || 0)}%`;
   elements.asOf.textContent = asOf || "-";
-  elements.runStatus.textContent = state.pendingExclusions.size ? "제외·복원 요청 접수 · 서버 반영 확인 중" : state.exclusionMessage || (summary.dataErrors ? `분봉 오류 ${summary.dataErrors}건` : "클라우드 감시 정상");
-  elements.updatedAt.textContent = generatedAt ? `마지막 갱신 ${formatDateTime(generatedAt)}` : "갱신 기록 없음";
-  elements.pushState.textContent = summary.pushConfigured ? "휴대폰 푸시 연결" : "푸시 연결 대기";
-  elements.pushState.className = `status-chip${summary.pushConfigured ? "" : " rising"}`;
+  renderMonitorStatus();
   renderViewCounts(activeCandidates, openPositions);
   const candidateView = ["new", "target", "reference"].includes(state.view);
   document.querySelector(".workspace").classList.toggle("hidden", !candidateView);
