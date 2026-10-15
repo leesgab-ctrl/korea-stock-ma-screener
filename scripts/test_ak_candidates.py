@@ -158,9 +158,20 @@ class AkRegistrationTest(unittest.TestCase):
         self.assertEqual(result["candidates"][0]["candidateTier"], "core")
 
     def test_ag_has_priority_when_both_evaluators_match(self):
-        with patch.object(monitor, "evaluate_ag", return_value={"candidateTier": "expanded", "close": 1331}):
+        with patch.object(monitor, "evaluate_ag", return_value={"candidateTier": "core", "close": 1331}):
             result = self.build(qualifying_rows())
-        self.assertEqual(result["candidates"][0]["candidateTier"], "expanded")
+        self.assertEqual(result["candidates"][0]["candidateTier"], "core")
+
+    def test_retired_expanded_ag_does_not_block_new_ak(self):
+        rows = qualifying_rows()
+        old = {"code": "900001", "name": "old expanded", "candidateTier": "expanded",
+               "dailySignalDate": rows[-2]["date"], "registeredAt": rows[-2]["date"] + "T17:00:00+09:00",
+               "registrationPrice": 1331}
+        result = self.build(rows, {"candidates": [old]})
+        self.assertEqual(len(result["candidates"]), 1)
+        self.assertEqual(result["candidates"][0]["candidateTier"], monitor.AK_TIER)
+        self.assertEqual(result["history"][0]["archiveReason"], "expanded_ag_disabled")
+        self.assertEqual(result["history"][0]["registrationPrice"], old["registrationPrice"])
 
     def test_toggle_stops_new_search_but_keeps_existing_ak(self):
         rows = qualifying_rows()

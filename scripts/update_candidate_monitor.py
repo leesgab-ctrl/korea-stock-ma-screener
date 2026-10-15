@@ -32,10 +32,10 @@ STRATEGY = {
     "candidateWindowTradingDays": 10,
     "candidateTiers": {
         CORE_TIER: "기존 A-G(A 거래량 +200%, E 종가 +1%)",
-        EXPANDED_TIER: "확대 A-G(A 거래량 +150%, E 종가 +0.5%)",
         AK_TIER: "확대 A-K(최근 3일 중 +10% 상승 후 당일 -2% 이하 조정)",
     },
     "akSearchEnabled": AK_SEARCH_ENABLED,
+    "expandedAgSearchEnabled": False,
     "akDivergenceRule": "MA10 > MA20, MA10-MA20 간격이 전일보다 확대",
     "minuteTimeframe": "30분봉",
     "maRule": "MA20 5회 상승 후 MA3가 조정 깊이에 따른 MA40 또는 MA60 돌파",
@@ -103,27 +103,16 @@ def evaluate_ag(rows: list[dict[str, Any]], index: int) -> dict[str, Any] | None
         "F": rows[index]["volume"] > rows[pullback]["volume"],
         "G": -10 <= values["preSpikeVsMa20Pct"] <= 5,
     }
-    expanded_checks = {
-        **core_checks,
-        "A": values["volumeSpikePct"] >= 150,
-        "E": values["signalClosePct"] >= 0.5,
-    }
-    if all(core_checks.values()):
-        candidate_tier = CORE_TIER
-        checks = core_checks
-    elif all(expanded_checks.values()):
-        candidate_tier = EXPANDED_TIER
-        checks = expanded_checks
-    else:
+    if not all(core_checks.values()):
         return None
     return {
-        "candidateTier": candidate_tier,
+        "candidateTier": CORE_TIER,
         "close": rows[index]["close"],
         "spikeDate": rows[spike]["date"],
         "preSpikeDate": rows[pre_spike]["date"],
         "preSpikeClose": rows[pre_spike]["close"],
         "preSpikeLow": rows[pre_spike].get("low"),
-        "checks": checks,
+        "checks": core_checks,
         "coreChecks": core_checks,
         "values": {key: round(value, 2) for key, value in values.items()},
     }
@@ -338,6 +327,36 @@ def archive_candidate(candidate: dict[str, Any], archived_at: str, reason: str) 
     }
 
 
+def retire_expanded_ag(payload: dict[str, Any], date: str) -> int:
+    """Stop expanded A-G watchlists without deleting their charts or held positions."""
+    payload.setdefault("strategy", {}).update({
+        "expandedAgSearchEnabled": False,
+        "candidateTiers": STRATEGY["candidateTiers"],
+    })
+    retired = [item for item in payload.get("candidates", []) if item.get("candidateTier") == EXPANDED_TIER]
+    if not retired:
+        return 0
+    history = {item["id"]: item for item in payload.get("history", []) if item.get("id")}
+    for item in retired:
+        record = archive_candidate(item, date, "expanded_ag_disabled")
+        history[record["id"]] = record
+    payload["history"] = list(history.values())
+    candidates = [item for item in payload.get("candidates", []) if item.get("candidateTier") != EXPANDED_TIER]
+    payload["candidates"] = candidates
+    summary = payload.setdefault("summary", {})
+    summary.update({
+        "total": len(candidates),
+        "active": sum(item.get("status") not in ("excluded", "ineligible") for item in candidates),
+        "expandedCandidates": 0,
+    })
+    for key, status in {"signals": "signal", "signalHistory": "signaled", "setup": "setup", "rising": "rising",
+                        "watching": "watching", "insufficient": "insufficient", "ineligible": "ineligible",
+                        "excluded": "excluded", "waiting60": "waiting60"}.items():
+        summary[key] = sum(item.get("status") == status for item in candidates)
+    update_validation_summary(payload)
+    return len(retired)
+
+
 def target_completed_before(candidate: dict[str, Any], latest_date: str) -> bool:
     """Move a signaled +5% winner on the trading day after both events exist."""
     outcome = candidate.get("outcome", {})
@@ -411,7 +430,8 @@ def restore_ten_day_candidates(payload, calendar, latest_date):
     ids = {item.get("id") for item in active}
     retained = []
     for item in payload.get("history", []):
-        if (item.get("archiveReason") == "window_completed" and item.get("registeredAt")
+        if (item.get("archiveReason") == "window_completed" and item.get("candidateTier") != EXPANDED_TIER
+                and item.get("registeredAt")
                 and item["code"] not in excluded and registration_age(item, calendar, latest_date) < 10
                 and item.get("id") not in ids):
             restored = dict(item)
@@ -442,6 +462,7 @@ def build_daily_candidates(stock_data: Path, previous: dict[str, Any]) -> dict[s
 
     calendar_index = {date: index for index, date in enumerate(calendar)}
     latest_date = calendar[-1]
+    retire_expanded_ag(previous, latest_date)
     candidates = []
     previous_candidates = {
         (item.get("code"), item.get("dailySignalDate")): item
@@ -1669,11 +1690,12 @@ def main() -> None:
     })
     if restore_calendar:
         restore_ten_day_candidates(payload, restore_calendar, min(restore_calendar[-1], current.date().isoformat()))
+    retired_expanded = retire_expanded_ag(payload, current.date().isoformat())
     alerts, pending = (0, 0) if args.mode == "charts" else enrich(
         payload, current, args.minute_count, True, refresh_daily_chart=True,
     )
     refresh_display_charts(payload, current)
-    archive_tracking_changed = refresh_excluded_verification(payload, current, restore_calendar)
+    archive_tracking_changed = refresh_excluded_verification(payload, current, restore_calendar) or bool(retired_expanded)
     archive_tracking_changed = refresh_reference_verification(payload, current) or archive_tracking_changed
     from paper_trading import evaluate as evaluate_paper_candidate
     for candidate in payload.get("candidates", []):

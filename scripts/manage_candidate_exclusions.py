@@ -2,7 +2,7 @@ import argparse
 import json
 import os
 
-from update_candidate_monitor import ROOT, archive_candidate, now_kst, update_validation_summary
+from update_candidate_monitor import EXPANDED_TIER, ROOT, archive_candidate, now_kst, update_validation_summary
 
 
 def manage(payload, registry, action, code, reason, current, calendar=None, category=None):
@@ -26,13 +26,14 @@ def manage(payload, registry, action, code, reason, current, calendar=None, cate
         if not entry:
             raise ValueError("Excluded candidate not found")
         candidate = entry["candidate"]
+        can_restore = candidate.get("candidateTier") != EXPANDED_TIER
         age = sum(candidate["dailySignalDate"] < d <= current.date().isoformat() for d in (calendar or []))
-        if age < 10 and not any(c["code"] == code for c in payload.get("candidates", [])):
+        if can_restore and age < 10 and not any(c["code"] == code for c in payload.get("candidates", [])):
             candidate["tradingDayAge"] = age if calendar else candidate.get("tradingDayAge", 0)
             candidate["tradingDaysRemaining"] = 10 - candidate["tradingDayAge"]
             payload.setdefault("candidates", []).append(candidate)
         entry_id = f"{code}|{candidate['dailySignalDate']}"
-        if age < 10:
+        if can_restore and age < 10:
             payload["history"] = [r for r in payload.get("history", []) if not (r.get("id") == entry_id and r.get("archiveReason") == "manual_excluded")]
         exclusions[:] = [r for r in exclusions if r["code"] != code]
     payload["manualExclusions"] = [{k: v for k, v in r.items() if k != "candidate"} for r in exclusions]
