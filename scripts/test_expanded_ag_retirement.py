@@ -77,7 +77,8 @@ class ExpandedAgRetirementTests(unittest.TestCase):
                  patch.object(monitor, "refresh_excluded_verification", return_value=False), \
                  patch.object(monitor, "refresh_reference_verification", return_value=False), \
                  patch("color_notifications.initialize_recovery_baselines"), \
-                 patch("color_notifications.notify") as alerts:
+                 patch("color_notifications.notify") as alerts, \
+                 patch.object(monitor, "process_image_search", return_value=(0, False)):
                 monitor.main()
             self.assertEqual([item["code"] for item in refresh.call_args.args[0]["candidates"]], ["000001"])
             alerts.assert_not_called()

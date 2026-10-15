@@ -119,8 +119,15 @@ function compareRegistrationNewest(a, b) {
 }
 function renderImageSearch() {
   const confirmed = window.RisingPatterns?.confirmed || [];
-  document.querySelector("#imageSearchStatus").textContent = confirmed.length
-    ? `확정 이미지 ${confirmed.length}개 · 검색조건 설정 대기` : "검색조건 설정 대기";
+  const confirmedIds = new Set(confirmed.map(item => item.id));
+  const search = state.payload?.imageSearch;
+  const rules = search?.rules || [];
+  const active = rules.filter(rule => rule.enabled && rule.imageIds.some(id => confirmedIds.has(id)));
+  document.querySelector("#imageSearchStatus").textContent = search?.status === "error"
+    ? "이미지 조건 목록 조회 실패 · 알림 대기"
+    : active.length ? `${active.length}개 독립 조건 · A-K·A-G ${search.candidateCount}종목 · ${formatDateTime(search.updatedAt)} 갱신`
+    : "검색조건 설정 대기";
+  if (search?.errors?.length && search.status !== "error") document.querySelector("#imageSearchStatus").textContent += ` · 알림 확인 필요 ${search.errors.length}건`;
   const host = document.querySelector("#imageSearchConditions");
   host.replaceChildren();
   if (!confirmed.length) {
@@ -133,12 +140,33 @@ function renderImageSearch() {
     const row = document.createElement("div");
     row.className = "image-search-condition";
     const title = document.createElement("strong");
-    title.textContent = item.title;
+    title.textContent = [item.stock, item.title].filter(Boolean).join(" · ");
+    const linked = rules.filter(rule => rule.imageIds.includes(item.id));
     const status = document.createElement("span");
-    status.textContent = "자동검색 미연결";
+    status.textContent = linked.some(rule => rule.active) ? "검색·알림 연결" : linked.some(rule => rule.enabled) ? "서버 적용 대기" : "검색조건 설정 대기";
     row.append(title, status);
     host.append(row);
+    for (const rule of linked) {
+      const description = document.createElement("p");
+      description.className = "image-search-rule";
+      description.textContent = `${rule.name} · ${rule.description}`;
+      host.append(description);
+    }
   }
+  const matches = search?.status === "ok" ? (search.matches || []).filter(event => event.sourceImageIds.some(id => confirmedIds.has(id))) : [];
+  const notices = new Map();
+  for (const event of matches) {
+    const message = `${event.ruleName} · ${event.stage === "primary" ? "MA3 1차" : "MA10 확인"} · ${formatDateTime(event.completedAt)} 완성 · 포착 종가 ${formatter.format(event.price)}원${event.dataStatus !== "ok" ? " · 최신 자료 확인 필요" : ""}`;
+    const previous = notices.get(event.code);
+    notices.set(event.code, {completedAt: previous?.completedAt > event.completedAt ? previous.completedAt : event.completedAt,
+      message: previous ? `${previous.message}\n${message}` : message});
+  }
+  const candidates = state.payload?.candidates || [];
+  document.querySelector("#imageSearchMatches").replaceChildren(buildWatchQuotes(
+    candidates.filter(item => notices.has(item.code)), watchQuoteDates(candidates), {
+      title: "이미지조건 포착이력", showTrend: true, keyPrefix: "image-pattern", signalNotices: notices,
+      emptyText: search?.status === "error" ? "검색 결과 확인 대기" : "현재 관리 기간 내 포착된 종목이 없습니다.",
+    }));
 }
 function screeningFamily(item) {
   return item.candidateTier === "expanded_ak" ? "A-K" : "A-G";
@@ -337,6 +365,7 @@ function render() {
     operationsPanel.querySelectorAll(".operation-links > *").forEach(button => button.classList.toggle("operation-active", button.dataset.monitorView === state.view));
   }
   document.querySelector("#capturePanel").classList.toggle("hidden", state.view !== "capture");
+  window.RisingPatterns?.setRuleLinks(state.payload?.imageSearch?.rules || []);
   if (state.view === "capture") window.RisingPatterns?.open();
   document.querySelector("#imageSearchPanel").classList.toggle("hidden", state.view !== "imageSearch");
   if (state.view === "imageSearch") {
@@ -1093,7 +1122,7 @@ function renderWatchQuotes(coreOnly = false) {
   }
 }
 
-function buildWatchQuotes(items, tradingDates, {title, showTrend = false, keyPrefix, emptyText}) {
+function buildWatchQuotes(items, tradingDates, {title, showTrend = false, keyPrefix, emptyText, signalNotices = null}) {
   const content = document.createElement("div");
   content.className = `watch-quotes${showTrend ? " core-quotes" : ""}`;
   content.dataset.list = keyPrefix;
@@ -1101,6 +1130,7 @@ function buildWatchQuotes(items, tradingDates, {title, showTrend = false, keyPre
   content.setAttribute("aria-label", title);
   const trends = [];
   const entries = items.map(item => ({item, quote: displayQuote(item)})).sort((a, b) => {
+    if (signalNotices) return (signalNotices.get(b.item.code)?.completedAt || "").localeCompare(signalNotices.get(a.item.code)?.completedAt || "") || a.item.name.localeCompare(b.item.name, "ko");
     if (a.quote.change == null && b.quote.change != null) return 1;
     if (a.quote.change != null && b.quote.change == null) return -1;
     return (b.quote.change ?? 0) - (a.quote.change ?? 0) || a.item.name.localeCompare(b.item.name, "ko");
@@ -1111,7 +1141,7 @@ function buildWatchQuotes(items, tradingDates, {title, showTrend = false, keyPre
   heading.textContent = title;
   content.append(heading);
   meta.className = "watch-quote-time";
-  meta.textContent = `${entries.length}종목 · 전일 종가 대비 등락률 순 · 최신 수집 가격 기준`;
+  meta.textContent = `${entries.length}종목 · ${signalNotices ? "관리기간 내 최근 포착순 · 가격 칸은 최신 수집가" : "전일 종가 대비 등락률 순 · 최신 수집 가격 기준"}`;
   content.append(meta);
   const today = tradingDates.at(-1);
   const priorDate = tradingDates.at(-2);
@@ -1220,6 +1250,12 @@ function buildWatchQuotes(items, tradingDates, {title, showTrend = false, keyPre
       parent.append(comment);
     };
     if (keyPrefix === "core") appendComment(summary, true);
+    if (signalNotices?.has(item.code)) {
+      const comment = document.createElement("p");
+      comment.className = "watch-quote-comment image-pattern-comment";
+      comment.textContent = signalNotices.get(item.code).message;
+      summary.append(comment);
+    }
     row.append(summary);
     row.addEventListener("toggle", () => {
       if (row.open && !row.querySelector("iframe")) {

@@ -112,6 +112,9 @@ main { max-width: 1480px; margin: 0 auto; padding: 18px; display: grid; gap: 14p
 .image-search-condition strong { overflow-wrap: anywhere; min-width: 0; }
 .image-search-condition span { color: var(--muted); flex-shrink: 0; }
 #imageSearchRising { margin-top: 24px; }
+#imageSearchMatches { margin-top: 18px; }
+.image-search-rule { padding: 0 0 14px; border-bottom: 1px solid var(--line); color: var(--muted); font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
+.capture-rule-state { margin-top: 10px; font-size: 12px; line-height: 1.5; color: var(--green); overflow-wrap: anywhere; }
 .operation-positions > .positions-panel { border: 0; border-radius: 0; }
 .capture-panel { min-width: 0; }
 .capture-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 6px 0 14px; }
@@ -194,6 +197,7 @@ main { max-width: 1480px; margin: 0 auto; padding: 18px; display: grid; gap: 14p
 .watch-quote-comment { margin: 4px 6px 0; padding: 8px 6px; color: #24302b; font-size: 12px; line-height: 1.5; white-space: nowrap; overflow-x: auto; }
 .watch-quote-comment.is-dark { font-weight: 700; }
 .core-stock-comment { grid-column: 1 / -1; min-width: 0; margin: 0; white-space: normal; overflow-wrap: anywhere; overflow-x: visible; }
+.watch-quote-row .image-pattern-comment { grid-column: 1 / -1; min-width: 0; margin: 6px 0 0; white-space: pre-line; overflow-wrap: anywhere; overflow-x: visible; background: #e8f2ee; color: #176b58; }
 .core-stock-comment[data-direction="up"] { color: #c62828; }
 .core-stock-comment[data-direction="down"] { color: #175cc4; }
 .watch-quote-row > summary { cursor: pointer; display: grid; align-items: center; gap: 8px; padding: 12px 8px; }

@@ -21,6 +21,7 @@
           || !TYPES[item.mime] || typeof item.note !== "string" || item.note.length > 2000
           || typeof item.stock !== "string" || item.stock.length > 80
           || item.conditionConfirmed !== undefined && typeof item.conditionConfirmed !== "boolean"
+          || item.conditionConfirmedAt != null && !Number.isFinite(Date.parse(item.conditionConfirmedAt))
           || typeof item.chartDate !== "string" || item.chartDate && !/^\d{4}-\d{2}-\d{2}$/.test(item.chartDate)
           || !Number.isFinite(Date.parse(item.createdAt)) || !Number.isFinite(Date.parse(item.updatedAt))) {
         throw new StoreError("게시판 자료가 올바르지 않아 덮어쓰지 않았습니다.");
@@ -128,12 +129,17 @@
       || new URLSearchParams(root.location.search).get("historyChart") === "1") return;
 
   const board = {records: [], revision: null, loaded: false, loading: false, busy: false,
-    trash: false, draft: null, editing: null, creatingId: null, previewUrl: null, lastLoadedAt: 0, generation: 0, imageGeneration: 0};
+    trash: false, draft: null, editing: null, creatingId: null, previewUrl: null, lastLoadedAt: 0, generation: 0, imageGeneration: 0, ruleLinks: []};
   let ui;
   const token = () => { try { return root.localStorage.getItem(TOKEN_KEY) || ""; } catch { return ""; } };
   const store = new StudyImageStore({token});
   root.RisingPatterns = {get count() { return board.records.filter(item => !item.deletedAt).length; },
-    get confirmed() { return board.records.filter(item => !item.deletedAt && item.conditionConfirmed === true).map(item => ({id: item.id, title: item.title})); },
+    get confirmed() { return board.records.filter(item => !item.deletedAt && item.conditionConfirmed === true).map(item => ({id: item.id, title: item.title, stock: item.stock})); },
+    setRuleLinks(rules) {
+      if (JSON.stringify(board.ruleLinks) === JSON.stringify(rules)) return;
+      board.ruleLinks = rules;
+      if (ui) renderGallery();
+    },
     open() { if (ui && !board.loading && (!board.loaded || Date.now() - board.lastLoadedAt > 60000)) refresh(); }, refresh};
 
   function status(message, error = false) {
@@ -285,10 +291,11 @@
     updateBusy(true);
     status("포착조건 확정 상태 저장 중…");
     try {
-      const record = {...item, conditionConfirmed: confirmed, updatedAt: new Date().toISOString(), revision: crypto.randomUUID()};
+    const record = {...item, conditionConfirmed: confirmed, conditionConfirmedAt: confirmed ? new Date().toISOString() : null,
+        updatedAt: new Date().toISOString(), revision: crypto.randomUUID()};
       const result = await store.save({record, expectedRevision: item.revision || item.updatedAt});
       setRecords(result);
-      status(confirmed ? "포착조건으로 확정했습니다. 자동검색은 검색조건 설정 대기 상태입니다." : "포착조건 확정을 해제했습니다.");
+      status(confirmed ? "포착조건으로 확정했습니다. 연결된 검색조건은 다음 서버 갱신부터 적용됩니다." : "포착조건 확정을 해제했습니다.");
     } catch (error) {
       status(error.message || "확정 상태를 저장하지 못했습니다.", true);
       if (error.status === 401 || error.status === 403) ui.connection.open = true;
@@ -336,6 +343,13 @@
         checkbox.addEventListener("change", () => confirmCondition(item, checkbox.checked));
         label.append(checkbox, document.createTextNode("포착조건 확정"));
         article.querySelector(".capture-item-content").insertBefore(label, article.querySelector(".capture-item-actions"));
+        const links = board.ruleLinks.filter(rule => rule.imageIds?.includes(item.id) && rule.enabled);
+        const linkState = document.createElement("p");
+        linkState.className = "capture-rule-state";
+        linkState.textContent = links.length ? links.map(rule => rule.name).join(" · ")
+          + (item.conditionConfirmed ? links.some(rule => rule.active) ? " · 검색·알림 사용 중" : " · 다음 서버 갱신 적용" : " · 확정 체크 대기")
+          : "검색조건 설정 대기";
+        article.querySelector(".capture-item-content").insertBefore(linkState, article.querySelector(".capture-item-actions"));
       }
       const action = (label, callback) => {
         const button = document.createElement("button");
@@ -361,6 +375,7 @@
       if (!board.editing && !board.creatingId) board.creatingId = crypto.randomUUID();
       const record = {...(board.editing || {}), id: board.editing?.id || board.creatingId,
         title, stock: ui.stock.value.trim(), chartDate: ui.date.value, note: ui.note.value.trim(), conditionConfirmed: ui.confirmed.checked,
+        conditionConfirmedAt: ui.confirmed.checked ? (board.editing?.conditionConfirmed ? board.editing.conditionConfirmedAt || board.editing.updatedAt : now) : null,
         createdAt: board.editing?.createdAt || now, updatedAt: now, revision: crypto.randomUUID(), deletedAt: null};
       let image = null;
       if (board.draft) {

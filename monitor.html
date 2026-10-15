@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#176b58">
     <title>A-G 30분봉 신호 감시</title>
-    <link rel="stylesheet" href="monitor.css?v=20261015-7">
+    <link rel="stylesheet" href="monitor.css?v=20261016-1">
   </head>
   <body>
     <header class="topbar">
@@ -30,6 +30,7 @@
       <section id="imageSearchPanel" aria-label="상승검색">
         <div class="section-heading"><div><h2>상승검색</h2><p id="imageSearchStatus">검색조건 설정 대기</p></div></div>
         <div id="imageSearchConditions"></div>
+        <div id="imageSearchMatches"></div>
         <div id="imageSearchRising"></div>
       </section>
       <section id="corePanel" class="hidden" aria-label="핵심종목"><div id="coreContent"><div class="empty-list">감시 데이터를 불러오는 중입니다.</div></div></section>
@@ -383,8 +384,8 @@
       <div class="position-form"><h2>사용자 선정 제외</h2><div id="excludedList"></div><button id="excludedListClose" type="button">닫기</button></div>
     </dialog>
   <script src="price-analysis.js?v=20261010-48"></script>
-  <script src="rising-patterns.js?v=20261015-7"></script>
-  <script src="monitor.js?v=20261015-7"></script>
+  <script src="rising-patterns.js?v=20261016-1"></script>
+  <script src="monitor.js?v=20261016-1"></script>
   <dialog id="capturePreviewDialog" class="capture-preview-dialog">
     <header><h2 id="capturePreviewTitle">공부용 이미지</h2><button id="capturePreviewClose" class="external-link" type="button">닫기</button></header>
     <img id="capturePreviewImage" alt="등록된 공부용 이미지">

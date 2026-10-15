@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
 from recovery_rules import recovery_states
+from image_pattern_search import process as process_image_search
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -611,6 +612,7 @@ def build_daily_candidates(stock_data: Path, previous: dict[str, Any]) -> dict[s
         "holdingCharts": previous.get("holdingCharts", {}),
         "notifiedSignals": previous.get("notifiedSignals", []),
         "coreMorningNotificationState": previous.get("coreMorningNotificationState", {}),
+        "imageSearchNotificationState": previous.get("imageSearchNotificationState", {}),
     }
 
 
@@ -1657,7 +1659,7 @@ def write_github_output(path: str | None, alerts: int, pending: int) -> None:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="A-G 후보와 30분봉 MA 신호를 관리합니다.")
-    parser.add_argument("--mode", choices=("daily", "intraday", "charts"), required=True)
+    parser.add_argument("--mode", choices=("daily", "intraday", "charts", "images"), required=True)
     parser.add_argument("--stock-data", default="data/stock-data.json")
     parser.add_argument("--output", default="data/candidate-monitor.json")
     parser.add_argument("--minute-count", type=int, default=5000)
@@ -1691,7 +1693,8 @@ def main() -> None:
     if restore_calendar:
         restore_ten_day_candidates(payload, restore_calendar, min(restore_calendar[-1], current.date().isoformat()))
     retired_expanded = retire_expanded_ag(payload, current.date().isoformat())
-    alerts, pending = (0, 0) if args.mode == "charts" else enrich(
+    prices_only = args.mode in ("charts", "images")
+    alerts, pending = (0, 0) if prices_only else enrich(
         payload, current, args.minute_count, True, refresh_daily_chart=True,
     )
     refresh_display_charts(payload, current)
@@ -1701,7 +1704,7 @@ def main() -> None:
     for candidate in payload.get("candidates", []):
         if candidate.pop("restoreClassificationPending", False):
             candidate["paperStrategy"] = evaluate_paper_candidate(candidate)
-    if args.mode != "charts":
+    if not prices_only:
         stock_path = ROOT / args.stock_data
         calendar = json.loads(stock_path.read_text(encoding="utf-8")).get("dates", []) if stock_path.exists() else []
         session_dates = {
@@ -1721,7 +1724,7 @@ def main() -> None:
         archived = [c for c in payload.get("history", []) if c["code"] in open_codes - active_codes]
         if archived:
             refresh_display_charts({"candidates": archived}, current)
-    if args.mode != "charts":
+    if not prices_only:
         from paper_trading import update_paper
         if payload.get("paperTrading") is None:
             payload.pop("paperTrading", None)
@@ -1735,7 +1738,7 @@ def main() -> None:
     if args.mode == "charts":
         from color_notifications import initialize_recovery_baselines
         initialize_recovery_baselines(payload)
-    else:
+    elif args.mode != "images":
         from color_notifications import notify as notify_colors
         color_alerts, color_changed = notify_colors(payload, current, os.getenv("NTFY_TOPIC", "").strip(), args.no_notify)
         alerts += color_alerts
@@ -1743,6 +1746,12 @@ def main() -> None:
         core_alerts, core_changed = notify_core_morning(payload, current, os.getenv("NTFY_TOPIC", "").strip(), args.no_notify)
         alerts += core_alerts
         color_changed = color_changed or core_changed
+    image_alerts, image_changed = process_image_search(
+        payload, current, os.getenv("NTFY_TOPIC", "").strip(), args.no_notify or args.mode in ("charts", "daily"),
+    )
+    alerts += image_alerts
+    color_changed = color_changed or image_changed
+    payload.setdefault("summary", {})["imageSearchMatches"] = len(payload.get("imageSearch", {}).get("matches", []))
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
     write_github_output(args.github_output, alerts, pending)

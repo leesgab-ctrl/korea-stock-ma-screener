@@ -98,7 +98,18 @@ def send(topic, candidate, payload, row, state, kind, current):
     dates = sorted(lows)[-3:]
     stop = min(lows[d] for d in dates) if len(dates) == 3 else None
     label = {"purple": "진한 보라색 조정 관찰", "convergenceBreakout": "MA40·60 밀집 후 MA3 상향돌파 매수 후보", "coreMorningMa3": "핵심종목 아침 MA3 상승", "recoveryMa10Breakout": "조정 후 MA10·MA40 상향돌파"}.get(kind, "전체 5개 MA 밀착")
-    if kind == "coreMorningMa3":
+    if kind in ("imageMa3Breakout", "imageMa10Breakout"):
+        stage = "1차 포착" if kind == "imageMa3Breakout" else "확인 포착"
+        line = "MA3" if kind == "imageMa3Breakout" else "MA10"
+        label = f"이미지조건 {stage}"
+        message = (f"[이미지조건 · {stage}] {candidate['name']}({candidate['code']})\n"
+                   f"- 유형: {state['ruleName']}\n"
+                   f"- 하락 역배열 후 {line}이 MA40을 상향 돌파했습니다.\n"
+                   f"- MA3 {row['m3']:,.2f} / MA10 {row['m10']:,.2f} / MA40 {row['m40']:,.2f}\n"
+                   f"- 기준봉 종가 {row['c']:,.0f}원\n"
+                   f"- 봉 완성 시각 {state['completedAt']}\n"
+                   "상승을 보장하는 신호가 아니며, 실제 매수 전 현재가와 추세를 확인해 주세요.")
+    elif kind == "coreMorningMa3":
         message = (f"핵심종목 {candidate['name']} 가 전일대비 MA 3이 2회이상 상승하였습니다.\n"
                    "매수를 고려한다면 MA3이 급히 상승시 하락안정을 고려하여 판단하기 바랍니다.\n"
                    f"- 전일 최종 / 09:30 / 10:00 확정 MA3: {state['previousMa3']:,.2f} / {state['firstMa3']:,.2f} / {state['secondMa3']:,.2f}")

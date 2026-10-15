@@ -119,6 +119,7 @@ class CoreMorningNotificationsTest(unittest.TestCase):
                     patch.object(monitor, "refresh_display_charts"), patch.object(monitor, "refresh_excluded_verification", return_value=False), \
                     patch.object(monitor, "refresh_reference_verification", return_value=False), patch("paper_trading.update_paper"), \
                     patch.object(colors, "notify", return_value=(0, False)), patch.object(morning, "notify", side_effect=notify) as called, \
+                    patch.object(monitor, "process_image_search", return_value=(0, False)), \
                     patch.dict(monitor.os.environ, {"NTFY_TOPIC": "test"}):
                 monitor.main()
             called.assert_called_once()

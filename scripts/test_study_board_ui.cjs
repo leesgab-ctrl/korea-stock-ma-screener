@@ -112,7 +112,7 @@ const github = new FakeGithub([], {missingBranch: true});
     await page.waitForFunction(() => document.querySelector('#captureStatus').textContent.includes('포착조건으로 확정'));
     await page.locator('[data-view="imageSearch"]').click();
     assert.equal(await page.locator('#imageSearchConditions .image-search-condition').count(), 1);
-    assert.match(await page.locator('#imageSearchConditions').innerText(), /자동검색 미연결/);
+    assert.match(await page.locator('#imageSearchConditions').innerText(), /검색조건 설정 대기/);
     assert.equal(await page.locator('#imageSearchRising h2').innerText(), '오늘상승종목');
     for (const width of [1280, 390, 320]) {
       await page.setViewportSize({width, height: 900});
