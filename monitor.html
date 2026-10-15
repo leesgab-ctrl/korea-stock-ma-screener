@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#176b58">
     <title>A-G 30분봉 신호 감시</title>
-    <link rel="stylesheet" href="monitor.css?v=20261015-3">
+    <link rel="stylesheet" href="monitor.css?v=20261015-5">
   </head>
   <body>
     <header class="topbar">
@@ -25,12 +25,13 @@
         <button class="view-tab" data-view="new" type="button" role="tab" aria-selected="false">신규종목</button>
         <button class="view-tab" data-view="reference" type="button" role="tab" aria-selected="false">상승조정형</button>
         <button class="view-tab" data-view="target" type="button" role="tab" aria-selected="false">조정회복형</button>
-        <button class="view-tab" data-view="positions" type="button" role="tab" aria-selected="false">보유종목</button>
+        <button class="view-tab" data-view="capture" type="button" role="tab" aria-selected="false">상승포착</button>
         <button class="view-tab" data-view="operations" type="button" role="tab" aria-selected="false">운영관리</button>
       </nav>
       <section id="corePanel" aria-label="핵심종목"><div id="coreContent"><div class="empty-list">감시 데이터를 불러오는 중입니다.</div></div></section>
       <section id="operationsPanel" class="hidden" aria-label="운영관리">
         <div class="operation-links">
+          <button id="positionsButton" class="external-link" type="button">보유종목</button>
           <button id="watchQuotesButton" class="external-link" type="button">주가현황</button>
           <button id="priceAnalysisButton" class="external-link" type="button">주가분석</button>
           <button id="shapeAnalysisButton" class="external-link" type="button">형태분석</button>
@@ -68,14 +69,59 @@
           <label>종목<select id="operationStock"></select></label>
           <button id="operationExclude" class="external-link" type="button">감시 제외</button>
         </section>
-      </section>
-
       <section class="positions-panel hidden" aria-label="보유종목 관리">
         <div class="section-heading">
           <div><h2>보유종목 관리</h2><p>목표 +5%, 손절가, 30분봉 추세약화 알림</p></div>
           <button id="positionManagerButton" class="external-link" type="button">보유 등록·수정</button>
         </div>
         <div id="positionList" class="position-list"><div class="empty-list">보유종목을 불러오는 중입니다.</div></div>
+      </section>
+      </section>
+
+      <section id="capturePanel" class="capture-panel hidden" aria-label="상승포착">
+        <header class="capture-heading">
+          <div><h2>상승포착</h2><p class="capture-storage">공부용 이미지 게시판 · 공개 공유</p></div>
+          <button id="captureNew" class="external-link capture-primary" type="button">이미지 등록</button>
+        </header>
+        <form id="captureForm" class="capture-form" hidden>
+          <div id="captureDropzone" class="capture-dropzone" tabindex="0" role="button" aria-label="공부용 이미지 선택" title="이미지 선택">
+            <img id="captureDraftImage" alt="등록할 공부용 이미지" hidden>
+            <span id="captureDraftPlaceholder">공부용 이미지</span>
+          </div>
+          <input id="captureFile" type="file" accept="image/png,image/jpeg,image/webp" hidden>
+          <div class="capture-editor">
+            <div class="capture-source-actions">
+              <button id="captureChoose" class="external-link" type="button">이미지 선택</button>
+              <button id="capturePaste" class="external-link" type="button">붙여넣기</button>
+              <span id="captureFileMeta" class="capture-file-meta"></span>
+            </div>
+            <label>제목<input id="captureTitle" type="text" maxlength="80" required></label>
+            <div class="capture-fields">
+              <label>종목명·코드<input id="captureStock" type="text" maxlength="80"></label>
+              <label>차트 기준일<input id="captureDate" type="date"></label>
+            </div>
+            <label>메모<textarea id="captureNote" rows="3" maxlength="2000"></textarea></label>
+            <div class="capture-form-actions">
+              <button id="captureCancel" class="external-link" type="button">취소</button>
+              <button id="captureSave" class="external-link capture-primary" type="submit" disabled>등록</button>
+            </div>
+          </div>
+        </form>
+        <details id="captureConnection" class="capture-connection">
+          <summary>GitHub 연결</summary>
+          <label>접근 토큰<input id="captureToken" type="password" autocomplete="off" spellcheck="false"></label>
+          <span>저장 권한: 이 저장소의 Contents 읽기·쓰기</span>
+          <button id="captureConnect" class="external-link" type="button">연결 저장</button>
+        </details>
+        <p id="captureStatus" class="capture-status" role="status" aria-live="polite"></p>
+        <div class="capture-list-toolbar">
+          <div class="capture-list-tabs" role="tablist" aria-label="이미지 보관함">
+            <button id="captureActive" type="button" role="tab" aria-selected="true">등록이미지 <span id="captureCount">0</span></button>
+            <button id="captureTrash" type="button" role="tab" aria-selected="false">휴지통 <span id="captureTrashCount">0</span></button>
+          </div>
+          <label class="search-field"><span>이미지 검색</span><input id="captureSearch" type="search" placeholder="제목·종목·메모"></label>
+        </div>
+        <div id="captureGallery" class="capture-gallery"><p class="empty-list">등록된 이미지가 없습니다.</p></div>
       </section>
 
       <section class="toolbar hidden" aria-label="후보 필터">
@@ -329,6 +375,12 @@
       <div class="position-form"><h2>사용자 선정 제외</h2><div id="excludedList"></div><button id="excludedListClose" type="button">닫기</button></div>
     </dialog>
   <script src="price-analysis.js?v=20261010-48"></script>
-  <script src="monitor.js?v=20261015-4"></script>
+  <script src="rising-patterns.js?v=20261015-1"></script>
+  <script src="monitor.js?v=20261015-5"></script>
+  <dialog id="capturePreviewDialog" class="capture-preview-dialog">
+    <header><h2 id="capturePreviewTitle">공부용 이미지</h2><button id="capturePreviewClose" class="external-link" type="button">닫기</button></header>
+    <img id="capturePreviewImage" alt="등록된 공부용 이미지">
+    <p id="capturePreviewNote"></p>
+  </dialog>
   </body>
 </html>

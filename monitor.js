@@ -107,7 +107,7 @@ const statusLabels = {
 };
 const statusPriority = { signal: 0, rising: 1, waiting60: 2, setup: 3, signaled: 4, watching: 5, insufficient: 6, ineligible: 7, excluded: 8 };
 const tierLabels = { core: "핵심 A-G", expanded: "확대 A-G", expanded_ak: "확대 A-K" };
-const viewLabels = { core: "핵심종목", new: "신규종목", target: "조정회복형", reference: "상승조정형", positions: "보유종목", operations: "운영관리" };
+const viewLabels = { core: "핵심종목", new: "신규종목", target: "조정회복형", reference: "상승조정형", capture: "상승포착", positions: "보유종목", operations: "운영관리" };
 function screeningFamily(item) {
   return item.candidateTier === "expanded_ak" ? "A-K" : "A-G";
 }
@@ -245,7 +245,7 @@ async function loadData({ pollOnly = false } = {}) {
 }
 
 function renderMonitorStatus() {
-  const { summary = {}, generatedAt } = state.payload;
+  const { summary = {}, generatedAt } = state.payload || {};
   elements.runStatus.textContent = state.pendingExclusions.size ? "제외·복원 요청 접수 · 서버 반영 확인 중" : state.exclusionMessage || (summary.dataErrors ? `분봉 오류 ${summary.dataErrors}건` : "클라우드 감시 정상");
   elements.updatedAt.textContent = generatedAt ? `마지막 갱신 ${formatDateTime(generatedAt)}` : "갱신 기록 없음";
   elements.pushState.textContent = summary.pushConfigured ? "휴대폰 푸시 연결" : "푸시 연결 대기";
@@ -256,7 +256,7 @@ function render() {
   inlineChartObservers.splice(0).forEach(observer => observer.disconnect());
   inlineChartItems.clear();
   restoreDetailPanel();
-  const { summary = {}, validationSummary = {}, candidates = [], asOf, generatedAt } = state.payload;
+  const { summary = {}, validationSummary = {}, candidates = [], asOf } = state.payload || {};
   const activeCandidates = candidates;
   if (state.deepLinkPending) {
     const requested = candidates.find((item) => item.code === state.selectedCode);
@@ -284,7 +284,19 @@ function render() {
   document.querySelector(".workspace").classList.toggle("hidden", !candidateView);
   document.querySelector(".toolbar").classList.toggle("hidden", !candidateView);
   document.querySelector(".positions-panel").classList.toggle("hidden", state.view !== "positions");
-  document.querySelector("#operationsPanel").classList.toggle("hidden", state.view !== "operations");
+  const operationsPanel = document.querySelector("#operationsPanel");
+  const positionsView = state.view === "positions";
+  operationsPanel.classList.toggle("hidden", !["operations", "positions"].includes(state.view));
+  if (positionsView) {
+    operationsPanel.classList.add("operation-selected", "operation-positions");
+    document.querySelector("#operationContent").hidden = true;
+    operationsPanel.querySelectorAll(".operation-links > *").forEach(button => button.classList.toggle("operation-active", button.id === "positionsButton"));
+  } else if (operationsPanel.classList.contains("operation-positions")) {
+    operationsPanel.classList.remove("operation-selected", "operation-positions");
+    operationsPanel.querySelectorAll(".operation-links > *").forEach(button => button.classList.remove("operation-active"));
+  }
+  document.querySelector("#capturePanel").classList.toggle("hidden", state.view !== "capture");
+  if (state.view === "capture") window.RisingPatterns?.open();
   document.querySelector("#corePanel").classList.toggle("hidden", state.view !== "core");
   document.querySelector("#viewTitle").textContent = viewLabels[state.view];
   renderOperations(activeCandidates);
@@ -358,7 +370,7 @@ function renderViewCounts(candidates, positions) {
   const dates = watchQuoteDates(candidates);
   document.querySelectorAll(".view-tab").forEach((button) => {
     const view = button.dataset.view;
-    const count = view === "positions" ? positions.length : candidates.filter((item) => view === "core" ? isCoreCandidate(item, dates)
+    const count = view === "capture" ? window.RisingPatterns?.count || 0 : view === "positions" ? positions.length : candidates.filter((item) => view === "core" ? isCoreCandidate(item, dates)
       : view === "new" ? Boolean(newRegistrationLabel(item)) : chartGroup(item) === view).length;
     button.replaceChildren();
     const label = document.createElement("span");
@@ -369,8 +381,9 @@ function renderViewCounts(candidates, positions) {
       countLabel.textContent = `(${count})`;
       button.append(countLabel);
     }
-    button.classList.toggle("active", state.view === view);
-    button.setAttribute("aria-selected", String(state.view === view));
+    const active = state.view === view || view === "operations" && state.view === "positions";
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-selected", String(active));
   });
 }
 
@@ -385,7 +398,7 @@ function renderOperations(candidates) {
   const title = document.createElement("h3");
   title.textContent = "가상매매 · 과거 검토 사례";
   examples.append(title);
-  for (const event of state.payload.paperTrading?.historicalExamples || []) {
+  for (const event of state.payload?.paperTrading?.historicalExamples || []) {
     const button = document.createElement("button");
     button.type = "button";
     const candidate = state.payload.candidates.find(c => c.code === event.code);
@@ -1168,6 +1181,22 @@ function buildWatchQuotes(items, tradingDates, {title, showTrend = false, keyPre
 document.querySelector("#watchQuotesButton").addEventListener("click", () => renderWatchQuotes());
 document.querySelector("#priceAnalysisButton").addEventListener("click", () => renderPriceAnalysis());
 document.querySelector("#shapeAnalysisButton").addEventListener("click", () => renderPriceAnalysis(true));
+document.querySelector("#positionsButton").addEventListener("click", () => {
+  state.view = "positions";
+  state.deepLinkPending = false;
+  savedView = {view: "positions", operation: "positionsButton"};
+  try { sessionStorage.setItem(VIEW_STORAGE_KEY, JSON.stringify(savedView)); } catch {}
+  render();
+});
+document.querySelector(".operation-links").addEventListener("click", event => {
+  if (state.view === "positions" && event.target.closest(".operation-links > *")?.id !== "positionsButton") {
+    state.view = "operations";
+    render();
+  }
+}, true);
+document.addEventListener("rising-patterns-change", () => {
+  renderViewCounts(state.payload?.candidates || [], (state.positions?.positions || []).filter(item => item.status === "open"));
+});
 const MEMO_STORAGE_KEY = "koreaStockMonitor.memo";
 let memoDraft = null;
 document.querySelector("#memoButton").addEventListener("click", event => {
@@ -2538,6 +2567,7 @@ document.querySelector("#operationExclude").addEventListener("click", () => {
 });
 elements.keyword.addEventListener("input", (event) => { state.keyword = event.target.value; render(); });
 elements.refreshButton.addEventListener("click", async () => {
+  if (state.view === "capture") { await window.RisingPatterns?.refresh(); return; }
   await loadData();
   if (state.view === "operations") document.querySelector("#operationContent > iframe")?.contentWindow?.location.reload();
 });

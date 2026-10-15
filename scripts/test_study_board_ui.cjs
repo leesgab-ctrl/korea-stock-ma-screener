@@ -1,0 +1,133 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const http = require('node:http');
+const {chromium} = require('playwright');
+const {FakeGithub} = require('./test_study_images.cjs');
+
+const root = path.resolve(__dirname, '..');
+const output = path.join(root, 'outputs', 'study-board-ui');
+const imagePath = process.env.STUDY_TEST_IMAGE || 'C:/Users/User/AppData/Local/Temp/codex-clipboard-89e1db16-75d8-4f62-bf20-731b1ad6e866.png';
+const image = fs.readFileSync(imagePath);
+const github = new FakeGithub([], {missingBranch: true});
+
+(async () => {
+  fs.mkdirSync(output, {recursive: true});
+  const server = http.createServer((request, response) => {
+    const relative = decodeURIComponent(new URL(request.url, 'http://localhost').pathname);
+    const file = path.resolve(root, `.${relative === '/' ? '/monitor.html' : relative}`);
+    if (!file.startsWith(root + path.sep) || !fs.existsSync(file) || !fs.statSync(file).isFile()) {
+      response.writeHead(404); response.end(); return;
+    }
+    const type = {'.html': 'text/html', '.js': 'application/javascript', '.css': 'text/css', '.json': 'application/json'}[path.extname(file)] || 'application/octet-stream';
+    response.writeHead(200, {'Content-Type': `${type}; charset=utf-8`});
+    fs.createReadStream(file).pipe(response);
+  });
+  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+  const url = `http://127.0.0.1:${server.address().port}/monitor.html`;
+  let browser;
+  try {
+    browser = await chromium.launch({channel: 'msedge', headless: true});
+    const route = async context => {
+      await context.route('https://api.github.com/repos/leesgab-ctrl/korea-stock-ma-screener/**', async route => {
+        const request = route.request();
+        const result = await github.fetch(request.url(), {method: request.method(), body: request.postData(),
+          headers: Object.fromEntries(Object.entries(request.headers()).map(([key, value]) => [key === 'accept' ? 'Accept' : key, value]))});
+        await route.fulfill({status: result.status, contentType: 'application/json', body: JSON.stringify(await result.json())});
+      });
+      await context.route('https://raw.githubusercontent.com/**', route => route.fulfill({contentType: 'image/png', body: image}));
+    };
+    const context = await browser.newContext({viewport: {width: 1280, height: 900}});
+    await route(context);
+    const page = await context.newPage();
+    const errors = [];
+    page.on('pageerror', error => errors.push(error.message));
+    await page.goto(url);
+    await page.waitForFunction(() => document.querySelector('#activeCount').textContent !== '-');
+    assert.equal(await page.locator('.main-tabs [data-view="positions"]').count(), 0);
+    assert.equal(await page.locator('.main-tabs [data-view="capture"]').count(), 1);
+    await page.locator('[data-view="operations"]').click();
+    await page.locator('#positionsButton').click();
+    assert.equal(await page.locator('.positions-panel').isVisible(), true);
+    assert.equal(await page.locator('.main-tabs [data-view="operations"]').getAttribute('aria-selected'), 'true');
+    assert.ok(await page.locator('.position-item').count() > 0);
+    await page.screenshot({path: path.join(output, 'holdings-desktop.png')});
+    await page.locator('#watchQuotesButton').click();
+    assert.equal(await page.locator('.positions-panel').isVisible(), false);
+    assert.equal(await page.locator('#operationContent').isVisible(), true);
+    await page.locator('#positionsButton').click();
+    assert.equal(await page.locator('.positions-panel').isVisible(), true);
+    await page.locator('[data-view="capture"]').click();
+    assert.equal(await page.locator('.positions-panel').isVisible(), false);
+    await page.locator('#captureFile').setInputFiles(imagePath);
+    await page.locator('#captureDraftImage').waitFor({state: 'visible'});
+    await page.locator('#captureTitle').fill('상승 전 공부 이미지');
+    await page.locator('#captureStock').fill('연습종목 000001');
+    await page.locator('#captureDate').fill('2026-10-15');
+    await page.locator('#captureNote').fill('하락 뒤 바닥에서 단기선이 모이는 모습. 자동 분석이나 문자 연결 없음.');
+    await page.locator('#captureSave').click();
+    await page.waitForFunction(() => document.querySelector('#captureStatus').textContent.includes('GitHub 연결이 필요'));
+    assert.equal(await page.locator('#captureTitle').inputValue(), '상승 전 공부 이미지', 'Failed saves must preserve the draft');
+    await page.locator('#captureToken').fill('test-only-token');
+    await page.locator('#captureConnect').click();
+    await page.locator('#captureSave').click();
+    await page.waitForFunction(() => document.querySelector('#captureCount').textContent === '1');
+    assert.equal(await page.locator('#captureTitle').inputValue(), '');
+    await page.locator('#captureConnection').evaluate(node => node.open = false);
+    await page.locator('.capture-image-button').click();
+    await page.waitForFunction(() => document.querySelector('#capturePreviewImage').naturalWidth > 0);
+    await page.screenshot({path: path.join(output, 'preview-desktop.png')});
+    await page.locator('#capturePreviewClose').click();
+    await page.locator('.capture-item-actions button', {hasText: '수정'}).click();
+    await page.locator('#captureTitle').fill('<img onerror=alert(1)> 공부 메모');
+    await page.locator('#captureNote').fill('수정한 공부 메모');
+    await page.locator('#captureSave').click();
+    await page.waitForFunction(() => document.querySelector('.capture-item h3')?.textContent.startsWith('<img'));
+    assert.equal(await page.locator('.capture-item h3 img').count(), 0);
+    await page.locator('.capture-item-actions button', {hasText: '휴지통'}).click();
+    await page.waitForFunction(() => document.querySelector('#captureCount').textContent === '0');
+    await page.locator('#captureTrash').click();
+    await page.locator('.capture-item-actions button', {hasText: '복원'}).click();
+    await page.waitForFunction(() => document.querySelector('#captureCount').textContent === '1');
+    await page.locator('#captureActive').click();
+    await page.locator('#captureFile').setInputFiles({name: 'not-an-image.txt', mimeType: 'text/plain', buffer: Buffer.from('not an image')});
+    await page.waitForFunction(() => document.querySelector('#captureStatus').textContent.includes('PNG, JPG'));
+    assert.equal(await page.locator('#captureSave').isEnabled(), false);
+
+    await page.evaluate(base64 => {
+      const bytes = Uint8Array.from(atob(base64), char => char.charCodeAt(0));
+      const transfer = new DataTransfer();
+      transfer.items.add(new File([bytes], 'clipboard.png', {type: 'image/png'}));
+      document.dispatchEvent(new ClipboardEvent('paste', {clipboardData: transfer, bubbles: true, cancelable: true}));
+    }, image.toString('base64'));
+    await page.locator('#captureDraftImage').waitFor({state: 'visible'});
+    await page.locator('#captureTitle').fill('붙여넣기 공부 이미지');
+    await page.locator('#captureSave').click();
+    await page.waitForFunction(() => document.querySelector('#captureCount').textContent === '2');
+    for (const width of [1280, 390, 320]) {
+      await page.setViewportSize({width, height: 900});
+      await page.locator('#capturePanel').scrollIntoViewIfNeeded();
+      await page.waitForFunction(() => [...document.querySelectorAll('.capture-image-button img')].every(img => img.complete && img.naturalWidth > 0));
+      assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), `No horizontal overflow at ${width}`);
+      await page.screenshot({path: path.join(output, `board-${width}.png`), fullPage: true});
+    }
+    await page.reload();
+    await page.locator('[data-view="capture"]').click();
+    await page.waitForFunction(() => document.querySelector('#captureCount').textContent === '2');
+
+    const phone = await browser.newContext({viewport: {width: 390, height: 844}});
+    await route(phone);
+    const phonePage = await phone.newPage();
+    await phonePage.goto(url);
+    await phonePage.locator('[data-view="capture"]').click();
+    await phonePage.waitForFunction(() => document.querySelector('#captureCount').textContent === '2');
+    assert.equal(await phonePage.evaluate(() => localStorage.getItem('koreaStockMonitor.githubToken')), null);
+    await phonePage.screenshot({path: path.join(output, 'phone-public-read.png'), fullPage: true});
+    assert.deepEqual(errors, []);
+    console.log('Study board UI passed: holdings move, image upload/paste, public cross-device read, editing, trash/restore, validation, XSS text and responsive layouts.');
+    console.log(`Screenshots: ${output}`);
+  } finally {
+    if (browser) await browser.close();
+    await new Promise(resolve => server.close(resolve));
+  }
+})().catch(error => { console.error(error); process.exitCode = 1; });
