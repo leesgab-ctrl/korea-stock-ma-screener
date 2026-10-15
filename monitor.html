@@ -25,7 +25,7 @@
         <button class="view-tab" data-view="new" type="button" role="tab" aria-selected="false">신규종목</button>
         <button class="view-tab" data-view="reference" type="button" role="tab" aria-selected="false">상승조정형</button>
         <button class="view-tab" data-view="target" type="button" role="tab" aria-selected="false">조정회복형</button>
-        <button class="view-tab" data-view="capture" type="button" role="tab" aria-selected="false">상승포착</button>
+        <button class="view-tab" data-view="capture" type="button" role="tab" aria-selected="false">이미지공부</button>
         <button class="view-tab" data-view="operations" type="button" role="tab" aria-selected="false">운영관리</button>
       </nav>
       <section id="corePanel" aria-label="핵심종목"><div id="coreContent"><div class="empty-list">감시 데이터를 불러오는 중입니다.</div></div></section>
@@ -78,9 +78,9 @@
       </section>
       </section>
 
-      <section id="capturePanel" class="capture-panel hidden" aria-label="상승포착">
+      <section id="capturePanel" class="capture-panel hidden" aria-label="이미지공부">
         <header class="capture-heading">
-          <div><h2>상승포착</h2><p class="capture-storage">공부용 이미지 게시판 · 공개 공유</p></div>
+          <div><h2>이미지공부</h2><p class="capture-storage">공부용 이미지 게시판 · 공개 공유</p></div>
           <button id="captureNew" class="external-link capture-primary" type="button">이미지 등록</button>
         </header>
         <form id="captureForm" class="capture-form" hidden>
@@ -376,7 +376,7 @@
     </dialog>
   <script src="price-analysis.js?v=20261010-48"></script>
   <script src="rising-patterns.js?v=20261015-1"></script>
-  <script src="monitor.js?v=20261015-5"></script>
+  <script src="monitor.js?v=20261015-6"></script>
   <dialog id="capturePreviewDialog" class="capture-preview-dialog">
     <header><h2 id="capturePreviewTitle">공부용 이미지</h2><button id="capturePreviewClose" class="external-link" type="button">닫기</button></header>
     <img id="capturePreviewImage" alt="등록된 공부용 이미지">

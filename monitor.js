@@ -107,7 +107,7 @@ const statusLabels = {
 };
 const statusPriority = { signal: 0, rising: 1, waiting60: 2, setup: 3, signaled: 4, watching: 5, insufficient: 6, ineligible: 7, excluded: 8 };
 const tierLabels = { core: "핵심 A-G", expanded: "확대 A-G", expanded_ak: "확대 A-K" };
-const viewLabels = { core: "핵심종목", new: "신규종목", target: "조정회복형", reference: "상승조정형", capture: "상승포착", positions: "보유종목", operations: "운영관리" };
+const viewLabels = { core: "핵심종목", new: "신규종목", target: "조정회복형", reference: "상승조정형", capture: "이미지공부", positions: "보유종목", operations: "운영관리" };
 function screeningFamily(item) {
   return item.candidateTier === "expanded_ak" ? "A-K" : "A-G";
 }
