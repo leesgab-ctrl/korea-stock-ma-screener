@@ -7,8 +7,8 @@ const {FakeGithub} = require('./test_study_images.cjs');
 
 const root = path.resolve(__dirname, '..');
 const output = path.join(root, 'outputs', 'study-board-ui');
-const imagePath = process.env.STUDY_TEST_IMAGE || 'C:/Users/User/AppData/Local/Temp/codex-clipboard-89e1db16-75d8-4f62-bf20-731b1ad6e866.png';
-const image = fs.readFileSync(imagePath);
+const image = process.env.STUDY_TEST_IMAGE ? fs.readFileSync(process.env.STUDY_TEST_IMAGE)
+  : Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a/wAAAABJRU5ErkJggg==', 'base64');
 const github = new FakeGithub([], {missingBranch: true});
 
 (async () => {
@@ -59,7 +59,7 @@ const github = new FakeGithub([], {missingBranch: true});
     assert.equal(await page.locator('.positions-panel').isVisible(), true);
     await page.locator('[data-view="capture"]').click();
     assert.equal(await page.locator('.positions-panel').isVisible(), false);
-    await page.locator('#captureFile').setInputFiles(imagePath);
+    await page.locator('#captureFile').setInputFiles({name: 'study-example.png', mimeType: 'image/png', buffer: image});
     await page.locator('#captureDraftImage').waitFor({state: 'visible'});
     await page.locator('#captureTitle').fill('상승 전 공부 이미지');
     await page.locator('#captureStock').fill('연습종목 000001');
