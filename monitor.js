@@ -22,7 +22,7 @@ const state = {
   payload: null,
   lastLoadedAt: 0,
   positions: null,
-  view: requestedCode ? "reference" : "core",
+  view: requestedCode ? "reference" : "imageSearch",
   keyword: "",
   selectedCode: requestedCode && /^\d{6}$/.test(requestedCode) ? requestedCode : null,
   selectedPositionCode: null,
@@ -107,7 +107,39 @@ const statusLabels = {
 };
 const statusPriority = { signal: 0, rising: 1, waiting60: 2, setup: 3, signaled: 4, watching: 5, insufficient: 6, ineligible: 7, excluded: 8 };
 const tierLabels = { core: "핵심 A-G", expanded: "확대 A-G", expanded_ak: "확대 A-K" };
-const viewLabels = { core: "핵심종목", new: "신규종목", target: "조정회복형", reference: "상승조정형", capture: "이미지공부", positions: "보유종목", operations: "운영관리" };
+const viewLabels = { imageSearch: "상승검색", ak: "대상종목AK", ag: "대상종목AG", core: "핵심종목", new: "신규종목", target: "조정회복형", reference: "상승조정형", capture: "이미지공부", positions: "보유종목", operations: "운영관리" };
+const operationMonitorViews = ["core", "target", "reference"];
+function matchesFamilyView(item, view) {
+  return view === "ak" ? item.candidateTier === "expanded_ak"
+    : view === "ag" ? !item.candidateTier || item.candidateTier === "core" : false;
+}
+function compareRegistrationNewest(a, b) {
+  return (b.registeredAt || b.dailySignalDate || "").localeCompare(a.registeredAt || a.dailySignalDate || "")
+    || a.name.localeCompare(b.name, "ko");
+}
+function renderImageSearch() {
+  const confirmed = window.RisingPatterns?.confirmed || [];
+  document.querySelector("#imageSearchStatus").textContent = confirmed.length
+    ? `확정 이미지 ${confirmed.length}개 · 검색조건 설정 대기` : "검색조건 설정 대기";
+  const host = document.querySelector("#imageSearchConditions");
+  host.replaceChildren();
+  if (!confirmed.length) {
+    const empty = document.createElement("p");
+    empty.className = "empty-list";
+    empty.textContent = "확정된 포착조건이 없습니다.";
+    host.append(empty);
+  }
+  for (const item of confirmed) {
+    const row = document.createElement("div");
+    row.className = "image-search-condition";
+    const title = document.createElement("strong");
+    title.textContent = item.title;
+    const status = document.createElement("span");
+    status.textContent = "자동검색 미연결";
+    row.append(title, status);
+    host.append(row);
+  }
+}
 function screeningFamily(item) {
   return item.candidateTier === "expanded_ak" ? "A-K" : "A-G";
 }
@@ -261,8 +293,7 @@ function render() {
   if (state.deepLinkPending) {
     const requested = candidates.find((item) => item.code === state.selectedCode);
     if (requested) {
-      const group = chartGroup(requested);
-      state.view = ["target", "reference"].includes(group) ? group : "operations";
+      state.view = screeningFamily(requested) === "A-K" ? "ak" : "ag";
     }
   }
   elements.activeCount.textContent = summary.active ?? activeCandidates.length;
@@ -280,13 +311,19 @@ function render() {
   elements.asOf.textContent = asOf || "-";
   renderMonitorStatus();
   renderViewCounts(activeCandidates, openPositions);
-  const candidateView = ["new", "target", "reference"].includes(state.view);
+  const candidateView = ["ak", "ag", "new", "target", "reference"].includes(state.view);
   document.querySelector(".workspace").classList.toggle("hidden", !candidateView);
   document.querySelector(".toolbar").classList.toggle("hidden", !candidateView);
   document.querySelector(".positions-panel").classList.toggle("hidden", state.view !== "positions");
   const operationsPanel = document.querySelector("#operationsPanel");
   const positionsView = state.view === "positions";
-  operationsPanel.classList.toggle("hidden", !["operations", "positions"].includes(state.view));
+  const monitorSubview = operationMonitorViews.includes(state.view);
+  if (operationsPanel.classList.contains("operation-monitor-view") && !monitorSubview) {
+    operationsPanel.classList.remove("operation-selected");
+    operationsPanel.querySelectorAll(".operation-links > *").forEach(button => button.classList.remove("operation-active"));
+  }
+  operationsPanel.classList.toggle("hidden", !["operations", "positions", ...operationMonitorViews].includes(state.view));
+  operationsPanel.classList.toggle("operation-monitor-view", monitorSubview);
   if (positionsView) {
     operationsPanel.classList.add("operation-selected", "operation-positions");
     document.querySelector("#operationContent").hidden = true;
@@ -295,8 +332,23 @@ function render() {
     operationsPanel.classList.remove("operation-selected", "operation-positions");
     operationsPanel.querySelectorAll(".operation-links > *").forEach(button => button.classList.remove("operation-active"));
   }
+  if (monitorSubview) {
+    document.querySelector("#operationContent").hidden = true;
+    operationsPanel.querySelectorAll(".operation-links > *").forEach(button => button.classList.toggle("operation-active", button.dataset.monitorView === state.view));
+  }
   document.querySelector("#capturePanel").classList.toggle("hidden", state.view !== "capture");
   if (state.view === "capture") window.RisingPatterns?.open();
+  document.querySelector("#imageSearchPanel").classList.toggle("hidden", state.view !== "imageSearch");
+  if (state.view === "imageSearch") {
+    window.RisingPatterns?.open();
+    renderImageSearch();
+    const dates = watchQuoteDates(activeCandidates);
+    document.querySelector("#imageSearchRising").replaceChildren(buildWatchQuotes(
+      activeCandidates.filter(item => isTodayRising(item, dates.at(-1))), dates, {
+        title: "오늘상승종목", showTrend: true, keyPrefix: "image-search-rising",
+        emptyText: "현재 전일 종가보다 상승한 감시대상 종목이 없습니다.",
+      }));
+  }
   document.querySelector("#corePanel").classList.toggle("hidden", state.view !== "core");
   document.querySelector("#viewTitle").textContent = viewLabels[state.view];
   renderOperations(activeCandidates);
@@ -370,18 +422,19 @@ function renderViewCounts(candidates, positions) {
   const dates = watchQuoteDates(candidates);
   document.querySelectorAll(".view-tab").forEach((button) => {
     const view = button.dataset.view;
-    const count = view === "capture" ? window.RisingPatterns?.count || 0 : view === "positions" ? positions.length : candidates.filter((item) => view === "core" ? isCoreCandidate(item, dates)
+    const count = ["ak", "ag"].includes(view) ? candidates.filter(item => matchesFamilyView(item, view)).length
+      : view === "capture" ? window.RisingPatterns?.count || 0 : view === "positions" ? positions.length : candidates.filter((item) => view === "core" ? isCoreCandidate(item, dates)
       : view === "new" ? Boolean(newRegistrationLabel(item)) : chartGroup(item) === view).length;
     button.replaceChildren();
     const label = document.createElement("span");
     label.textContent = viewLabels[view];
     button.append(label);
-    if (view !== "operations") {
+    if (!["operations", "imageSearch"].includes(view)) {
       const countLabel = document.createElement("span");
       countLabel.textContent = `(${count})`;
       button.append(countLabel);
     }
-    const active = state.view === view || view === "operations" && state.view === "positions";
+    const active = state.view === view || view === "operations" && ["positions", ...operationMonitorViews].includes(state.view);
     button.classList.toggle("active", active);
     button.setAttribute("aria-selected", String(active));
   });
@@ -584,7 +637,8 @@ function renderClosedPosition(item) {
 function filteredCandidates(candidates) {
   const keyword = state.keyword.trim().toLowerCase();
   return candidates.filter((item) => {
-    const statusMatch = state.view === "new" ? Boolean(newRegistrationLabel(item)) : chartGroup(item) === state.view;
+    const statusMatch = ["ak", "ag"].includes(state.view) ? matchesFamilyView(item, state.view)
+      : state.view === "new" ? Boolean(newRegistrationLabel(item)) : chartGroup(item) === state.view;
     const keywordMatch = !keyword || item.name.toLowerCase().includes(keyword) || item.code.includes(keyword);
     return statusMatch && keywordMatch;
   });
@@ -714,13 +768,14 @@ function isTodayRising(item, date) {
 
 function renderCandidates(candidates) {
   restoreDetailPanel();
-  const visible = filteredCandidates(candidates).sort(["target", "reference"].includes(state.view) ? compareCandidateSpread : (a, b) =>
+  const familyView = ["ak", "ag"].includes(state.view);
+  const visible = filteredCandidates(candidates).sort(familyView ? compareRegistrationNewest : ["target", "reference"].includes(state.view) ? compareCandidateSpread : (a, b) =>
     Number(candidateObservation(b).purple) - Number(candidateObservation(a).purple)
     || (statusPriority[a.status] ?? 99) - (statusPriority[b.status] ?? 99)
     || a.name.localeCompare(b.name, "ko")
   );
   state.expandedCharts = visible.length > 0 && visible.length < 20;
-  elements.candidateMeta.textContent = `${visible.length}종목 · ${state.view === "new" ? "오늘·직전 거래일 등록" : state.view === "target" ? "등록 이후 MA20 < MA40" : "등록 이후 MA20 > MA40"}`;
+  elements.candidateMeta.textContent = `${visible.length}종목 · ${familyView ? "최근 등록순 · 등록일 포함 10거래일 관리" : state.view === "new" ? "오늘·직전 거래일 등록" : state.view === "target" ? "등록 이후 MA20 < MA40" : "등록 이후 MA20 > MA40"}`;
   elements.candidateList.innerHTML = "";
   if (!visible.length) {
     elements.candidateList.innerHTML = '<div class="empty-list">현재 조건에 해당하는 후보가 없습니다.</div>';
@@ -1188,14 +1243,21 @@ document.querySelector("#positionsButton").addEventListener("click", () => {
   try { sessionStorage.setItem(VIEW_STORAGE_KEY, JSON.stringify(savedView)); } catch {}
   render();
 });
+document.querySelectorAll("[data-monitor-view]").forEach(button => button.addEventListener("click", () => {
+  state.view = button.dataset.monitorView;
+  state.deepLinkPending = false;
+  render();
+}));
 document.querySelector(".operation-links").addEventListener("click", event => {
-  if (state.view === "positions" && event.target.closest(".operation-links > *")?.id !== "positionsButton") {
+  const button = event.target.closest(".operation-links > *");
+  if (["positions", ...operationMonitorViews].includes(state.view) && button && !button.dataset.monitorView && button.id !== "positionsButton") {
     state.view = "operations";
     render();
   }
 }, true);
 document.addEventListener("rising-patterns-change", () => {
   renderViewCounts(state.payload?.candidates || [], (state.positions?.positions || []).filter(item => item.status === "open"));
+  if (state.view === "imageSearch") renderImageSearch();
 });
 const MEMO_STORAGE_KEY = "koreaStockMonitor.memo";
 let memoDraft = null;

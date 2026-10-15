@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#176b58">
     <title>A-G 30분봉 신호 감시</title>
-    <link rel="stylesheet" href="monitor.css?v=20261015-5">
+    <link rel="stylesheet" href="monitor.css?v=20261015-7">
   </head>
   <body>
     <header class="topbar">
@@ -21,16 +21,23 @@
 
     <main>
       <nav class="main-tabs" aria-label="감시 메뉴" role="tablist">
-        <button class="view-tab active" data-view="core" type="button" role="tab" aria-selected="true">핵심종목</button>
-        <button class="view-tab" data-view="new" type="button" role="tab" aria-selected="false">신규종목</button>
-        <button class="view-tab" data-view="reference" type="button" role="tab" aria-selected="false">상승조정형</button>
-        <button class="view-tab" data-view="target" type="button" role="tab" aria-selected="false">조정회복형</button>
+        <button class="view-tab active" data-view="imageSearch" type="button" role="tab" aria-selected="true">상승검색</button>
+        <button class="view-tab" data-view="ak" type="button" role="tab" aria-selected="false">대상종목AK</button>
+        <button class="view-tab" data-view="ag" type="button" role="tab" aria-selected="false">대상종목AG</button>
         <button class="view-tab" data-view="capture" type="button" role="tab" aria-selected="false">이미지공부</button>
         <button class="view-tab" data-view="operations" type="button" role="tab" aria-selected="false">운영관리</button>
       </nav>
-      <section id="corePanel" aria-label="핵심종목"><div id="coreContent"><div class="empty-list">감시 데이터를 불러오는 중입니다.</div></div></section>
+      <section id="imageSearchPanel" aria-label="상승검색">
+        <div class="section-heading"><div><h2>상승검색</h2><p id="imageSearchStatus">검색조건 설정 대기</p></div></div>
+        <div id="imageSearchConditions"></div>
+        <div id="imageSearchRising"></div>
+      </section>
+      <section id="corePanel" class="hidden" aria-label="핵심종목"><div id="coreContent"><div class="empty-list">감시 데이터를 불러오는 중입니다.</div></div></section>
       <section id="operationsPanel" class="hidden" aria-label="운영관리">
         <div class="operation-links">
+          <button class="external-link" data-monitor-view="core" type="button">핵심종목</button>
+          <button class="external-link" data-monitor-view="reference" type="button">상승조정형</button>
+          <button class="external-link" data-monitor-view="target" type="button">조정회복형</button>
           <button id="positionsButton" class="external-link" type="button">보유종목</button>
           <button id="watchQuotesButton" class="external-link" type="button">주가현황</button>
           <button id="priceAnalysisButton" class="external-link" type="button">주가분석</button>
@@ -101,6 +108,7 @@
               <label>차트 기준일<input id="captureDate" type="date"></label>
             </div>
             <label>메모<textarea id="captureNote" rows="3" maxlength="2000"></textarea></label>
+            <label class="capture-confirmation"><input id="captureConfirmed" type="checkbox">포착조건 확정</label>
             <div class="capture-form-actions">
               <button id="captureCancel" class="external-link" type="button">취소</button>
               <button id="captureSave" class="external-link capture-primary" type="submit" disabled>등록</button>
@@ -375,8 +383,8 @@
       <div class="position-form"><h2>사용자 선정 제외</h2><div id="excludedList"></div><button id="excludedListClose" type="button">닫기</button></div>
     </dialog>
   <script src="price-analysis.js?v=20261010-48"></script>
-  <script src="rising-patterns.js?v=20261015-1"></script>
-  <script src="monitor.js?v=20261015-6"></script>
+  <script src="rising-patterns.js?v=20261015-7"></script>
+  <script src="monitor.js?v=20261015-7"></script>
   <dialog id="capturePreviewDialog" class="capture-preview-dialog">
     <header><h2 id="capturePreviewTitle">공부용 이미지</h2><button id="capturePreviewClose" class="external-link" type="button">닫기</button></header>
     <img id="capturePreviewImage" alt="등록된 공부용 이미지">

@@ -46,12 +46,44 @@ const github = new FakeGithub([], {missingBranch: true});
     await page.waitForFunction(() => document.querySelector('#activeCount').textContent !== '-');
     assert.equal(await page.locator('.main-tabs [data-view="positions"]').count(), 0);
     assert.equal(await page.locator('.main-tabs [data-view="capture"]').count(), 1);
+    assert.deepEqual(await page.locator('.main-tabs .view-tab').evaluateAll(nodes => nodes.map(node => node.dataset.view)),
+      ['imageSearch', 'ak', 'ag', 'capture', 'operations']);
+    assert.equal(await page.locator('#imageSearchPanel').isVisible(), true);
+    assert.equal(await page.locator('#imageSearchRising [data-list="image-search-rising"]').count(), 1);
+    assert.match(await page.locator('#imageSearchStatus').innerText(), /검색조건 설정 대기/);
+    const payload = JSON.parse(fs.readFileSync(path.join(root, 'data/candidate-monitor.json'), 'utf8'));
+    for (const family of ['ak', 'ag']) {
+      await page.locator(`[data-view="${family}"]`).click();
+      const expected = payload.candidates.filter(item => family === 'ak' ? item.candidateTier === 'expanded_ak'
+        : !item.candidateTier || item.candidateTier === 'core').sort((a, b) =>
+        (b.registeredAt || b.dailySignalDate || '').localeCompare(a.registeredAt || a.dailySignalDate || '')
+        || a.name.localeCompare(b.name, 'ko'));
+      assert.deepEqual(await page.locator('#candidateList > .candidate').evaluateAll(nodes => nodes.map(node => node.dataset.code)), expected.map(item => item.code));
+      assert.match(await page.locator('#candidateMeta').innerText(), /최근 등록순.*10거래일/);
+      assert.equal(await page.locator('#viewTitle').innerText(), family === 'ak' ? '대상종목AK' : '대상종목AG');
+      for (const width of [1280, 390, 320]) {
+        await page.setViewportSize({width, height: 900});
+        assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1));
+        await page.screenshot({path: path.join(output, `family-${family}-${width}.png`)});
+      }
+    }
+    await page.setViewportSize({width: 1280, height: 900});
     assert.match(await page.locator('.main-tabs [data-view="capture"]').innerText(), /^이미지공부/);
     assert.equal(await page.locator('#capturePanel').getAttribute('aria-label'), '이미지공부');
     assert.equal(await page.locator('#capturePanel h2').innerText(), '이미지공부');
     await page.locator('[data-view="operations"]').click();
     await page.locator('#positionsButton').click();
     assert.equal(await page.locator('.positions-panel').isVisible(), true);
+    await page.locator('[data-monitor-view="core"]').click();
+    assert.equal(await page.locator('#corePanel').isVisible(), true);
+    assert.equal(await page.locator('.main-tabs [data-view="operations"]').getAttribute('aria-selected'), 'true');
+    await page.locator('[data-monitor-view="target"]').click();
+    assert.equal(await page.locator('.workspace').isVisible(), true);
+    await page.locator('[data-view="operations"]').click();
+    assert.equal(await page.locator('#operationsPanel > .summary').isVisible(), true);
+    await page.locator('#watchQuotesButton').click();
+    assert.equal(await page.locator('#operationContent').isVisible(), true);
+    assert.equal(await page.locator('.workspace').isVisible(), false);
     assert.equal(await page.locator('.main-tabs [data-view="operations"]').getAttribute('aria-selected'), 'true');
     assert.ok(await page.locator('.position-item').count() > 0);
     await page.screenshot({path: path.join(output, 'holdings-desktop.png')});
@@ -75,6 +107,24 @@ const github = new FakeGithub([], {missingBranch: true});
     await page.locator('#captureConnect').click();
     await page.locator('#captureSave').click();
     await page.waitForFunction(() => document.querySelector('#captureCount').textContent === '1');
+    assert.equal(await page.locator('.capture-item .capture-confirmation input').isChecked(), false);
+    await page.locator('.capture-item .capture-confirmation input').check();
+    await page.waitForFunction(() => document.querySelector('#captureStatus').textContent.includes('포착조건으로 확정'));
+    await page.locator('[data-view="imageSearch"]').click();
+    assert.equal(await page.locator('#imageSearchConditions .image-search-condition').count(), 1);
+    assert.match(await page.locator('#imageSearchConditions').innerText(), /자동검색 미연결/);
+    assert.equal(await page.locator('#imageSearchRising h2').innerText(), '오늘상승종목');
+    for (const width of [1280, 390, 320]) {
+      await page.setViewportSize({width, height: 900});
+      assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1));
+      await page.screenshot({path: path.join(output, `image-search-${width}.png`), fullPage: true});
+    }
+    await page.locator('[data-view="capture"]').click();
+    await page.locator('.capture-item .capture-confirmation input').uncheck();
+    await page.waitForFunction(() => document.querySelector('#captureStatus').textContent.includes('확정을 해제'));
+    assert.equal(await page.locator('.capture-item .capture-confirmation input').isChecked(), false);
+    await page.locator('.capture-item .capture-confirmation input').check();
+    await page.waitForFunction(() => document.querySelector('#captureStatus').textContent.includes('포착조건으로 확정'));
     assert.equal(await page.locator('#captureTitle').inputValue(), '');
     await page.locator('#captureConnection').evaluate(node => node.open = false);
     await page.locator('.capture-image-button').click();
@@ -82,6 +132,7 @@ const github = new FakeGithub([], {missingBranch: true});
     await page.screenshot({path: path.join(output, 'preview-desktop.png')});
     await page.locator('#capturePreviewClose').click();
     await page.locator('.capture-item-actions button', {hasText: '수정'}).click();
+    assert.equal(await page.locator('#captureConfirmed').isChecked(), true);
     await page.locator('#captureTitle').fill('<img onerror=alert(1)> 공부 메모');
     await page.locator('#captureNote').fill('수정한 공부 메모');
     await page.locator('#captureSave').click();
@@ -105,8 +156,10 @@ const github = new FakeGithub([], {missingBranch: true});
     }, image.toString('base64'));
     await page.locator('#captureDraftImage').waitFor({state: 'visible'});
     await page.locator('#captureTitle').fill('붙여넣기 공부 이미지');
+    await page.locator('#captureConfirmed').check();
     await page.locator('#captureSave').click();
     await page.waitForFunction(() => document.querySelector('#captureCount').textContent === '2');
+    assert.equal(await page.locator('.capture-item .capture-confirmation input:checked').count(), 2);
     for (const width of [1280, 390, 320]) {
       await page.setViewportSize({width, height: 900});
       await page.locator('#capturePanel').scrollIntoViewIfNeeded();
@@ -124,6 +177,7 @@ const github = new FakeGithub([], {missingBranch: true});
     await phonePage.goto(url);
     await phonePage.locator('[data-view="capture"]').click();
     await phonePage.waitForFunction(() => document.querySelector('#captureCount').textContent === '2');
+    assert.equal(await phonePage.locator('.capture-item .capture-confirmation input:checked').count(), 2);
     assert.equal(await phonePage.evaluate(() => localStorage.getItem('koreaStockMonitor.githubToken')), null);
     await phonePage.screenshot({path: path.join(output, 'phone-public-read.png'), fullPage: true});
     assert.deepEqual(errors, []);

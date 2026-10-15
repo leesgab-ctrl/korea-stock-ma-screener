@@ -83,6 +83,8 @@ async function run() {
   assert.throws(() => validateIndex({version: 1, records: [{...first, mime: 'image/svg+xml'}]}));
   assert.throws(() => validateIndex({version: 1, records: [first, first]}));
   assert.throws(() => validateIndex({version: 1, records: [{...first, createdAt: 'invalid'}]}));
+  assert.throws(() => validateIndex({version: 1, records: [{...first, conditionConfirmed: 'true'}]}));
+  assert.equal(validateIndex({version: 1, records: [{...first, conditionConfirmed: true}]}).records[0].conditionConfirmed, true);
   const fake = new FakeGithub([], {missingBranch: true});
   const originalMain = fake.main;
   const store = fake.store();
@@ -98,9 +100,10 @@ async function run() {
   await assert.rejects(() => fake.store(() => '').save({record: first}), /연결/);
   assert.equal(fake.calls.length, callsBefore, 'Missing credentials must not transmit an image');
 
-  const edited = {...first, title: '<img onerror=alert(1)>', revision: 'revision-2'};
+  const edited = {...first, title: '<img onerror=alert(1)>', revision: 'revision-2', conditionConfirmed: true};
   const updated = await store.save({record: edited, expectedRevision: first.revision});
   assert.equal(updated.index.records[0].title, edited.title, 'Text must remain data, not HTML');
+  assert.equal(updated.index.records[0].conditionConfirmed, true, 'Confirmation is shared metadata');
   assert.equal(fake.calls.filter(call => call.endpoint === 'git/blobs').length, 1, 'Metadata edit must not reupload the image');
   const trashed = {...edited, deletedAt: '2026-10-15T11:00:00+09:00', revision: 'revision-3'};
   await store.save({record: trashed, expectedRevision: edited.revision});
@@ -108,6 +111,7 @@ async function run() {
   const restoredResult = await store.save({record: restored, expectedRevision: trashed.revision});
   assert.equal(restoredResult.index.records[0].deletedAt, null);
   assert.equal(restoredResult.index.records[0].imagePath, first.imagePath);
+  assert.equal(restoredResult.index.records[0].conditionConfirmed, true, 'Trash and restore preserve confirmation');
 
   const concurrent = new FakeGithub([first]);
   concurrent.injectConflict = index => index.records.push(record('pattern-other', 'other-1'));

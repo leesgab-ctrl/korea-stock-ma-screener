@@ -20,6 +20,7 @@
           || !/^data\/study-images\/[a-zA-Z0-9-]{8,80}\.(png|jpg|webp)$/.test(item.imagePath)
           || !TYPES[item.mime] || typeof item.note !== "string" || item.note.length > 2000
           || typeof item.stock !== "string" || item.stock.length > 80
+          || item.conditionConfirmed !== undefined && typeof item.conditionConfirmed !== "boolean"
           || typeof item.chartDate !== "string" || item.chartDate && !/^\d{4}-\d{2}-\d{2}$/.test(item.chartDate)
           || !Number.isFinite(Date.parse(item.createdAt)) || !Number.isFinite(Date.parse(item.updatedAt))) {
         throw new StoreError("게시판 자료가 올바르지 않아 덮어쓰지 않았습니다.");
@@ -132,6 +133,7 @@
   const token = () => { try { return root.localStorage.getItem(TOKEN_KEY) || ""; } catch { return ""; } };
   const store = new StudyImageStore({token});
   root.RisingPatterns = {get count() { return board.records.filter(item => !item.deletedAt).length; },
+    get confirmed() { return board.records.filter(item => !item.deletedAt && item.conditionConfirmed === true).map(item => ({id: item.id, title: item.title})); },
     open() { if (ui && !board.loading && (!board.loaded || Date.now() - board.lastLoadedAt > 60000)) refresh(); }, refresh};
 
   function status(message, error = false) {
@@ -143,7 +145,7 @@
     document.getElementById("captureNew").disabled = value;
     ui.form.querySelectorAll("input, textarea, button").forEach(item => item.disabled = value);
     ui.save.disabled = value || !board.draft && !board.editing;
-    ui.gallery.querySelectorAll(".capture-item-actions button").forEach(item => item.disabled = value);
+    ui.gallery.querySelectorAll(".capture-item-actions button, .capture-confirmation input").forEach(item => item.disabled = value);
   }
   function releaseDraft() {
     if (board.previewUrl) URL.revokeObjectURL(board.previewUrl);
@@ -251,6 +253,7 @@
     ui.stock.value = item.stock;
     ui.date.value = item.chartDate;
     ui.note.value = item.note;
+    ui.confirmed.checked = item.conditionConfirmed === true;
     ui.image.src = store.imageUrl(item, board.revision);
     ui.image.hidden = false;
     ui.placeholder.hidden = true;
@@ -275,6 +278,21 @@
     } catch (error) {
       status(error.message || "변경 내용을 저장하지 못했습니다.", true);
       if (error.status === 401 || error.status === 403) ui.connection.open = true;
+    } finally { updateBusy(false); }
+  }
+  async function confirmCondition(item, confirmed) {
+    if (board.busy) return;
+    updateBusy(true);
+    status("포착조건 확정 상태 저장 중…");
+    try {
+      const record = {...item, conditionConfirmed: confirmed, updatedAt: new Date().toISOString(), revision: crypto.randomUUID()};
+      const result = await store.save({record, expectedRevision: item.revision || item.updatedAt});
+      setRecords(result);
+      status(confirmed ? "포착조건으로 확정했습니다. 자동검색은 검색조건 설정 대기 상태입니다." : "포착조건 확정을 해제했습니다.");
+    } catch (error) {
+      status(error.message || "확정 상태를 저장하지 못했습니다.", true);
+      if (error.status === 401 || error.status === 403) ui.connection.open = true;
+      renderGallery();
     } finally { updateBusy(false); }
   }
   function renderGallery() {
@@ -308,6 +326,17 @@
       article.querySelector("h3").textContent = item.title;
       article.querySelector(".capture-item-meta").textContent = [item.stock, item.chartDate, `등록 ${dateText(item.createdAt)}`].filter(Boolean).join(" · ");
       article.querySelector(".capture-item-note").textContent = item.note;
+      if (!board.trash) {
+        const label = document.createElement("label");
+        label.className = "capture-confirmation";
+        const checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.checked = item.conditionConfirmed === true;
+        checkbox.disabled = board.busy;
+        checkbox.addEventListener("change", () => confirmCondition(item, checkbox.checked));
+        label.append(checkbox, document.createTextNode("포착조건 확정"));
+        article.querySelector(".capture-item-content").insertBefore(label, article.querySelector(".capture-item-actions"));
+      }
       const action = (label, callback) => {
         const button = document.createElement("button");
         button.type = "button"; button.className = "external-link"; button.textContent = label;
@@ -331,7 +360,7 @@
       const now = new Date().toISOString();
       if (!board.editing && !board.creatingId) board.creatingId = crypto.randomUUID();
       const record = {...(board.editing || {}), id: board.editing?.id || board.creatingId,
-        title, stock: ui.stock.value.trim(), chartDate: ui.date.value, note: ui.note.value.trim(),
+        title, stock: ui.stock.value.trim(), chartDate: ui.date.value, note: ui.note.value.trim(), conditionConfirmed: ui.confirmed.checked,
         createdAt: board.editing?.createdAt || now, updatedAt: now, revision: crypto.randomUUID(), deletedAt: null};
       let image = null;
       if (board.draft) {
@@ -352,7 +381,7 @@
   function initialize() {
     const get = id => document.getElementById(`capture${id}`);
     ui = {form: get("Form"), dropzone: get("Dropzone"), file: get("File"), image: get("DraftImage"), placeholder: get("DraftPlaceholder"),
-      title: get("Title"), stock: get("Stock"), date: get("Date"), note: get("Note"), save: get("Save"), fileMeta: get("FileMeta"),
+      title: get("Title"), stock: get("Stock"), date: get("Date"), note: get("Note"), confirmed: get("Confirmed"), save: get("Save"), fileMeta: get("FileMeta"),
       status: get("Status"), count: get("Count"), trashCount: get("TrashCount"), gallery: get("Gallery"), search: get("Search"),
       connection: get("Connection"), token: get("Token"), preview: get("PreviewDialog"), previewImage: get("PreviewImage"),
       previewTitle: get("PreviewTitle"), previewNote: get("PreviewNote")};

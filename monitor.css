@@ -49,7 +49,7 @@ h2 { font-size: 17px; }
 .topbar .criteria-button { background: #fff; color: var(--green); }
 
 main { max-width: 1480px; margin: 0 auto; padding: 18px; display: grid; gap: 14px; }
-.main-tabs { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); border: 1px solid var(--line); }
+.main-tabs { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); border: 1px solid var(--line); }
 .view-tab { min-width: 0; min-height: 52px; padding: 10px 4px; border: 0; border-right: 1px solid var(--line); border-bottom: 3px solid transparent; background: transparent; color: var(--muted); cursor: pointer; font-weight: 700; font-size: 14px; display: flex; justify-content: center; align-items: center; gap: 4px; }
 .view-tab:last-child { border-right: 0; }
 .view-tab.active { color: var(--green); border-bottom-color: var(--green); background: var(--green-soft); }
@@ -107,6 +107,11 @@ main { max-width: 1480px; margin: 0 auto; padding: 18px; display: grid; gap: 14p
 .operation-links .operation-active { background: #176b58; color: white; }
 #operationsPanel.operation-selected > section { display: none; }
 #operationsPanel.operation-positions > .positions-panel:not(.hidden) { display: block; }
+#operationsPanel.operation-monitor-view > :not(.operation-links) { display: none; }
+.image-search-condition { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 14px 0; border-bottom: 1px solid var(--line); font-size: 13px; }
+.image-search-condition strong { overflow-wrap: anywhere; min-width: 0; }
+.image-search-condition span { color: var(--muted); flex-shrink: 0; }
+#imageSearchRising { margin-top: 24px; }
 .operation-positions > .positions-panel { border: 0; border-radius: 0; }
 .capture-panel { min-width: 0; }
 .capture-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 6px 0 14px; }
@@ -130,6 +135,8 @@ main { max-width: 1480px; margin: 0 auto; padding: 18px; display: grid; gap: 14p
 .capture-editor label { display: grid; gap: 5px; min-width: 0; font-size: 12px; color: var(--muted); }
 .capture-editor input, .capture-editor textarea { min-width: 0; width: 100%; padding: 9px 10px; border: 1px solid #b9cac1; border-radius: 4px; background: white; color: var(--ink); font: inherit; font-size: 14px; }
 .capture-editor textarea { resize: vertical; }
+.capture-editor .capture-confirmation, .capture-confirmation { display: flex; align-items: center; gap: 7px; margin-top: 10px; font-size: 13px; color: var(--ink); }
+.capture-confirmation input[type="checkbox"] { width: 16px; height: 16px; padding: 0; margin: 0; flex-shrink: 0; accent-color: var(--green); }
 .capture-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .capture-source-actions, .capture-form-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
 .capture-form-actions { justify-content: flex-end; }
