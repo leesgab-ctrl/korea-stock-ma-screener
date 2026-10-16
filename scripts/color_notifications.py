@@ -100,7 +100,18 @@ def send(topic, candidate, payload, row, state, kind, current):
     dates = sorted(lows)[-3:]
     stop = min(lows[d] for d in dates) if len(dates) == 3 else None
     label = {"purple": "진한 보라색 조정 관찰", "convergenceBreakout": "MA40·60 밀집 후 MA3 상향돌파 매수 후보", "coreMorningMa3": "핵심종목 아침 MA3 상승", "recoveryMa10Breakout": "조정 후 MA10·MA40 상향돌파"}.get(kind, "전체 5개 MA 밀착")
-    if kind == "imageMa3Rise":
+    if kind == "imageMa120Recovery":
+        primary = state["stage"] == "primary"
+        stage = "1차 포착" if primary else "2차 유지 확인"
+        label = f"이미지조건 MA120 {stage}"
+        reason = "완성된 30분봉에서 MA3가 MA120을 상향 돌파했습니다." if primary else \
+            "돌파 직후 다음 완성봉도 MA3가 MA120 이상을 유지했습니다. MA3의 추가 상승 여부와는 별개입니다."
+        message = (f"[이미지조건 · {stage}] {candidate['name']}({candidate['code']})\n"
+                   f"- 유형: {state['ruleName']}\n- {reason}\n"
+                   f"- MA3 {row['m3']:,.2f} / MA120 {row['m120']:,.2f}\n"
+                   f"- 기준봉 종가 {price_text}\n- 봉 완성 시각 {state['completedAt']}\n"
+                   "조건 관찰 신호이며, 이후 상승이나 수익을 보장하지 않습니다.")
+    elif kind == "imageMa3Rise":
         stage = "1차 포착" if state["stage"] == "primary" else "2차 포착"
         label = f"이미지조건 {stage}"
         recovery = f"있음 (MA60을 {state['recoveryBars']}봉 만에 회복)" if state.get("fastRecovery") else "없음"

@@ -8,7 +8,7 @@ const {FakeGithub, record} = require('./test_study_images.cjs');
 const root = path.resolve(__dirname, '..');
 const output = path.join(root, 'outputs', 'image-pattern-ui');
 const rules = JSON.parse(fs.readFileSync(path.join(root, 'data/image-search-rules.json'), 'utf8')).rules;
-const records = rules.map((rule, i) => ({...record(rule.imageIds[0]), title: ['대성산업 참고', '대한제강 참고', '79397 밀집 참고'][i], stock: ['대성산업', '대한제강', ''][i],
+const records = rules.map((rule, i) => ({...record(rule.imageIds[0]), title: ['대성산업 참고', '대한제강 참고', '79397 밀집 참고', 'MA120 회복 참고'][i], stock: ['대성산업', '대한제강', '', ''][i],
   conditionConfirmed: true, conditionConfirmedAt: '2026-10-01T08:00:00+09:00'}));
 const github = new FakeGithub(records);
 const python = process.env.PYTHON_EXE || 'python';
@@ -22,8 +22,19 @@ const clusterRule = rules.find(rule => rule.type === 'rising_cluster_ma3');
 payload.imageSearch.matches.push({...payload.imageSearch.matches.find(event => event.code === '128820'),
   ruleId: clusterRule.id, ruleName: clusterRule.name, sourceImageIds: clusterRule.imageIds,
   signalType: 'ma3Rise', fastRecovery: false, stage: 'confirmation', stageLabel: '5선 밀집 · MA3 2봉 연속 상승 · 2차'});
-payload.candidates.find(item => item.code === '274400').displayCharts.quote = {
-  price: 2365, previousClose: 2210, time: '2026-10-16T15:22:57+09:00', source: 'naver_quote', dataStatus: 'ok',
+const ma120Rule = rules.find(rule => rule.type === 'ma3_ma120_recovery');
+payload.imageSearch.matches.push({...payload.imageSearch.matches.find(event => event.code === '128820'),
+  ruleId: ma120Rule.id, ruleName: ma120Rule.name, sourceImageIds: ma120Rule.imageIds,
+  signalType: 'ma3Ma120', stage: 'confirmation', stageLabel: '다음 봉 MA3 ≥ MA120 유지 · 2차 확인'});
+const innoCandidate = payload.candidates.find(item => item.code === '274400');
+const innoChartSets = [innoCandidate.displayCharts, payload.holdingCharts?.['274400']?.displayCharts].filter(Boolean);
+const priorQuoteTimes = [innoCandidate.lastPriceTime, innoCandidate.intraday?.quoteTime,
+  ...innoChartSets.flatMap(charts => [charts.quote?.time, charts.intraday?.fetchedAt, charts.intraday?.series?.at(-1)?.t])]
+  .map(value => Date.parse(value)).filter(Number.isFinite);
+const fixtureTime = new Date(Math.max(...priorQuoteTimes) + (9 * 60 + 31) * 60000).toISOString().slice(0, 19) + '+09:00';
+// Keep the quote fixture newer than refreshed market data used for chart rendering.
+for (const charts of innoChartSets) charts.quote = {
+  price: 2365, previousClose: 2210, time: fixtureTime, source: 'naver_quote', dataStatus: 'ok',
 };
 
 (async () => {
@@ -54,6 +65,7 @@ payload.candidates.find(item => item.code === '274400').displayCharts.quote = {
     page.on('pageerror', error => errors.push(error.message));
     await page.goto(`http://127.0.0.1:${server.address().port}/monitor.html`);
     await page.waitForFunction(() => document.querySelector('#imageSearchMatches h2')?.textContent === '이미지조건 포착이력');
+    await page.locator('#imageSearchMatches details[data-code="128820"]').waitFor();
     for (const code of ['128820', '084010']) assert.equal(await page.locator(`#imageSearchMatches details[data-code="${code}"]`).count(), 1);
     const comments = await page.locator('#imageSearchMatches .image-pattern-comment').allTextContents();
     assert.ok(comments.some(text => text.includes('대성산업형')));
@@ -61,6 +73,7 @@ payload.candidates.find(item => item.code === '274400').displayCharts.quote = {
     assert.ok(comments.some(text => text.includes('MA3 2봉 연속 상승 · 2차')));
     assert.ok(comments.some(text => text.includes('5선 밀집')));
     assert.ok(comments.some(text => text.includes('빠른 회복 참고: 없음')));
+    assert.ok(comments.some(text => text.includes('다음 봉 MA3 ≥ MA120 유지 · 2차 확인')));
     assert.equal(await page.locator('#imageSearchConditions').count(), 0);
     assert.equal(await page.locator('#imageSearchPanel > :not([hidden])').first().getAttribute('id'), 'imageSearchMatches');
     const inno = page.locator('#imageSearchMatches details[data-code="274400"]');

@@ -9,7 +9,7 @@ KST = dt.timezone(dt.timedelta(hours=9))
 RULES_PATH = Path(__file__).resolve().parents[1] / "data/image-search-rules.json"
 BOARD_URL = "https://raw.githubusercontent.com/leesgab-ctrl/korea-stock-ma-screener/codex/study-images/data/study-images.json"
 KEYS = ("m3", "m10", "m20", "m40", "m60")
-RULE_TYPES = ("decline_ma40_recovery", "decline_ma10_ma40", "rising_cluster_ma3")
+RULE_TYPES = ("decline_ma40_recovery", "decline_ma10_ma40", "rising_cluster_ma3", "ma3_ma120_recovery")
 
 
 def timestamp(value):
@@ -122,7 +122,49 @@ def detect_rising_cluster(rows, rule):
     return events
 
 
+def detect_ma120_recovery(rows, rule):
+    dip = episode = None
+    events = []
+    previous = None
+    for row in rows:
+        valid_row = all(isinstance(row.get(key), (int, float)) and not isinstance(row[key], bool)
+                        and math.isfinite(row[key]) and row[key] > 0 for key in ("m3", "m120", "c"))
+        if not valid_row:
+            dip = episode = previous = None
+            continue
+        missing_bar = previous and timestamp(row["t"]).date() == timestamp(previous["t"]).date() \
+            and timestamp(row["t"]) - timestamp(previous["t"]) != dt.timedelta(minutes=30)
+        if missing_bar:
+            dip = episode = previous = None
+        stage = None
+        if episode:
+            if row["m3"] >= row["m120"]:
+                stage = "confirmation"
+            confirmed_episode = episode
+            episode = None
+        else:
+            confirmed_episode = None
+        if row["m3"] < row["m120"] and dip is None:
+            dip = row["t"]
+        if previous and dip and previous["m3"] <= previous["m120"] and row["m3"] > row["m120"]:
+            episode = {"time": row["t"], "setupTime": dip}
+            dip = None
+            stage = "primary"
+        event_episode = episode if stage == "primary" else confirmed_episode
+        if stage:
+            events.append({"id": f"{rule['id']}|{event_episode['time']}|{stage}", "ruleId": rule["id"],
+                           "ruleVersion": rule["version"], "stage": stage, "signalType": "ma3Ma120",
+                           "stageLabel": "MA3·MA120 상향 돌파 · 1차" if stage == "primary" else "다음 봉 MA3 ≥ MA120 유지 · 2차 확인",
+                           "time": row["t"], "completedAt": (timestamp(row["t"]) + dt.timedelta(minutes=30)).isoformat(timespec="minutes"),
+                           "setupTime": event_episode["setupTime"], "episodeTime": event_episode["time"], "price": row["c"],
+                           "m3": row["m3"], "m120": row["m120"]})
+        previous = row
+    return events
+
+
 def detect(rows, rule):
+    if rule["type"] == "ma3_ma120_recovery":
+        return detect_ma120_recovery(rows, rule)
     if rule["type"] == "rising_cluster_ma3":
         return detect_rising_cluster(rows, rule)
     if rule["type"] not in RULE_TYPES:
@@ -174,7 +216,8 @@ def detect(rows, rule):
 
 def send_alert(topic, candidate, payload, row, event, current):
     from color_notifications import send
-    kind = "imageMa3Rise" if event.get("signalType") == "ma3Rise" else \
+    kind = "imageMa120Recovery" if event.get("signalType") == "ma3Ma120" else \
+        "imageMa3Rise" if event.get("signalType") == "ma3Rise" else \
         "imageMa3Breakout" if event["stage"] == "primary" else "imageMa10Breakout"
     send(topic, candidate, payload, row, event, kind, current)
 
@@ -248,8 +291,8 @@ def process(payload, current, topic="", no_notify=True, board=None, rules=None, 
                 start = timestamp(event["time"])
                 age = current - completion
                 delivery = f"{candidate['code']}|{registered}|{event['time']}|{event['stage']}"
-                if event.get("signalType") == "ma3Rise":
-                    delivery += "|ma3Rise"
+                if event.get("signalType") in ("ma3Rise", "ma3Ma120"):
+                    delivery += "|" + event["signalType"]
                 if start <= timestamp(saved["baseline"]) or completion < enabled_at or delivery in saved["sent"] \
                         or completion.date() != current.date() or not dt.time(9) <= start.time() <= dt.time(20) \
                         or not dt.timedelta(0) <= age <= dt.timedelta(minutes=90):
