@@ -1,0 +1,41 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const vm = require('node:vm');
+const source = fs.readFileSync(path.join(__dirname, '..', 'monitor.js'), 'utf8');
+const state = {payload: {candidates: []}};
+const context = vm.createContext({state});
+vm.runInContext(source.slice(source.indexOf('function displayQuote('), source.indexOf('function quoteText(')), context);
+const item = () => ({code: '274400', intraday: {quotePrice: 2365, quoteTime: '2026-10-16T14:50+09:00'},
+  displayCharts: {intraday: {fetchedAt: '2026-10-16T15:02:00+09:00',
+    series: [{t: '2026-10-16T14:30+09:00', c: 2370, complete: true}]},
+    daily: {series: [{d: '2026-10-15', c: 2390}]}}});
+let value = item();
+let quote = context.displayQuote(value);
+assert.equal(quote.price, 2370, 'The 15:00 candle close must beat an older 14:50 quote');
+assert.equal(quote.time, '2026-10-16T15:00:00+09:00');
+assert.equal(quote.source, 'native_bar');
+value.displayCharts.intraday.series[0].complete = false;
+value.displayCharts.intraday.fetchedAt = '2026-10-16T14:57:00+09:00';
+quote = context.displayQuote(value);
+assert.equal(quote.price, 2370, 'A partial candle uses the observed fetch time, not its start or future end');
+assert.equal(quote.time, '2026-10-16T14:57:00+09:00');
+value = item();
+value.intraday.quoteTime = '2026-10-16T15:01+09:00';
+value.intraday.quotePrice = 2360;
+assert.equal(context.displayQuote(value).price, 2360, 'Fetching an old completed candle must not make it newer');
+value = item();
+value.displayCharts.intraday.fetchedAt = '2026-10-16T14:20:00+09:00';
+assert.equal(context.displayQuote(value).price, 2365, 'A candle later than its fetch time is invalid');
+value = item();
+value.intraday.quoteTime = '2026-10-16T06:01:00Z';
+assert.equal(context.displayQuote(value).price, 2365, 'Compare actual instants, not timezone-dependent strings');
+value = item();
+value.displayCharts.intraday.fetchedAt = undefined;
+value.displayCharts.intraday.series[0].complete = undefined;
+assert.equal(context.displayQuote(value).price, 2365, 'Legacy candles without timing metadata retain conservative start times');
+value = item();
+value.intraday.quoteTime = '2026-10-16T15:00+09:00';
+assert.equal(context.displayQuote(value).source, 'minute_quote', 'An actual quote wins equal timestamps');
+assert.equal(context.displayQuote({}).time, null);
+console.log('Display quote tests passed: completed/partial candle times, real newer quotes, legacy data, invalid future rows, timezone ordering and ties.');

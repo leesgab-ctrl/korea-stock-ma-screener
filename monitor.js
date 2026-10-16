@@ -533,13 +533,20 @@ function displayQuote(item) {
   const intraday = candidate.intraday || {};
   const charts = state.payload?.holdingCharts?.[item.code]?.displayCharts || candidate.displayCharts || {};
   const last = charts.intraday?.series?.at(-1);
+  const start = Date.parse(last?.t);
+  const fetched = Date.parse(charts.intraday?.fetchedAt);
+  // Native candles are stamped at the start, not when their latest close was observed.
+  const nativeAvailable = Number.isFinite(start) && (!Number.isFinite(fetched) || fetched >= start);
+  const nativeAsOf = Number.isFinite(fetched) ? Math.min(fetched, start + 30 * 60000)
+    : last?.complete === true ? start + 30 * 60000 : start;
+  const nativeTime = nativeAvailable ? new Date(nativeAsOf + 9 * 3600000).toISOString().slice(0, 19) + "+09:00" : null;
   const samples = [
-    { price: intraday.quotePrice, time: intraday.quoteTime },
-    { price: item.lastPrice, time: item.lastPriceTime },
-    { price: last?.c, time: last?.t },
-    { price: intraday.lastPrice, time: intraday.lastBarTime },
+    { price: intraday.quotePrice, time: intraday.quoteTime, source: "minute_quote" },
+    { price: item.lastPrice, time: item.lastPriceTime, source: "stored_quote" },
+    { price: last?.c, time: nativeTime, source: "native_bar", complete: last?.complete },
+    { price: intraday.lastPrice, time: intraday.lastBarTime, source: "legacy_bar" },
   ].filter((quote) => Number.isFinite(quote.price) && quote.price > 0 && quote.time)
-    .sort((a, b) => String(b.time).localeCompare(String(a.time)));
+    .sort((a, b) => Date.parse(b.time) - Date.parse(a.time));
   const quote = samples[0] || { price: item.lastPrice || intraday.lastPrice, time: null };
   const date = quote.time?.slice(0, 10);
   const daily = charts.daily?.series?.length ? charts.daily.series : candidate.dailyChart?.series || [];
@@ -868,7 +875,9 @@ function renderCandidates(candidates) {
     }
     node.querySelector(".candidate-tier").textContent = [tierLabels[item.candidateTier || "core"], newRegistrationLabel(item)].filter(Boolean).join(" · ");
     node.querySelector(".candidate-days").textContent = `${screeningFamily(item)} ${item.dailySignalDate} · ${item.tradingDaysRemaining}일 남음`;
-    node.querySelector(".candidate-price").textContent = quoteTime ? `${quoteTime.slice(5, 10)} ${quoteTime.slice(11, 16)} ${intraday.quoteTime ? "수집가" : "30분봉 종가"}` : "분봉 대기";
+    const quoteLabel = quote.source === "native_bar" ? quote.complete === false ? "진행봉 가격" : "30분봉 종가"
+      : quote.source === "legacy_bar" ? "30분봉 종가" : "수집가";
+    node.querySelector(".candidate-price").textContent = quoteTime ? `${quoteTime.slice(5, 10)} ${quoteTime.slice(11, 16)} ${quoteLabel}` : "분봉 대기";
     const status = node.querySelector(".candidate-status");
     if (status.textContent.trim() === "관찰 중") status.hidden = true;
     const technicalStop = item.daily?.preSpikeClose;
@@ -1223,6 +1232,13 @@ function buildWatchQuotes(items, tradingDates, {title, showTrend = false, keyPre
     change.dataset.direction = quote.direction;
     change.textContent = quote.change == null ? "대기" : `${quote.change > 0 ? "+" : ""}${percentFormatter.format(quote.change)}%`;
     price.title = quote.time ? `${formatDateTime(quote.time)} 수집 기준` : "가격 대기";
+    if (signalNotices && quote.time) {
+      const stamp = document.createElement("small");
+      stamp.className = "watch-quote-timestamp";
+      stamp.textContent = quote.time.slice(11, 16);
+      price.append(stamp);
+      price.setAttribute("aria-label", `${Math.round(quote.price).toLocaleString("ko-KR")}원 · ${formatDateTime(quote.time)} 기준`);
+    }
     const returns = watchReturns(item, quote);
     const period = document.createElement("span");
     period.className = "watch-quote-group";

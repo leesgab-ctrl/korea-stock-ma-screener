@@ -60,10 +60,46 @@ payload.imageSearch.matches.push({...payload.imageSearch.matches.find(event => e
     assert.ok(comments.some(text => text.includes('빠른 회복 참고: 없음')));
     assert.match(await page.locator('#imageSearchConditions').innerText(), /1% 미만/);
     assert.match(await page.locator('#imageSearchConditions').innerText(), /0.5% 이내/);
+    const inno = page.locator('#imageSearchMatches details[data-code="274400"]');
+    await inno.locator('summary').click();
+    await page.waitForFunction(() => {
+      const frame = document.querySelector('#imageSearchMatches details[data-code="274400"] iframe');
+      return frame?.contentDocument?.querySelector('#dailyChart')?.width > 0
+        && frame.contentDocument.querySelector('#maChart')?.width > 0;
+    });
     for (const width of [1280, 390, 320]) {
       await page.setViewportSize({width, height: 1000});
+      await page.waitForFunction(() => {
+        const frame = document.querySelector('#imageSearchMatches details[data-code="274400"] iframe');
+        return ['maChart', 'dailyChart'].every(id => {
+          const canvas = frame.contentDocument.getElementById(id);
+          return Math.abs(canvas.width - canvas.clientWidth * frame.contentWindow.devicePixelRatio) <= 1;
+        });
+      });
       assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1));
       assert.ok(await page.locator('.image-pattern-comment').evaluateAll(nodes => nodes.every(node => node.scrollWidth <= node.clientWidth + 1 && node.clientWidth > node.parentElement.clientWidth * .8)), 'Signal comments must span the full row and wrap');
+      const chartWidths = await inno.locator('iframe').evaluate(frame => {
+        const doc = frame.contentDocument;
+        return {parent: frame.parentElement.clientWidth, frame: frame.getBoundingClientRect().width,
+          viewport: frame.contentWindow.innerWidth, document: doc.documentElement.scrollWidth,
+          canvases: ['maChart', 'dailyChart'].map(id => ({id, right: doc.getElementById(id).getBoundingClientRect().right,
+            width: doc.getElementById(id).getBoundingClientRect().width}))};
+      });
+      assert.ok(chartWidths.frame <= chartWidths.parent + 1 && chartWidths.document <= chartWidths.viewport + 1
+        && chartWidths.canvases.every(canvas => canvas.right <= chartWidths.viewport + 1), `Expanded charts must fit at ${width}: ${JSON.stringify(chartWidths)}`);
+      assert.ok(await inno.locator('iframe').evaluate(frame => ['maChart', 'dailyChart'].every(id => {
+        const canvas = frame.contentDocument.getElementById(id);
+        const pixels = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data;
+        let colored = 0;
+        for (let i = 0; i < pixels.length; i += 16) {
+          if (pixels[i + 3] && Math.max(pixels[i], pixels[i+1], pixels[i+2]) - Math.min(pixels[i], pixels[i+1], pixels[i+2]) > 30) colored++;
+        }
+        return colored > 30;
+      })), 'Both expanded charts must contain rendered candles and moving-average colors');
+      assert.ok(await inno.locator('iframe').evaluate(frame => [...frame.contentDocument.querySelectorAll('.phase-legend span')]
+        .every(el => el.getBoundingClientRect().right <= frame.contentWindow.innerWidth)), 'Every color legend label must stay visible');
+      assert.equal(await inno.locator('.watch-quote-timestamp').count(), 1, 'Latest price must show its own observation time');
+      await inno.screenshot({path: path.join(output, `expanded-274400-${width}.png`)});
       await page.screenshot({path: path.join(output, `matches-${width}.png`), fullPage: true});
     }
     await page.locator('#imageSearchMatches details[data-code="128820"] summary').click();
