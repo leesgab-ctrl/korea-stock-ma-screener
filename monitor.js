@@ -1,4 +1,6 @@
 const requestedCode = new URLSearchParams(window.location.search).get("stock");
+const requestedView = new URLSearchParams(window.location.search).get("view");
+const initialView = ["imageSearch", "ak", "ag", "capture", "operations", "positions", "core", "target", "reference", "new"].includes(requestedView) ? requestedView : null;
 const historyChartMode = new URLSearchParams(window.location.search).get("historyChart") === "1";
 const inlineChartMode = new URLSearchParams(window.location.search).get("inlineChart") === "1";
 const inlineChartItems = new Map();
@@ -15,18 +17,18 @@ let exclusionPollTimer;
 const VIEW_STORAGE_KEY = "koreaStockMonitor.currentView";
 let savedView = {};
 try { savedView = JSON.parse(sessionStorage.getItem(VIEW_STORAGE_KEY) || "{}"); } catch {}
-let restoreOperationPending = !requestedCode && !inlineChartMode && !historyChartMode;
+let restoreOperationPending = (Boolean(initialView) || !requestedCode) && !inlineChartMode && !historyChartMode;
 const state = {
   pendingExclusions: readPendingExclusions(),
   exclusionMessage: "",
   payload: null,
   lastLoadedAt: 0,
   positions: null,
-  view: requestedCode ? "reference" : "imageSearch",
+  view: initialView || (requestedCode ? "reference" : "imageSearch"),
   keyword: "",
   selectedCode: requestedCode && /^\d{6}$/.test(requestedCode) ? requestedCode : null,
   selectedPositionCode: null,
-  deepLinkPending: Boolean(requestedCode),
+  deepLinkPending: Boolean(requestedCode) && !initialView,
 };
 const GITHUB_TOKEN_KEY = "koreaStockMonitor.githubToken";
 const WORKFLOW_DISPATCH_URL = "https://api.github.com/repos/leesgab-ctrl/korea-stock-ma-screener/actions/workflows/manage-position.yml/dispatches";
@@ -121,38 +123,10 @@ function renderImageSearch() {
   const confirmed = window.RisingPatterns?.confirmed || [];
   const confirmedIds = new Set(confirmed.map(item => item.id));
   const search = state.payload?.imageSearch;
-  const rules = search?.rules || [];
-  const active = rules.filter(rule => rule.enabled && rule.imageIds.some(id => confirmedIds.has(id)));
-  document.querySelector("#imageSearchStatus").textContent = search?.status === "error"
-    ? "이미지 조건 목록 조회 실패 · 알림 대기"
-    : active.length ? `${active.length}개 독립 조건 · A-K·A-G ${search.candidateCount}종목 · ${formatDateTime(search.updatedAt)} 갱신`
-    : "검색조건 설정 대기";
-  if (search?.errors?.length && search.status !== "error") document.querySelector("#imageSearchStatus").textContent += ` · 알림 확인 필요 ${search.errors.length}건`;
-  const host = document.querySelector("#imageSearchConditions");
-  host.replaceChildren();
-  if (!confirmed.length) {
-    const empty = document.createElement("p");
-    empty.className = "empty-list";
-    empty.textContent = "확정된 포착조건이 없습니다.";
-    host.append(empty);
-  }
-  for (const item of confirmed) {
-    const row = document.createElement("div");
-    row.className = "image-search-condition";
-    const title = document.createElement("strong");
-    title.textContent = [item.stock, item.title].filter(Boolean).join(" · ");
-    const linked = rules.filter(rule => rule.imageIds.includes(item.id));
-    const status = document.createElement("span");
-    status.textContent = linked.some(rule => rule.active) ? "검색·알림 연결" : linked.some(rule => rule.enabled) ? "서버 적용 대기" : "검색조건 설정 대기";
-    row.append(title, status);
-    host.append(row);
-    for (const rule of linked) {
-      const description = document.createElement("p");
-      description.className = "image-search-rule";
-      description.textContent = `${rule.name} · ${rule.description}`;
-      host.append(description);
-    }
-  }
+  const status = document.querySelector("#imageSearchStatus");
+  status.textContent = search?.status === "error" ? "이미지 조건 목록 조회 실패 · 알림 대기"
+    : search?.errors?.length ? `알림 확인 필요 ${search.errors.length}건` : "";
+  status.hidden = !status.textContent;
   const matches = search?.status === "ok" ? (search.matches || []).filter(event => event.sourceImageIds.some(id => confirmedIds.has(id))) : [];
   const notices = new Map();
   for (const event of matches) {
@@ -325,6 +299,11 @@ function render() {
     if (requested) {
       state.view = screeningFamily(requested) === "A-K" ? "ak" : "ag";
     }
+  }
+  if (!inlineChartMode && !historyChartMode) {
+    const url = new URL(window.location.href);
+    url.searchParams.set("view", state.view);
+    if (url.href !== window.location.href) window.history.replaceState(null, "", url);
   }
   elements.activeCount.textContent = summary.active ?? activeCandidates.length;
   elements.setupCount.textContent = (summary.setup ?? 0) + (summary.waiting60 ?? 0);
@@ -532,6 +511,7 @@ function displayQuote(item) {
   const candidate = state.payload?.candidates?.find((entry) => entry.code === item.code) || item;
   const intraday = candidate.intraday || {};
   const charts = state.payload?.holdingCharts?.[item.code]?.displayCharts || candidate.displayCharts || {};
+  const official = charts.quote || {};
   const last = charts.intraday?.series?.at(-1);
   const start = Date.parse(last?.t);
   const fetched = Date.parse(charts.intraday?.fetchedAt);
@@ -541,6 +521,7 @@ function displayQuote(item) {
     : last?.complete === true ? start + 30 * 60000 : start;
   const nativeTime = nativeAvailable ? new Date(nativeAsOf + 9 * 3600000).toISOString().slice(0, 19) + "+09:00" : null;
   const samples = [
+    { price: official.price, time: official.time, source: "naver_quote" },
     { price: intraday.quotePrice, time: intraday.quoteTime, source: "minute_quote" },
     { price: item.lastPrice, time: item.lastPriceTime, source: "stored_quote" },
     { price: last?.c, time: nativeTime, source: "native_bar", complete: last?.complete },
@@ -551,7 +532,8 @@ function displayQuote(item) {
   const date = quote.time?.slice(0, 10);
   const daily = charts.daily?.series?.length ? charts.daily.series : candidate.dailyChart?.series || [];
   const previous = daily.filter((row) => date && row.d < date).at(-1)?.c;
-  const baseline = previous ?? (date === intraday.quoteTime?.slice(0, 10) ? intraday.quotePreviousClose : null);
+  const baseline = (date === official.time?.slice(0, 10) && official.previousClose > 0 ? official.previousClose : null)
+    ?? previous ?? (date === intraday.quoteTime?.slice(0, 10) ? intraday.quotePreviousClose : null);
   const change = baseline ? 100 * (quote.price / baseline - 1) : null;
   return { ...quote, change, direction: change == null ? "" : change > 0 ? "up" : change < 0 ? "down" : "flat" };
 }

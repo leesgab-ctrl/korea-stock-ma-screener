@@ -99,7 +99,7 @@ class DisplayChartTests(unittest.TestCase):
     def test_refresh_failure_preserves_analysis(self):
         payload = {"candidates": [{"code": "007810", "status": "signal", "intraday": {"riseCount": 5},
                     "displayCharts": {"intraday": {"series": [{"c": 100}]}}}]}
-        with mock.patch.object(monitor, "fetch_display_chart", side_effect=ValueError("bad source")):
+        with mock.patch.object(monitor, "fetch_display_chart", side_effect=ValueError("bad source")), mock.patch.object(monitor, "fetch_display_quote", side_effect=ValueError("bad quote")):
             monitor.refresh_display_charts(payload, self.now)
         self.assertEqual(payload["candidates"][0]["intraday"], {"riseCount": 5})
         self.assertEqual(payload["candidates"][0]["status"], "signal")
@@ -128,12 +128,12 @@ class DisplayChartTests(unittest.TestCase):
                                                 {"code": "007810", "name": "closed", "status": "closed"}]})
             path.write_text(content)
             payload = {"candidates": []}
-            with mock.patch.object(monitor, "fetch_display_chart", return_value={"series": [{"c": 100}], "dataStatus": "ok"}) as fetch:
+            with mock.patch.object(monitor, "fetch_display_chart", return_value={"series": [{"c": 100}], "dataStatus": "ok"}) as fetch, mock.patch.object(monitor, "fetch_display_quote", return_value={"price": 100}):
                 monitor.refresh_display_charts(payload, self.now, path)
             self.assertEqual(fetch.call_count, 2)
             self.assertEqual(list(payload["holdingCharts"]), ["199800"])
             self.assertEqual(path.read_text(), content)
-            with mock.patch.object(monitor, "fetch_display_chart") as fetch:
+            with mock.patch.object(monitor, "fetch_display_chart") as fetch, mock.patch.object(monitor, "fetch_display_quote", return_value={"price": 100}):
                 monitor.refresh_display_charts({"candidates": [{"code": "199800"}]}, self.now, path)
             self.assertEqual(fetch.call_count, 2)
 

@@ -37,5 +37,17 @@ assert.equal(context.displayQuote(value).price, 2365, 'Legacy candles without ti
 value = item();
 value.intraday.quoteTime = '2026-10-16T15:00+09:00';
 assert.equal(context.displayQuote(value).source, 'minute_quote', 'An actual quote wins equal timestamps');
+value = item();
+value.displayCharts.quote = {price: 2365, time: '2026-10-16T15:22:00+09:00', previousClose: 2210};
+quote = context.displayQuote(value);
+assert.equal(quote.source, 'naver_quote');
+assert.equal(quote.price, 2365);
+assert.ok(Math.abs(quote.change - 7.01357466) < 0.0001, 'Official previous close overrides inconsistent historical candle closes');
+value.intraday.quoteTime = '2026-10-16T15:23+09:00';
+value.intraday.quotePrice = 2370;
+assert.equal(context.displayQuote(value).price, 2370, 'Newer real quotes still win');
+assert.ok(context.displayQuote(value).change > 7, 'Same-session official baseline applies to newer samples');
+value.displayCharts.quote.time = '2026-10-15T15:30+09:00';
+assert.ok(context.displayQuote(value).change < 0, 'Yesterday official snapshot cannot override today baseline');
 assert.equal(context.displayQuote({}).time, null);
 console.log('Display quote tests passed: completed/partial candle times, real newer quotes, legacy data, invalid future rows, timezone ordering and ties.');

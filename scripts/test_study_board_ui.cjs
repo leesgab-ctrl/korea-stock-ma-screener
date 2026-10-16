@@ -55,10 +55,29 @@ const github = new FakeGithub([], {missingBranch: true});
       ['imageSearch', 'ak', 'ag', 'capture', 'operations']);
     assert.equal(await page.locator('#imageSearchPanel').isVisible(), true);
     assert.equal(await page.locator('#imageSearchRising [data-list="image-search-rising"]').count(), 1);
-    assert.match(await page.locator('#imageSearchStatus').innerText(), /검색조건 설정 대기/);
+    assert.equal(await page.locator('#imageSearchStatus').isVisible(), false);
+    assert.equal(await page.locator('#imageSearchPanel > :not([hidden])').first().getAttribute('id'), 'imageSearchMatches');
     const payload = JSON.parse(fs.readFileSync(path.join(root, 'data/candidate-monitor.json'), 'utf8'));
+    const akStock = payload.candidates.find(item => item.candidateTier === 'expanded_ak');
+    assert.ok(akStock, 'Reload regression requires an A-K deep link');
+    await page.goto(`${url}?stock=${akStock.code}`);
+    await page.waitForFunction(() => document.querySelector('[data-view="ak"]').getAttribute('aria-selected') === 'true');
+    await page.locator('[data-view="imageSearch"]').click();
+    assert.equal(new URL(page.url()).searchParams.get('view'), 'imageSearch');
+    assert.equal(new URL(page.url()).searchParams.get('stock'), akStock.code);
+    await page.locator('#refreshButton').click();
+    assert.equal(await page.locator('#imageSearchPanel').isVisible(), true, 'In-app refresh must keep Rising Search');
+    await page.reload();
+    await page.waitForFunction(() => document.querySelector('#activeCount').textContent !== '-');
+    assert.equal(await page.locator('#imageSearchPanel').isVisible(), true, 'Browser reload must keep Rising Search despite a stock URL');
+    assert.equal(await page.locator('[data-view="imageSearch"]').getAttribute('aria-selected'), 'true');
+    await page.goto(`${url}?stock=${akStock.code}&view=invalid`);
+    await page.waitForFunction(() => document.querySelector('[data-view="ak"]').getAttribute('aria-selected') === 'true');
     for (const family of ['ak', 'ag']) {
       await page.locator(`[data-view="${family}"]`).click();
+      await page.reload();
+      await page.waitForFunction(() => document.querySelector('#activeCount').textContent !== '-');
+      assert.equal(await page.locator(`[data-view="${family}"]`).getAttribute('aria-selected'), 'true', 'Family view must survive browser reload');
       const expected = payload.candidates.filter(item => family === 'ak' ? item.candidateTier === 'expanded_ak'
         : !item.candidateTier || item.candidateTier === 'core').sort((a, b) =>
         (b.registeredAt || b.dailySignalDate || '').localeCompare(a.registeredAt || a.dailySignalDate || '')
@@ -153,8 +172,7 @@ const github = new FakeGithub([], {missingBranch: true});
     await page.locator('.capture-item .capture-confirmation input').check();
     await page.waitForFunction(() => document.querySelector('#captureStatus').textContent.includes('포착조건으로 확정'));
     await page.locator('[data-view="imageSearch"]').click();
-    assert.equal(await page.locator('#imageSearchConditions .image-search-condition').count(), 1);
-    assert.match(await page.locator('#imageSearchConditions').innerText(), /검색조건 설정 대기/);
+    assert.equal(await page.locator('#imageSearchConditions').count(), 0, 'Search criteria must not precede capture history');
     assert.equal(await page.locator('#imageSearchRising h2').innerText(), '오늘상승종목');
     for (const width of [1280, 390, 320]) {
       await page.setViewportSize({width, height: 900});

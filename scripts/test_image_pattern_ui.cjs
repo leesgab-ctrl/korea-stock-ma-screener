@@ -22,6 +22,9 @@ const clusterRule = rules.find(rule => rule.type === 'rising_cluster_ma3');
 payload.imageSearch.matches.push({...payload.imageSearch.matches.find(event => event.code === '128820'),
   ruleId: clusterRule.id, ruleName: clusterRule.name, sourceImageIds: clusterRule.imageIds,
   signalType: 'ma3Rise', fastRecovery: false, stage: 'confirmation', stageLabel: '5선 밀집 · MA3 2봉 연속 상승 · 2차'});
+payload.candidates.find(item => item.code === '274400').displayCharts.quote = {
+  price: 2365, previousClose: 2210, time: '2026-10-16T15:22:57+09:00', source: 'naver_quote', dataStatus: 'ok',
+};
 
 (async () => {
   fs.mkdirSync(output, {recursive: true});
@@ -50,7 +53,7 @@ payload.imageSearch.matches.push({...payload.imageSearch.matches.find(event => e
     const errors = [];
     page.on('pageerror', error => errors.push(error.message));
     await page.goto(`http://127.0.0.1:${server.address().port}/monitor.html`);
-    await page.waitForFunction(() => document.querySelector('#imageSearchStatus').textContent.startsWith('3개 독립 조건'));
+    await page.waitForFunction(() => document.querySelector('#imageSearchMatches h2')?.textContent === '이미지조건 포착이력');
     for (const code of ['128820', '084010']) assert.equal(await page.locator(`#imageSearchMatches details[data-code="${code}"]`).count(), 1);
     const comments = await page.locator('#imageSearchMatches .image-pattern-comment').allTextContents();
     assert.ok(comments.some(text => text.includes('대성산업형')));
@@ -58,9 +61,12 @@ payload.imageSearch.matches.push({...payload.imageSearch.matches.find(event => e
     assert.ok(comments.some(text => text.includes('MA3 2봉 연속 상승 · 2차')));
     assert.ok(comments.some(text => text.includes('5선 밀집')));
     assert.ok(comments.some(text => text.includes('빠른 회복 참고: 없음')));
-    assert.match(await page.locator('#imageSearchConditions').innerText(), /1% 미만/);
-    assert.match(await page.locator('#imageSearchConditions').innerText(), /0.5% 이내/);
+    assert.equal(await page.locator('#imageSearchConditions').count(), 0);
+    assert.equal(await page.locator('#imageSearchPanel > :not([hidden])').first().getAttribute('id'), 'imageSearchMatches');
     const inno = page.locator('#imageSearchMatches details[data-code="274400"]');
+    assert.match(await inno.locator('summary .watch-quote-price').nth(0).innerText(), /2,365원/);
+    assert.equal(await inno.locator('summary .watch-quote-price').nth(1).innerText(), '+7.0%');
+    assert.equal(await inno.locator('summary .watch-quote-price').nth(1).getAttribute('data-direction'), 'up');
     await inno.locator('summary').click();
     await page.waitForFunction(() => {
       const frame = document.querySelector('#imageSearchMatches details[data-code="274400"] iframe');
@@ -109,14 +115,14 @@ payload.imageSearch.matches.push({...payload.imageSearch.matches.find(event => e
     await page.locator(`.capture-item[data-id="${rules[0].imageIds[0]}"] .capture-confirmation input`).uncheck();
     await page.waitForFunction(() => document.querySelector('#captureStatus').textContent.includes('확정을 해제'));
     await page.locator('[data-view="imageSearch"]').click();
-    assert.match(await page.locator('#imageSearchStatus').innerText(), /^2개 독립 조건/);
+    assert.equal(await page.locator('#imageSearchStatus').isVisible(), false);
     assert.ok((await page.locator('#imageSearchMatches .image-pattern-comment').allTextContents()).every(text => !text.includes('대성산업형')));
     await page.locator('[data-view="capture"]').click();
     assert.match(await page.locator(`.capture-item[data-id="${clusterRule.imageIds[0]}"]`).innerText(), /검색·알림 사용 중/);
     await page.locator(`.capture-item[data-id="${clusterRule.imageIds[0]}"] .capture-confirmation input`).uncheck();
     await page.waitForFunction(() => document.querySelector('#captureStatus').textContent.includes('확정을 해제'));
     await page.locator('[data-view="imageSearch"]').click();
-    assert.match(await page.locator('#imageSearchStatus').innerText(), /^1개 독립 조건/);
+    assert.equal(await page.locator('#imageSearchStatus').isVisible(), false);
     assert.ok((await page.locator('#imageSearchMatches .image-pattern-comment').allTextContents()).every(text => !text.includes('MA3 2봉 연속 상승')));
     assert.equal(await page.locator('#imageSearchRising h2').innerText(), '오늘상승종목');
     assert.deepEqual(errors, []);

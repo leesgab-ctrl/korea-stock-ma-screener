@@ -768,17 +768,39 @@ def fetch_display_chart(
     }
 
 
+def fetch_display_quote(code: str, current: dt.datetime) -> dict[str, Any]:
+    response = json.loads(fetch_bytes(f"https://polling.finance.naver.com/api/realtime/domestic/stock/{code}").decode("utf-8"))
+    item = next((row for row in response.get("datas", []) if row.get("itemCode") == code), None)
+    if not item:
+        raise ValueError("Unexpected quote symbol")
+    price = float(str(item.get("closePriceRaw", item.get("closePrice", ""))).replace(",", ""))
+    delta = abs(float(str(item.get("compareToPreviousClosePriceRaw", item.get("compareToPreviousClosePrice", ""))).replace(",", "")))
+    direction = item.get("compareToPreviousPrice", {}).get("code")
+    if direction not in ("1", "2", "3", "4", "5"):
+        raise ValueError("Unexpected quote direction")
+    previous = price - delta if direction in ("1", "2") else price + delta if direction in ("4", "5") else price
+    change = float(item.get("fluctuationsRatioRaw", item.get("fluctuationsRatio")))
+    stamp = dt.datetime.fromisoformat(item["localTradedAt"])
+    if not all(math.isfinite(value) for value in (price, previous, change)) or min(price, previous) <= 0 \
+            or abs(100 * (price / previous - 1) - change) > 0.02 \
+            or stamp.tzinfo is None or stamp > current + dt.timedelta(minutes=5):
+        raise ValueError("Invalid quote price or timestamp")
+    return {"source": "naver_quote", "dataStatus": "ok", "price": price, "previousClose": previous,
+            "change": change, "time": stamp.astimezone(KST).isoformat(timespec="seconds"),
+            "fetchedAt": current.isoformat(timespec="seconds")}
+
+
 def refresh_display_charts(payload: dict[str, Any], current: dt.datetime, positions_path: Path | None = None) -> None:
     errors = 0
     for candidate in payload.get("candidates", []):
         charts = candidate.setdefault("displayCharts", {})
-        for name, timeframe in (("intraday", "minute30"), ("daily", "day")):
+        for name, timeframe in (("intraday", "minute30"), ("daily", "day"), ("quote", None)):
             previous = charts.get(name, {})
             try:
-                charts[name] = fetch_display_chart(candidate["code"], timeframe, current, previous)
+                charts[name] = fetch_display_quote(candidate["code"], current) if name == "quote" else fetch_display_chart(candidate["code"], timeframe, current, previous)
             except (OSError, TimeoutError, ValueError, KeyError, TypeError) as exc:
                 errors += 1
-                charts[name] = {**previous, "dataStatus": "stale" if previous.get("series") else "error", "error": str(exc)}
+                charts[name] = {**previous, "dataStatus": "stale" if previous.get("series") or previous.get("price") else "error", "error": str(exc)}
     positions_path = positions_path or ROOT / "data/positions.json"
     positions = json.loads(positions_path.read_text(encoding="utf-8")).get("positions", []) if positions_path.exists() else []
     previous_holdings = payload.get("holdingCharts", {})
@@ -791,13 +813,13 @@ def refresh_display_charts(payload: dict[str, Any], current: dt.datetime, positi
         candidate = candidates_by_code.get(code)
         charts = candidate["displayCharts"] if candidate else previous_holdings.get(code, {}).get("displayCharts", {})
         if not candidate:
-            for name, timeframe in (("intraday", "minute30"), ("daily", "day")):
+            for name, timeframe in (("intraday", "minute30"), ("daily", "day"), ("quote", None)):
                 previous = charts.get(name, {})
                 try:
-                    charts[name] = fetch_display_chart(code, timeframe, current, previous)
+                    charts[name] = fetch_display_quote(code, current) if name == "quote" else fetch_display_chart(code, timeframe, current, previous)
                 except (OSError, TimeoutError, ValueError, KeyError, TypeError) as exc:
                     errors += 1
-                    charts[name] = {**previous, "dataStatus": "stale" if previous.get("series") else "error", "error": str(exc)}
+                    charts[name] = {**previous, "dataStatus": "stale" if previous.get("series") or previous.get("price") else "error", "error": str(exc)}
         holdings[code] = {"code": code, "name": position.get("name", code), "displayCharts": charts}
     payload["holdingCharts"] = holdings
     payload["displayChartSummary"] = {
