@@ -3,7 +3,7 @@ import datetime as dt
 import math
 
 
-def price_with_day_change(price, timestamp, quote):
+def day_change_percent(price, timestamp, quote):
     change = None
     try:
         kst = dt.timezone(dt.timedelta(hours=9))
@@ -17,5 +17,10 @@ def price_with_day_change(price, timestamp, quote):
             change = 100 * (price / previous - 1)
     except (ValueError, TypeError, AttributeError):
         pass
+    return change
+
+
+def price_with_day_change(price, timestamp, quote):
+    change = day_change_percent(price, timestamp, quote)
     label = f"전일 대비 {change:+.2f}%" if change is not None else "전일 대비 확인 불가"
     return f"{price:,.0f}원 · {label}"

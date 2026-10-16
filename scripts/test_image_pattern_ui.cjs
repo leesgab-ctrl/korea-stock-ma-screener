@@ -21,7 +21,7 @@ const image = process.env.STUDY_TEST_IMAGE ? fs.readFileSync(process.env.STUDY_T
 const clusterRule = rules.find(rule => rule.type === 'rising_cluster_ma3');
 payload.imageSearch.matches.push({...payload.imageSearch.matches.find(event => event.code === '128820'),
   ruleId: clusterRule.id, ruleName: clusterRule.name, sourceImageIds: clusterRule.imageIds,
-  signalType: 'ma3Rise', fastRecovery: false, stage: 'confirmation', stageLabel: '5선 밀집 · MA3 2봉 연속 상승 · 2차'});
+  signalType: 'ma3Rise', clusterLines: [3, 10, 20, 40, 60], changePct: 2.9, fastRecovery: false, stage: 'confirmation', stageLabel: '5선 밀집 · MA3 2봉 연속 상승 · 2차'});
 const ma120Rule = rules.find(rule => rule.type === 'ma3_ma120_recovery');
 payload.imageSearch.matches.push({...payload.imageSearch.matches.find(event => event.code === '128820'),
   ruleId: ma120Rule.id, ruleName: ma120Rule.name, sourceImageIds: ma120Rule.imageIds,
@@ -68,12 +68,13 @@ for (const charts of innoChartSets) charts.quote = {
     await page.locator('#imageSearchMatches details[data-code="128820"]').waitFor();
     for (const code of ['128820', '084010']) assert.equal(await page.locator(`#imageSearchMatches details[data-code="${code}"]`).count(), 1);
     const comments = await page.locator('#imageSearchMatches .image-pattern-comment').allTextContents();
-    assert.ok(comments.some(text => text.includes('대성산업형')));
-    assert.ok(comments.some(text => text.includes('대한제강형')));
-    assert.ok(comments.some(text => text.includes('MA3 2봉 연속 상승 · 2차')));
-    assert.ok(comments.some(text => text.includes('5선 밀집')));
-    assert.ok(comments.some(text => text.includes('빠른 회복 참고: 없음')));
-    assert.ok(comments.some(text => text.includes('다음 봉 MA3 ≥ MA120 유지 · 2차 확인')));
+    assert.ok(comments.some(text => text.includes('[하락중 MA10이 MA40 돌파]')));
+    assert.ok(comments.some(text => text.includes('[5선 밀집후 MA3 2봉 상승]')));
+    assert.ok(comments.some(text => text.includes('+2.9%')));
+    assert.ok(comments.some(text => text.includes('[MA3가 MA120 이상 유지]')));
+    assert.ok(comments.every(text => !/대성산업형|대한제강형|빠른 회복 참고|포착 종가/.test(text)));
+    assert.ok(await page.locator('.image-pattern-name').evaluateAll(nodes => nodes.every(node => getComputedStyle(node).color === 'rgb(49, 103, 173)')));
+    assert.ok(await page.locator('.image-pattern-time').evaluateAll(nodes => nodes.every(node => /\d{2}\.\d{2}\. \d{2}:\d{2}/.test(node.textContent))));
     assert.equal(await page.locator('#imageSearchConditions').count(), 0);
     assert.equal(await page.locator('#imageSearchPanel > :not([hidden])').first().getAttribute('id'), 'imageSearchMatches');
     const inno = page.locator('#imageSearchMatches details[data-code="274400"]');
@@ -129,14 +130,14 @@ for (const charts of innoChartSets) charts.quote = {
     await page.waitForFunction(() => document.querySelector('#captureStatus').textContent.includes('확정을 해제'));
     await page.locator('[data-view="imageSearch"]').click();
     assert.equal(await page.locator('#imageSearchStatus').isVisible(), false);
-    assert.ok((await page.locator('#imageSearchMatches .image-pattern-comment').allTextContents()).every(text => !text.includes('대성산업형')));
+    assert.ok((await page.locator('#imageSearchMatches .image-pattern-entry').evaluateAll(nodes => nodes.map(node => node.title))).every(text => !text.startsWith(rules[0].name)));
     await page.locator('[data-view="capture"]').click();
     assert.match(await page.locator(`.capture-item[data-id="${clusterRule.imageIds[0]}"]`).innerText(), /검색·알림 사용 중/);
     await page.locator(`.capture-item[data-id="${clusterRule.imageIds[0]}"] .capture-confirmation input`).uncheck();
     await page.waitForFunction(() => document.querySelector('#captureStatus').textContent.includes('확정을 해제'));
     await page.locator('[data-view="imageSearch"]').click();
     assert.equal(await page.locator('#imageSearchStatus').isVisible(), false);
-    assert.ok((await page.locator('#imageSearchMatches .image-pattern-comment').allTextContents()).every(text => !text.includes('MA3 2봉 연속 상승')));
+    assert.ok((await page.locator('#imageSearchMatches .image-pattern-comment').allTextContents()).every(text => !text.includes('5선 밀집후 MA3 2봉 상승')));
     assert.equal(await page.locator('#imageSearchRising h2').innerText(), '오늘상승종목');
     assert.deepEqual(errors, []);
     console.log('Image pattern UI passed: independent rules, actual examples, merged stock rows, signal times, chart expansion, shared switch and desktop/mobile layouts.');

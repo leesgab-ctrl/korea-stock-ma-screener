@@ -4,6 +4,7 @@ import json
 import math
 from pathlib import Path
 import urllib.request
+from notification_prices import day_change_percent
 
 KST = dt.timezone(dt.timedelta(hours=9))
 RULES_PATH = Path(__file__).resolve().parents[1] / "data/image-search-rules.json"
@@ -226,6 +227,7 @@ def process(payload, current, topic="", no_notify=True, board=None, rules=None, 
     current = current.astimezone(KST)
     rules = rules if rules is not None else json.loads(RULES_PATH.read_text(encoding="utf-8"))["rules"]
     before = json.dumps(payload.get("imageSearchNotificationState", {}), sort_keys=True)
+    previous_events = {(event.get("code"), event.get("id")): event for event in payload.get("imageSearch", {}).get("events", [])}
     tracking = payload.setdefault("imageSearchNotificationState", {})
     snapshot = {"version": 1, "updatedAt": current.isoformat(timespec="seconds"), "status": "ok", "scope": "active_ak_ag",
                 "rules": [], "matches": [], "events": [], "errors": [], "candidateCount": 0}
@@ -273,6 +275,14 @@ def process(payload, current, topic="", no_notify=True, board=None, rules=None, 
             for event in events:
                 event.update(code=candidate["code"], name=candidate.get("name", candidate["code"]),
                              ruleName=rule["name"], sourceImageIds=[item["id"] for item in images])
+                quote = candidate.get("displayCharts", {}).get("quote", {})
+                change = day_change_percent(event["price"], event["time"], quote)
+                if change is None:
+                    saved_event = previous_events.get((candidate["code"], event["id"]), {})
+                    quote = {"time": saved_event.get("time"), "previousClose": saved_event.get("previousClose")}
+                    change = day_change_percent(event["price"], event["time"], quote)
+                event["changePct"] = round(change, 6) if change is not None else None
+                event["previousClose"] = quote.get("previousClose") if change is not None else None
             snapshot["events"].extend(events)
             if events:
                 latest = {**events[-1], "dataStatus": chart.get("dataStatus", "unknown")}

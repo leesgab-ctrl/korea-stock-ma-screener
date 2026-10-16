@@ -199,6 +199,12 @@ main { max-width: 1480px; margin: 0 auto; padding: 18px; display: grid; gap: 14p
 .watch-quote-comment.is-dark { font-weight: 700; }
 .core-stock-comment { grid-column: 1 / -1; min-width: 0; margin: 0; white-space: normal; overflow-wrap: anywhere; overflow-x: visible; }
 .watch-quote-row .image-pattern-comment { grid-column: 1 / -1; min-width: 0; margin: 6px 0 0; white-space: pre-line; overflow-wrap: anywhere; overflow-x: visible; background: #e8f2ee; color: #176b58; }
+.image-pattern-entry { display: block; white-space: normal; }
+.image-pattern-entry + .image-pattern-entry { margin-top: 4px; }
+.image-pattern-name { color: var(--blue); font-weight: 600; }
+.image-pattern-time, .image-pattern-change { color: var(--muted); }
+.image-pattern-change[data-direction="up"] { color: var(--red); }
+.image-pattern-change[data-direction="down"] { color: var(--blue); }
 .core-stock-comment[data-direction="up"] { color: #c62828; }
 .core-stock-comment[data-direction="down"] { color: #175cc4; }
 .watch-quote-row > summary { cursor: pointer; display: grid; align-items: center; gap: 8px; padding: 12px 8px; }

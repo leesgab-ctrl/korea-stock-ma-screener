@@ -119,6 +119,26 @@ function compareRegistrationNewest(a, b) {
   return (b.registeredAt || b.dailySignalDate || "").localeCompare(a.registeredAt || a.dailySignalDate || "")
     || a.name.localeCompare(b.name, "ko");
 }
+function imagePatternLabel(event) {
+  if (event.signalType === "ma3Rise") return `${event.clusterLines?.length || 4}선 밀집후 MA3 ${event.stage === "primary" ? "1봉" : "2봉"} 상승`;
+  if (event.signalType === "ma3Ma120") return event.stage === "primary" ? "MA3가 MA120 재돌파" : "MA3가 MA120 이상 유지";
+  if (["daesung-decline-ma40-recovery", "daehan-recovery-pattern"].includes(event.ruleId)) {
+    return event.stage === "primary" ? "하락중 MA3가 MA40 돌파" : "하락중 MA10이 MA40 돌파";
+  }
+  return event.ruleName;
+}
+
+function imagePatternSummary(event) {
+  const date = new Date(event.completedAt);
+  const parts = Number.isFinite(date.getTime()) ? Object.fromEntries(new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Seoul", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23",
+  }).formatToParts(date).map(part => [part.type, part.value])) : null;
+  const change = Number.isFinite(event.changePct) ? event.changePct : null;
+  return { label: imagePatternLabel(event), time: parts ? `${parts.month}.${parts.day}. ${parts.hour}:${parts.minute}` : "시각 미확인",
+    change: change == null ? "등락률 미확인" : `${change > 0 ? "+" : ""}${change.toFixed(1)}%`,
+    direction: change == null ? "" : change > 0 ? "up" : change < 0 ? "down" : "flat" };
+}
+
 function renderImageSearch() {
   const confirmed = window.RisingPatterns?.confirmed || [];
   const confirmedIds = new Set(confirmed.map(item => item.id));
@@ -130,12 +150,12 @@ function renderImageSearch() {
   const matches = search?.status === "ok" ? (search.matches || []).filter(event => event.sourceImageIds.some(id => confirmedIds.has(id))) : [];
   const notices = new Map();
   for (const event of matches) {
-    const stage = event.stageLabel || (event.stage === "primary" ? "MA3 1차" : "MA10 확인");
-    const recovery = event.signalType === "ma3Rise" ? ` · 빠른 회복 참고: ${event.fastRecovery ? "있음" : "없음"}` : "";
-    const message = `${event.ruleName} · ${stage}${recovery} · ${formatDateTime(event.completedAt)} 완성 · 포착 종가 ${formatter.format(event.price)}원${event.dataStatus !== "ok" ? " · 최신 자료 확인 필요" : ""}`;
+    const entry = {...imagePatternSummary(event), event};
     const previous = notices.get(event.code);
+    const entries = previous?.entries || [];
+    if (!entries.some(item => item.label === entry.label && item.event.completedAt === event.completedAt && item.event.price === event.price)) entries.push(entry);
     notices.set(event.code, {completedAt: previous?.completedAt > event.completedAt ? previous.completedAt : event.completedAt,
-      message: previous ? `${previous.message}\n${message}` : message});
+      entries});
   }
   const candidates = state.payload?.candidates || [];
   document.querySelector("#imageSearchMatches").replaceChildren(buildWatchQuotes(
@@ -1258,7 +1278,24 @@ function buildWatchQuotes(items, tradingDates, {title, showTrend = false, keyPre
     if (signalNotices?.has(item.code)) {
       const comment = document.createElement("p");
       comment.className = "watch-quote-comment image-pattern-comment";
-      comment.textContent = signalNotices.get(item.code).message;
+      for (const entry of signalNotices.get(item.code).entries) {
+        const line = document.createElement("span");
+        line.className = "image-pattern-entry";
+        const name = document.createElement("strong");
+        name.className = "image-pattern-name";
+        name.textContent = `[${entry.label}]`;
+        const time = document.createElement("span");
+        time.className = "image-pattern-time";
+        time.textContent = ` ${entry.time} · `;
+        const change = document.createElement("span");
+        change.className = "image-pattern-change";
+        change.dataset.direction = entry.direction;
+        change.textContent = entry.change;
+        line.title = `${entry.event.ruleName} · 포착 종가 ${formatter.format(entry.event.price)}원 · 전일 대비 ${entry.change}${entry.event.dataStatus !== "ok" ? " · 최신 자료 확인 필요" : ""}`;
+        if (entry.event.dataStatus !== "ok") line.append(document.createTextNode("자료 확인 필요 · "));
+        line.append(name, time, change);
+        comment.append(line);
+      }
       summary.append(comment);
     }
     row.append(summary);
