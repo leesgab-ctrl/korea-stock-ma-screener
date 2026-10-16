@@ -98,7 +98,19 @@ def send(topic, candidate, payload, row, state, kind, current):
     dates = sorted(lows)[-3:]
     stop = min(lows[d] for d in dates) if len(dates) == 3 else None
     label = {"purple": "진한 보라색 조정 관찰", "convergenceBreakout": "MA40·60 밀집 후 MA3 상향돌파 매수 후보", "coreMorningMa3": "핵심종목 아침 MA3 상승", "recoveryMa10Breakout": "조정 후 MA10·MA40 상향돌파"}.get(kind, "전체 5개 MA 밀착")
-    if kind in ("imageMa3Breakout", "imageMa10Breakout"):
+    if kind == "imageMa3Rise":
+        stage = "1차 포착" if state["stage"] == "primary" else "2차 포착"
+        label = f"이미지조건 {stage}"
+        message = (f"[이미지조건 · {stage}] {candidate['name']}({candidate['code']})\n"
+                   f"- 유형: {state['ruleName']}\n"
+                   f"- 상승추세의 눌림·밀집 구간에서 MA3가 {state['riseCount']}봉 연속 상승했습니다.\n"
+                   f"- 기준 밀집: MA3·10·20·40 최대간격 {state['clusterSpreadPercent']:.2f}% (1% 미만)\n"
+                   f"- MA3가 MA60을 {state['recoveryBars']}봉 만에 회복한 뒤 재상승\n"
+                   f"- MA3 {row['m3']:,.2f} / MA10 {row['m10']:,.2f} / MA40 {row['m40']:,.2f} / MA60 {row['m60']:,.2f}\n"
+                   f"- 기준봉 종가 {row['c']:,.0f}원\n"
+                   f"- 봉 완성 시각 {state['completedAt']}\n"
+                   "조건 관찰 신호이며, 이후 상승이나 수익을 보장하지 않습니다.")
+    elif kind in ("imageMa3Breakout", "imageMa10Breakout"):
         stage = "1차 포착" if kind == "imageMa3Breakout" else "확인 포착"
         line = "MA3" if kind == "imageMa3Breakout" else "MA10"
         label = f"이미지조건 {stage}"

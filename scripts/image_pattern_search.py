@@ -9,6 +9,7 @@ KST = dt.timezone(dt.timedelta(hours=9))
 RULES_PATH = Path(__file__).resolve().parents[1] / "data/image-search-rules.json"
 BOARD_URL = "https://raw.githubusercontent.com/leesgab-ctrl/korea-stock-ma-screener/codex/study-images/data/study-images.json"
 KEYS = ("m3", "m10", "m20", "m40", "m60")
+RULE_TYPES = ("decline_ma40_recovery", "decline_ma10_ma40", "rising_cluster_ma3")
 
 
 def timestamp(value):
@@ -43,7 +44,74 @@ def valid(row):
                and math.isfinite(row[key]) and row[key] > 0 for key in (*KEYS, "c"))
 
 
+def detect_rising_cluster(rows, rule):
+    dip = recovery = cluster = episode = None
+    events = []
+    for i, row in enumerate(rows):
+        previous = rows[i - 1] if i else None
+        missing_bar = previous and timestamp(row["t"]).date() == timestamp(previous["t"]).date() \
+            and timestamp(row["t"]) - timestamp(previous["t"]) != dt.timedelta(minutes=30)
+        if not valid(row) or previous and (not valid(previous) or missing_bar):
+            dip = recovery = cluster = episode = None
+            continue
+        if not previous:
+            continue
+        if previous["m3"] >= previous["m60"] and row["m3"] < row["m60"]:
+            dip = i
+            recovery = cluster = episode = None
+        if dip is not None:
+            if i - dip > rule["recoveryMaxBars"]:
+                dip = None
+            elif previous["m3"] <= previous["m60"] and row["m3"] > row["m60"]:
+                recovery = {"index": i, "time": row["t"], "bars": i - dip}
+                dip = None
+        if recovery and (i - recovery["index"] > rule["recoveryLookback"] or row["m3"] <= row["m60"]):
+            recovery = cluster = episode = None
+        if not recovery:
+            continue
+        trend_window = rows[max(0, i - rule["trendComparisons"]):i + 1]
+        uptrend = row["m40"] > row["m60"] and len(trend_window) == rule["trendComparisons"] + 1 \
+            and all(valid(bar) for bar in trend_window) \
+            and all(b[key] > a[key] for a, b in zip(trend_window, trend_window[1:]) for key in ("m40", "m60"))
+        flat_window = rows[max(0, i - rule["flatBars"] + 1):i + 1]
+        flat_spread = None
+        if len(flat_window) == rule["flatBars"] and all(valid(bar) for bar in flat_window):
+            values = [bar["m20"] for bar in flat_window]
+            flat_spread = (max(values) - min(values)) / min(values) * 100
+        values = [row[key] for key in ("m3", "m10", "m20", "m40")]
+        spread = (max(values) - min(values)) / min(values) * 100
+        eligible = uptrend and flat_spread is not None and flat_spread <= rule["flatMaxPercent"]
+        if eligible and spread < rule["clusterMaxPercent"]:
+            cluster = {"index": i, "time": row["t"], "spread": spread}
+        stage = None
+        if episode:
+            # Consume the second-bar attempt even on failure; a new MA60 dip must rearm it.
+            if not episode["done"]:
+                episode["done"] = True
+                if i == episode["index"] + 1 and uptrend and row["m3"] > previous["m3"]:
+                    stage = "confirmation"
+        elif eligible and cluster and i - cluster["index"] <= 1 and i >= 2 \
+                and previous["m3"] <= rows[i - 2]["m3"] and row["m3"] > previous["m3"]:
+            episode = {"index": i, "time": row["t"], "cluster": cluster, "done": False}
+            stage = "primary"
+        if stage:
+            events.append({"id": f"{rule['id']}|{episode['time']}|{stage}", "ruleId": rule["id"],
+                           "ruleVersion": rule["version"], "stage": stage, "signalType": "ma3Rise",
+                           "stageLabel": "MA3 1봉 상승 · 1차" if stage == "primary" else "MA3 2봉 연속 상승 · 2차",
+                           "riseCount": 1 if stage == "primary" else 2, "time": row["t"],
+                           "completedAt": (timestamp(row["t"]) + dt.timedelta(minutes=30)).isoformat(timespec="minutes"),
+                           "setupTime": episode["cluster"]["time"], "episodeTime": episode["time"], "price": row["c"],
+                           "clusterSpreadPercent": episode["cluster"]["spread"], "currentSpreadPercent": spread,
+                           "flatSpreadPercent": flat_spread, "recoveryTime": recovery["time"],
+                           "recoveryBars": recovery["bars"], **{key: row[key] for key in KEYS}})
+    return events
+
+
 def detect(rows, rule):
+    if rule["type"] == "rising_cluster_ma3":
+        return detect_rising_cluster(rows, rule)
+    if rule["type"] not in RULE_TYPES:
+        return []
     comparisons, lookback = rule["declineComparisons"], rule["setupLookback"]
     setup = episode = None
     events = []
@@ -91,7 +159,8 @@ def detect(rows, rule):
 
 def send_alert(topic, candidate, payload, row, event, current):
     from color_notifications import send
-    kind = "imageMa3Breakout" if event["stage"] == "primary" else "imageMa10Breakout"
+    kind = "imageMa3Rise" if event.get("signalType") == "ma3Rise" else \
+        "imageMa3Breakout" if event["stage"] == "primary" else "imageMa10Breakout"
     send(topic, candidate, payload, row, event, kind, current)
 
 
@@ -120,7 +189,7 @@ def process(payload, current, topic="", no_notify=True, board=None, rules=None, 
     active_keys = set()
     for rule in rules:
         images = [records[key] for key in rule["imageIds"] if key in records]
-        active = rule.get("enabled") is True and bool(images) and rule.get("type") in ("decline_ma40_recovery", "decline_ma10_ma40")
+        active = rule.get("enabled") is True and bool(images) and rule.get("type") in RULE_TYPES
         summary = {key: rule[key] for key in ("id", "version", "name", "description", "imageIds")}
         summary.update(active=active, enabled=rule.get("enabled") is True, confirmedImageIds=[item["id"] for item in images])
         snapshot["rules"].append(summary)
@@ -164,6 +233,8 @@ def process(payload, current, topic="", no_notify=True, board=None, rules=None, 
                 start = timestamp(event["time"])
                 age = current - completion
                 delivery = f"{candidate['code']}|{registered}|{event['time']}|{event['stage']}"
+                if event.get("signalType") == "ma3Rise":
+                    delivery += "|ma3Rise"
                 if start <= timestamp(saved["baseline"]) or completion < enabled_at or delivery in saved["sent"] \
                         or completion.date() != current.date() or not dt.time(9) <= start.time() <= dt.time(20) \
                         or not dt.timedelta(0) <= age <= dt.timedelta(minutes=90):
