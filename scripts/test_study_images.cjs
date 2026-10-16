@@ -132,6 +132,20 @@ async function run() {
 
   const denied = new StudyImageStore({token: () => 'test-only-token', fetcher: async () => ({ok: false, status: 403})});
   await assert.rejects(() => denied.save({record: first}), /권한/);
+  const errorStore = (status, message, headers = {}) => new StudyImageStore({token: () => 'test-only-token',
+    fetcher: async () => ({ok: false, status, json: async () => ({message}), headers: new Headers(headers)})});
+  await assert.rejects(() => errorStore(403, 'Resource not accessible by personal access token').save({record: first}),
+    error => error.connectionRequired && /Contents 읽기·쓰기/.test(error.message) && /PC와 휴대폰/.test(error.message));
+  await assert.rejects(() => errorStore(403, 'API rate limit exceeded', {'x-ratelimit-remaining': '0', 'retry-after': '120'}).save({record: first}),
+    error => !error.connectionRequired && /2분 후/.test(error.message) && /권한을 바꿀 필요는 없습니다/.test(error.message));
+  await assert.rejects(() => errorStore(403, 'You have exceeded a secondary rate limit.').save({record: first}),
+    error => !error.connectionRequired && /사용 한도/.test(error.message));
+  await assert.rejects(() => errorStore(429, '').save({record: first}),
+    error => !error.connectionRequired && /사용 한도/.test(error.message));
+  await assert.rejects(() => errorStore(401, 'Bad credentials').save({record: first}),
+    error => error.connectionRequired && /만료/.test(error.message));
+  await assert.rejects(() => errorStore(403, '<script>secret-server-detail</script>').save({record: first}),
+    error => error.connectionRequired && !error.message.includes('secret-server-detail'));
   console.log('Study image board tests passed: public reads, isolated atomic saves, image reuse, concurrent edits, validation and trash/restore.');
 }
 module.exports = {FakeGithub, record};

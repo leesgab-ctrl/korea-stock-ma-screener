@@ -31,6 +31,10 @@ const github = new FakeGithub([], {missingBranch: true});
     const route = async context => {
       await context.route('https://api.github.com/repos/leesgab-ctrl/korea-stock-ma-screener/**', async route => {
         const request = route.request();
+        if (request.method() !== 'GET' && request.headers().authorization !== 'Bearer test-only-token') {
+          return route.fulfill({status: 403, contentType: 'application/json',
+            body: JSON.stringify({message: 'Resource not accessible by personal access token'})});
+        }
         const result = await github.fetch(request.url(), {method: request.method(), body: request.postData(),
           headers: Object.fromEntries(Object.entries(request.headers()).map(([key, value]) => [key === 'accept' ? 'Accept' : key, value]))});
         await route.fulfill({status: result.status, contentType: 'application/json', body: JSON.stringify(await result.json())});
@@ -128,10 +132,17 @@ const github = new FakeGithub([], {missingBranch: true});
     await page.locator('#captureSave').click();
     await page.waitForFunction(() => document.querySelector('#captureStatus').textContent.includes('GitHub 연결이 필요'));
     assert.equal(await page.locator('#captureTitle').inputValue(), '상승 전 공부 이미지', 'Failed saves must preserve the draft');
-    await page.locator('#captureToken').fill('test-only-token');
+    await page.locator('#captureToken').fill('test-old-token');
     await page.locator('#captureConnect').click();
     await page.locator('#captureSave').click();
+    await page.waitForFunction(() => document.querySelector('#captureStatus').textContent.includes('토큰에 이미지 저장 권한이 없습니다'));
+    assert.equal(await page.locator('#captureTitle').inputValue(), '상승 전 공부 이미지');
+    assert.equal(await page.locator('#captureDraftImage').isVisible(), true, 'Permission errors preserve the selected image');
+    await page.locator('#captureToken').fill('test-only-token');
+    // Register must use the token currently in the input, not the older saved token.
+    await page.locator('#captureSave').click();
     await page.waitForFunction(() => document.querySelector('#captureCount').textContent === '1');
+    assert.equal(await page.evaluate(() => localStorage.getItem('koreaStockMonitor.githubToken') === 'test-only-token'), true);
     assert.equal(await page.locator('.capture-item .capture-confirmation input').isChecked(), false);
     await page.locator('.capture-item .capture-confirmation input').check();
     await page.waitForFunction(() => document.querySelector('#captureStatus').textContent.includes('포착조건으로 확정'));

@@ -8,7 +8,33 @@
   const TYPES = {"image/png": "png", "image/jpeg": "jpg", "image/webp": "webp"};
 
   class StoreError extends Error {
-    constructor(message, status = 0) { super(message); this.status = status; }
+    constructor(message, status = 0, connectionRequired = [401, 403].includes(status)) {
+      super(message); this.status = status; this.connectionRequired = connectionRequired;
+    }
+  }
+
+  async function requestError(response) {
+    let detail = "";
+    try { detail = (await response.json())?.message || ""; } catch { /* Some failures have no JSON body. */ }
+    const header = name => response.headers?.get(name);
+    const limited = response.status === 429 || response.status === 403
+      && (header("x-ratelimit-remaining") === "0" || header("retry-after")
+        || /rate limit|abuse detection/i.test(detail));
+    if (limited) {
+      const retry = Number(header("retry-after"));
+      const reset = Number(header("x-ratelimit-reset"));
+      const seconds = retry > 0 ? retry : reset > 0 ? Math.max(0, reset - Date.now() / 1000) : 0;
+      const wait = seconds > 0 ? `${Math.max(1, Math.ceil(seconds / 60))}분 후` : "잠시 후";
+      return new StoreError(`GitHub API 사용 한도에 도달했습니다. ${wait} 다시 등록해 주세요. 토큰 권한을 바꿀 필요는 없습니다. 입력한 내용은 유지됩니다.`, response.status, false);
+    }
+    const message = response.status === 401
+      ? "이 브라우저의 GitHub 토큰이 만료되었거나 올바르지 않습니다. 유효한 토큰을 입력해 주세요. 입력한 내용은 유지됩니다."
+      : response.status === 403 && /resource not accessible|insufficient permission/i.test(detail)
+        ? "이 브라우저의 토큰에 이미지 저장 권한이 없습니다. korea-stock-ma-screener 저장소의 Contents 읽기·쓰기가 필요합니다. PC와 휴대폰의 연결 토큰은 따로 저장됩니다. 입력한 내용은 유지됩니다."
+        : response.status === 403
+          ? "GitHub가 요청을 거절했습니다 (403). 이 브라우저의 토큰 권한 또는 GitHub 접근 제한을 확인해 주세요. 입력한 내용은 유지됩니다."
+          : `게시판 요청에 실패했습니다 (${response.status}). 입력한 내용은 유지됩니다.`;
+    return new StoreError(message, response.status);
   }
 
   function validateIndex(value) {
@@ -64,11 +90,7 @@
       } catch { throw new StoreError("GitHub 연결이 끊겼습니다. 입력 내용은 유지되니 연결 후 다시 확인해 주세요."); }
       if (response.status === 404 && allowMissing) return null;
       if (!response.ok) {
-        const message = response.status === 401 ? "GitHub 연결 토큰을 다시 확인해 주세요."
-          : response.status === 403 ? "GitHub 저장 권한 또는 API 사용 한도를 확인해 주세요. Contents 읽기·쓰기가 필요합니다."
-          : response.status === 429 ? "GitHub 조회 한도에 도달했습니다. 잠시 후 다시 시도해 주세요."
-          : `게시판 요청에 실패했습니다 (${response.status}). 입력한 내용은 유지됩니다.`;
-        throw new StoreError(message, response.status);
+        throw await requestError(response);
       }
       return response.status === 204 ? null : response.json();
     }
@@ -132,7 +154,7 @@
     trash: false, draft: null, editing: null, creatingId: null, previewUrl: null, lastLoadedAt: 0, generation: 0, imageGeneration: 0, ruleLinks: []};
   let ui;
   const token = () => { try { return root.localStorage.getItem(TOKEN_KEY) || ""; } catch { return ""; } };
-  const store = new StudyImageStore({token});
+  const store = new StudyImageStore({token: () => ui ? ui.token.value : token()});
   root.RisingPatterns = {get count() { return board.records.filter(item => !item.deletedAt).length; },
     get confirmed() { return board.records.filter(item => !item.deletedAt && item.conditionConfirmed === true).map(item => ({id: item.id, title: item.title, stock: item.stock})); },
     setRuleLinks(rules) {
@@ -145,6 +167,13 @@
   function status(message, error = false) {
     ui.status.textContent = message;
     ui.status.classList.toggle("is-error", error);
+  }
+  function rememberConnection() {
+    try { root.localStorage.setItem(TOKEN_KEY, ui.token.value.trim()); return true; }
+    catch { return false; }
+  }
+  function savedStatus(message) {
+    status(message + (rememberConnection() ? "" : " 연결 정보를 이 브라우저에 저장하지 못했습니다."));
   }
   function updateBusy(value) {
     board.busy = value;
@@ -280,10 +309,10 @@
       const result = await store.save({record, expectedRevision: item.revision || item.updatedAt});
       setRecords(result);
       if (board.editing?.id === item.id) resetForm();
-      status(restore ? "이미지를 복원했습니다." : "휴지통으로 이동했습니다.");
+      savedStatus(restore ? "이미지를 복원했습니다." : "휴지통으로 이동했습니다.");
     } catch (error) {
       status(error.message || "변경 내용을 저장하지 못했습니다.", true);
-      if (error.status === 401 || error.status === 403) ui.connection.open = true;
+      if (error.connectionRequired) ui.connection.open = true;
     } finally { updateBusy(false); }
   }
   async function confirmCondition(item, confirmed) {
@@ -295,10 +324,10 @@
         updatedAt: new Date().toISOString(), revision: crypto.randomUUID()};
       const result = await store.save({record, expectedRevision: item.revision || item.updatedAt});
       setRecords(result);
-      status(confirmed ? "포착조건으로 확정했습니다. 연결된 검색조건은 다음 서버 갱신부터 적용됩니다." : "포착조건 확정을 해제했습니다.");
+      savedStatus(confirmed ? "포착조건으로 확정했습니다. 연결된 검색조건은 다음 서버 갱신부터 적용됩니다." : "포착조건 확정을 해제했습니다.");
     } catch (error) {
       status(error.message || "확정 상태를 저장하지 못했습니다.", true);
-      if (error.status === 401 || error.status === 403) ui.connection.open = true;
+      if (error.connectionRequired) ui.connection.open = true;
       renderGallery();
     } finally { updateBusy(false); }
   }
@@ -387,10 +416,10 @@
       const result = await store.save({record, expectedRevision: board.editing ? board.editing.revision || board.editing.updatedAt : null}, image);
       setRecords(result);
       resetForm();
-      status("저장했습니다. PC와 휴대폰에서 같은 게시판을 볼 수 있습니다.");
+      savedStatus("저장했습니다. PC와 휴대폰에서 같은 게시판을 볼 수 있습니다.");
     } catch (error) {
       status(error.message || "이미지를 저장하지 못했습니다. 입력한 내용은 유지됩니다.", true);
-      if (error.status === 401 || error.status === 403) ui.connection.open = true;
+      if (error.connectionRequired) ui.connection.open = true;
     } finally { updateBusy(false); }
   }
   function initialize() {
@@ -434,8 +463,9 @@
     ui.preview.addEventListener("click", event => { if (event.target === ui.preview) ui.preview.close(); });
     ui.token.value = token();
     get("Connect").addEventListener("click", () => {
-      try { localStorage.setItem(TOKEN_KEY, ui.token.value.trim()); status("연결 정보를 이 브라우저에 저장했습니다."); }
-      catch { status("연결 정보를 저장하지 못했습니다. 브라우저 저장 설정을 확인해 주세요.", true); }
+      const saved = rememberConnection();
+      status(saved ? "연결 정보를 이 브라우저에 저장했습니다. 실제 저장 권한은 이미지 등록 시 확인됩니다."
+        : "연결 정보를 저장하지 못했습니다. 브라우저 저장 설정을 확인해 주세요.", !saved);
     });
     root.addEventListener("beforeunload", event => {
       if (board.draft || board.busy) { event.preventDefault(); event.returnValue = ""; }
