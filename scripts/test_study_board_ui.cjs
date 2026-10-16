@@ -36,6 +36,7 @@ const github = new FakeGithub([], {missingBranch: true});
         await route.fulfill({status: result.status, contentType: 'application/json', body: JSON.stringify(await result.json())});
       });
       await context.route('https://raw.githubusercontent.com/**', route => route.fulfill({contentType: 'image/png', body: image}));
+      await context.route('https://stock.naver.com/domestic/stock/*/discussion', route => route.fulfill({contentType: 'text/html', body: '<title>Stock discussion</title>'}));
     };
     const context = await browser.newContext({viewport: {width: 1280, height: 900}});
     await route(context);
@@ -59,12 +60,36 @@ const github = new FakeGithub([], {missingBranch: true});
         (b.registeredAt || b.dailySignalDate || '').localeCompare(a.registeredAt || a.dailySignalDate || '')
         || a.name.localeCompare(b.name, 'ko'));
       assert.deepEqual(await page.locator('#candidateList > .candidate').evaluateAll(nodes => nodes.map(node => node.dataset.code)), expected.map(item => item.code));
+      const links = await page.locator('#candidateList > .candidate').evaluateAll(nodes => nodes.map(node => {
+        const link = node.querySelector('.candidate-board-link');
+        return {code: node.dataset.code, href: link.href, target: link.target, rel: link.rel, label: link.getAttribute('aria-label')};
+      }));
+      assert.ok(links.every(link => link.href === `https://stock.naver.com/domestic/stock/${link.code}/discussion`
+        && link.target === '_blank' && link.rel.includes('noopener') && link.rel.includes('noreferrer') && link.label.includes('새 탭')));
       assert.match(await page.locator('#candidateMeta').innerText(), /최근 등록순.*10거래일/);
       assert.equal(await page.locator('#viewTitle').innerText(), family === 'ak' ? '대상종목AK' : '대상종목AG');
       for (const width of [1280, 390, 320]) {
         await page.setViewportSize({width, height: 900});
         assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1));
+        assert.ok(await page.locator('#candidateList > .candidate').evaluateAll(nodes => nodes.every(node => {
+          const link = node.querySelector('.candidate-board-link').getBoundingClientRect();
+          const register = node.querySelector('.candidate-register').getBoundingClientRect();
+          const exclude = node.querySelector('.candidate-exclude').getBoundingClientRect();
+          const heading = node.querySelector('.candidate-select').getBoundingClientRect();
+          const bounds = node.getBoundingClientRect();
+          return link.top >= Math.max(register.bottom, exclude.bottom, heading.bottom) - 1
+            && link.left >= bounds.left && link.right <= bounds.right + 1;
+        })), `Board links must stay below controls and inside cards at ${width}`);
         await page.screenshot({path: path.join(output, `family-${family}-${width}.png`)});
+      }
+      if (links.length) {
+        const popupReady = page.waitForEvent('popup');
+        await page.locator('#candidateList .candidate-board-link').first().click();
+        const popup = await popupReady;
+        await popup.waitForLoadState('domcontentloaded');
+        assert.equal(popup.url(), links[0].href);
+        assert.equal(await page.locator('#positionDialog').isVisible(), false);
+        await popup.close();
       }
     }
     await page.setViewportSize({width: 1280, height: 900});

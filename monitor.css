@@ -458,6 +458,9 @@ dialog.inline-operation-dialog { position: static; width: 100%; max-width: none;
 .candidate > .candidate-exclude { position: absolute; top: 8px; right: 8px; width: 34px; height: 34px; padding: 0; border: 1px solid #c9d3cf; border-radius: 5px; background: white; color: #9b3030; font-size: 24px; line-height: 1; cursor: pointer; }
 .candidate > .candidate-exclude:hover { background: #fce8e8; }
 .candidate > .candidate-exclude:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
+.candidate-board-link { justify-self: end; max-width: calc(100% - 24px); margin: 0 12px 8px; padding: 3px 0; color: var(--green); font-size: 12px; line-height: 18px; text-decoration: underline; text-underline-offset: 3px; overflow-wrap: anywhere; }
+.candidate-board-link:hover { color: #104c3f; }
+.candidate-board-link:focus-visible { outline: 2px solid var(--green); outline-offset: 3px; }
 
 .detail-heading { min-height: 70px; }
 .external-link { min-height: 34px; padding: 7px 10px; font-size: 12px; }

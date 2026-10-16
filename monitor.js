@@ -821,6 +821,9 @@ function renderCandidates(candidates) {
     node.dataset.code = item.code;
     node.classList.toggle("selected", item.code === state.selectedCode);
     node.querySelector(".candidate-name").textContent = item.name;
+    const boardLink = node.querySelector(".candidate-board-link");
+    boardLink.href = `https://stock.naver.com/domestic/stock/${encodeURIComponent(item.code)}/discussion`;
+    boardLink.setAttribute("aria-label", `${item.name} 네이버증권 종목게시판 가기 (새 탭)`);
     const quote = displayQuote(item);
     const quotePrice = quote.price;
     const quoteTime = quote.time;
