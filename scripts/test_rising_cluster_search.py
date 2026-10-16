@@ -65,6 +65,40 @@ class RisingClusterTests(unittest.TestCase):
             row["m60"] = 98 + i * .01
         self.rows[1]["m3"] = 97.5
         self.assertEqual(len(self.detect()), 2)
+        self.assertEqual(self.detect()[0]["clusterLines"], [3, 10, 20, 40])
+
+    def test_five_line_cluster_allows_flat_ma60_without_a_new_cross(self):
+        for row in self.rows:
+            row["m60"] = 99.8
+        self.rows[1]["m3"] = 100.4
+        self.rows[3]["m3"] = self.rows[4]["m3"] = 100.3
+        self.rows[5]["m3"], self.rows[6]["m3"] = 100.4, 100.5
+        events = self.detect()
+        self.assertEqual([event["riseCount"] for event in events], [1, 2])
+        self.assertTrue(all(event["clusterLines"] == [3, 10, 20, 40, 60] for event in events))
+        self.assertTrue(all("5선 밀집" in event["stageLabel"] for event in events))
+        self.assertFalse(events[0]["fastRecovery"])
+
+    def test_five_line_cluster_does_not_allow_declining_ma60(self):
+        for i, row in enumerate(self.rows):
+            row["m60"] = 99.9 - i * .01
+        self.assertEqual(self.detect(), [])
+
+    def test_flat_ma60_requires_all_five_lines_not_only_four_to_cluster(self):
+        for row in self.rows:
+            row["m60"] = 98
+        self.assertEqual(self.detect(), [])
+
+    def test_five_line_strict_boundary_and_mixed_flat_rising_ma60(self):
+        for row in self.rows:
+            row["m60"] = 99.8
+        values = [self.rows[5][key] for key in search.KEYS]
+        self.rule["clusterMaxPercent"] = (max(values) - min(values)) / min(values) * 100
+        self.assertEqual(self.detect(), [])
+        self.rule["clusterMaxPercent"] = 1
+        for i, row in enumerate(self.rows):
+            row["m60"] = 99.8 + (i // 2) * .01
+        self.assertEqual(len(self.detect()), 2)
 
     def test_flat_uses_full_range_not_just_net_change(self):
         self.rows[2]["m20"] = 102

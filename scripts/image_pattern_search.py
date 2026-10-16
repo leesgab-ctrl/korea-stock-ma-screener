@@ -68,12 +68,14 @@ def detect_rising_cluster(rows, rule):
         if recovery and i - recovery["index"] > rule["recoveryLookback"]:
             recovery = None
         trend_window = rows[max(0, i - rule["trendComparisons"]):i + 1]
-        uptrend = row["m40"] > row["m60"] and len(trend_window) == rule["trendComparisons"] + 1 \
+        rising40 = row["m40"] > row["m60"] and len(trend_window) == rule["trendComparisons"] + 1 \
             and all(valid(bar) for bar in trend_window) \
             and all(timestamp(a["t"]).date() != timestamp(b["t"]).date()
                     or timestamp(b["t"]) - timestamp(a["t"]) == dt.timedelta(minutes=30)
                     for a, b in zip(trend_window, trend_window[1:])) \
-            and all(b[key] > a[key] for a, b in zip(trend_window, trend_window[1:]) for key in ("m40", "m60"))
+            and all(b["m40"] > a["m40"] for a, b in zip(trend_window, trend_window[1:]))
+        rising60 = rising40 and all(b["m60"] > a["m60"] for a, b in zip(trend_window, trend_window[1:]))
+        nonfalling60 = rising40 and all(b["m60"] >= a["m60"] for a, b in zip(trend_window, trend_window[1:]))
         flat_window = rows[max(0, i - rule["flatBars"] + 1):i + 1]
         flat_spread = None
         if len(flat_window) == rule["flatBars"] and all(valid(bar) for bar in flat_window):
@@ -81,9 +83,15 @@ def detect_rising_cluster(rows, rule):
             flat_spread = (max(values) - min(values)) / min(values) * 100
         values = [row[key] for key in ("m3", "m10", "m20", "m40")]
         spread = (max(values) - min(values)) / min(values) * 100
-        eligible = uptrend and flat_spread is not None and flat_spread <= rule["flatMaxPercent"]
-        if eligible and spread < rule["clusterMaxPercent"]:
-            cluster = {"index": i, "time": row["t"], "spread": spread}
+        values.append(row["m60"])
+        five_spread = (max(values) - min(values)) / min(values) * 100
+        flat = flat_spread is not None and flat_spread <= rule["flatMaxPercent"]
+        if flat and nonfalling60 and five_spread < rule["clusterMaxPercent"]:
+            cluster = {"index": i, "time": row["t"], "spread": five_spread, "lines": [3, 10, 20, 40, 60]}
+        elif flat and rising60 and spread < rule["clusterMaxPercent"]:
+            cluster = {"index": i, "time": row["t"], "spread": spread, "lines": [3, 10, 20, 40]}
+        reference = episode["cluster"] if episode else cluster
+        uptrend = nonfalling60 if reference and len(reference["lines"]) == 5 else rising60
         stage = None
         if episode and (row["m3"] <= previous["m3"] or not uptrend):
             episode = None
@@ -92,18 +100,21 @@ def detect_rising_cluster(rows, rule):
                 episode["done"] = True
                 if i == episode["index"] + 1 and uptrend and row["m3"] > previous["m3"]:
                     stage = "confirmation"
-        elif eligible and cluster and i - cluster["index"] <= 1 and i >= 2 \
+        elif flat and uptrend and cluster and i - cluster["index"] <= 1 and i >= 2 \
                 and previous["m3"] <= rows[i - 2]["m3"] and row["m3"] > previous["m3"]:
             episode = {"index": i, "time": row["t"], "cluster": cluster, "done": False}
             stage = "primary"
         if stage:
             events.append({"id": f"{rule['id']}|{episode['time']}|{stage}", "ruleId": rule["id"],
                            "ruleVersion": rule["version"], "stage": stage, "signalType": "ma3Rise",
-                           "stageLabel": "MA3 1봉 상승 · 1차" if stage == "primary" else "MA3 2봉 연속 상승 · 2차",
+                           "stageLabel": f"{len(episode['cluster']['lines'])}선 밀집 · "
+                           + ("MA3 1봉 상승 · 1차" if stage == "primary" else "MA3 2봉 연속 상승 · 2차"),
                            "riseCount": 1 if stage == "primary" else 2, "time": row["t"],
                            "completedAt": (timestamp(row["t"]) + dt.timedelta(minutes=30)).isoformat(timespec="minutes"),
                            "setupTime": episode["cluster"]["time"], "episodeTime": episode["time"], "price": row["c"],
-                           "clusterSpreadPercent": episode["cluster"]["spread"], "currentSpreadPercent": spread,
+                           "clusterLines": episode["cluster"]["lines"],
+                           "clusterSpreadPercent": episode["cluster"]["spread"],
+                           "currentSpreadPercent": five_spread if len(episode["cluster"]["lines"]) == 5 else spread,
                            "flatSpreadPercent": flat_spread, "fastRecovery": bool(recovery),
                            "recoveryTime": recovery["time"] if recovery else None,
                            "recoveryBars": recovery["bars"] if recovery else None, **{key: row[key] for key in KEYS}})
