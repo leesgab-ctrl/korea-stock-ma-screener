@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#176b58">
     <title>A-G 30분봉 신호 감시</title>
-    <link rel="stylesheet" href="monitor.css?v=20261016-2">
+    <link rel="stylesheet" href="monitor.css?v=20261016-7">
   </head>
   <body>
     <header class="topbar">
@@ -220,12 +220,12 @@
 
     <template id="candidateTemplate">
       <article class="candidate">
-        <button class="candidate-select" type="button">
+        <div class="candidate-heading">
+          <button class="candidate-select" type="button"></button>
           <span class="candidate-top"><span class="candidate-title"><strong class="candidate-name"></strong><span class="candidate-quote"></span><span class="candidate-spread"></span></span><span class="candidate-status"></span></span>
-          <span class="candidate-identity"><span class="candidate-code"></span><span class="candidate-tier"></span></span>
+          <span class="candidate-identity"><span class="candidate-code"></span><span class="candidate-tier-links"><span class="candidate-tier"></span><a class="candidate-board-link" target="_blank" rel="noopener noreferrer">종목게시판</a></span></span>
           <span class="candidate-bottom"><span class="candidate-days"></span><span class="candidate-price"></span></span>
-        </button>
-        <a class="candidate-board-link" target="_blank" rel="noopener noreferrer">네이버증권 종목게시판 가기</a>
+        </div>
         <div class="candidate-actions">
           <span class="candidate-stop hidden"></span>
         </div>
@@ -386,7 +386,7 @@
     </dialog>
   <script src="price-analysis.js?v=20261010-48"></script>
   <script src="rising-patterns.js?v=20261016-3"></script>
-  <script src="monitor.js?v=20261016-6"></script>
+  <script src="monitor.js?v=20261016-7"></script>
   <dialog id="capturePreviewDialog" class="capture-preview-dialog">
     <header><h2 id="capturePreviewTitle">공부용 이미지</h2><button id="capturePreviewClose" class="external-link" type="button">닫기</button></header>
     <img id="capturePreviewImage" alt="등록된 공부용 이미지">

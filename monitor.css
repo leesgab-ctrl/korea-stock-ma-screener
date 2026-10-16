@@ -405,7 +405,10 @@ dialog.inline-operation-dialog { position: static; width: 100%; max-width: none;
 .section-heading { min-height: 67px; padding: 15px 17px; display: flex; align-items: center; justify-content: space-between; gap: 12px; border-bottom: 1px solid var(--line); }
 .candidate-list { max-height: calc(100vh - 300px); min-height: 450px; padding: 10px; overflow-y: auto; display: grid; align-content: start; gap: 7px; }
 .candidate { width: 100%; display: grid; border: 1px solid var(--line); border-radius: 7px; background: #fff; color: var(--ink); overflow: hidden; }
-.candidate-select { width: 100%; padding: 13px; display: grid; gap: 6px; border: 0; background: transparent; color: var(--ink); text-align: left; cursor: pointer; }
+.candidate-heading { position: relative; min-width: 0; padding: 13px; display: grid; gap: 6px; }
+.candidate-select { position: absolute; inset: 0; z-index: 0; width: 100%; height: 100%; padding: 0; border: 0; background: transparent; cursor: pointer; }
+.candidate-select:focus-visible { outline: 2px solid var(--green); outline-offset: -3px; }
+.candidate-heading > span { position: relative; min-width: 0; pointer-events: none; }
 .candidate:hover, .candidate.selected { border-color: var(--green); background: #f8fcfa; }
 .candidate-top, .candidate-bottom { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .candidate-name { font-size: 15px; }
@@ -417,7 +420,9 @@ dialog.inline-operation-dialog { position: static; width: 100%; max-width: none;
 .candidate-title[data-direction="flat"] { color: #198449; }
 .candidate-top .candidate-status { flex-shrink: 0; }
 .candidate-code, .candidate-bottom { color: var(--muted); font-size: 12px; }
-.candidate-identity { display: flex; align-items: center; gap: 7px; }
+.candidate-identity { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 7px; }
+.candidate-code { flex-shrink: 0; }
+.candidate-tier-links { display: inline-flex; align-items: center; gap: 7px; max-width: 100%; min-width: 0; }
 .candidate-tier { padding: 2px 5px; border: 1px solid #b9d5c8; border-radius: 4px; background: #f2faf6; color: var(--green); font-size: 10px; font-weight: 800; }
 .candidate[data-tier="expanded"] .candidate-tier { border-color: #b8cdea; background: #f2f7fd; color: var(--blue); }
 .candidate[data-tier="expanded_ak"] .candidate-tier { border-color: #9ecfc9; background: #edf8f6; color: #0d6b66; }
@@ -458,7 +463,7 @@ dialog.inline-operation-dialog { position: static; width: 100%; max-width: none;
 .candidate > .candidate-exclude { position: absolute; top: 8px; right: 8px; width: 34px; height: 34px; padding: 0; border: 1px solid #c9d3cf; border-radius: 5px; background: white; color: #9b3030; font-size: 24px; line-height: 1; cursor: pointer; }
 .candidate > .candidate-exclude:hover { background: #fce8e8; }
 .candidate > .candidate-exclude:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
-.candidate-board-link { justify-self: end; max-width: calc(100% - 24px); margin: 0 12px 8px; padding: 3px 0; color: var(--green); font-size: 12px; line-height: 18px; text-decoration: underline; text-underline-offset: 3px; overflow-wrap: anywhere; }
+.candidate-board-link { position: relative; z-index: 1; flex-shrink: 0; padding: 3px 0; color: var(--green); font-size: 11px; line-height: 18px; text-decoration: underline; text-underline-offset: 3px; white-space: nowrap; pointer-events: auto; }
 .candidate-board-link:hover { color: #104c3f; }
 .candidate-board-link:focus-visible { outline: 2px solid var(--green); outline-offset: 3px; }
 

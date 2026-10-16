@@ -110,12 +110,33 @@ class RisingClusterTests(unittest.TestCase):
         self.rows[2]["m20"] = 100.9
         self.assertEqual(self.detect(), [])
 
-    def test_flat_or_declining_long_ma_cannot_start_a_signal(self):
+    def test_four_line_type_still_requires_rising_ma40_and_order(self):
+        for i, row in enumerate(self.rows):
+            row["m60"] = 98 + i * .01
         self.rows[3]["m40"] = self.rows[2]["m40"]
         self.assertEqual(self.detect(), [])
         self.setUp()
         for row in self.rows:
-            row["m40"] = row["m60"] - .1
+            row["m40"] = row["m60"] - 2
+        self.assertEqual(self.detect(), [])
+
+    def test_five_line_type_allows_flat_ma40_and_rising_ma60(self):
+        for row in self.rows:
+            row["m40"] = 100
+        events = self.detect()
+        self.assertEqual([event["riseCount"] for event in events], [1, 2])
+        self.assertTrue(all(len(event["clusterLines"]) == 5 for event in events))
+
+    def test_five_line_type_allows_ma60_to_meet_and_pass_flat_ma40(self):
+        for i, row in enumerate(self.rows):
+            row["m40"], row["m60"] = 100.05, 100 + i * .01
+        events = self.detect()
+        self.assertEqual(len(events), 2)
+        self.assertGreaterEqual(events[-1]["m60"], events[-1]["m40"])
+
+    def test_five_line_type_still_rejects_declining_ma40(self):
+        for i, row in enumerate(self.rows):
+            row["m40"] = 100.2 - i * .01
         self.assertEqual(self.detect(), [])
 
     def test_no_dip_and_slow_recovery_do_not_block_signals(self):

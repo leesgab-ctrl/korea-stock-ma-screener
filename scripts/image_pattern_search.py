@@ -68,14 +68,15 @@ def detect_rising_cluster(rows, rule):
         if recovery and i - recovery["index"] > rule["recoveryLookback"]:
             recovery = None
         trend_window = rows[max(0, i - rule["trendComparisons"]):i + 1]
-        rising40 = row["m40"] > row["m60"] and len(trend_window) == rule["trendComparisons"] + 1 \
+        trend_ready = len(trend_window) == rule["trendComparisons"] + 1 \
             and all(valid(bar) for bar in trend_window) \
             and all(timestamp(a["t"]).date() != timestamp(b["t"]).date()
                     or timestamp(b["t"]) - timestamp(a["t"]) == dt.timedelta(minutes=30)
-                    for a, b in zip(trend_window, trend_window[1:])) \
-            and all(b["m40"] > a["m40"] for a, b in zip(trend_window, trend_window[1:]))
-        rising60 = rising40 and all(b["m60"] > a["m60"] for a, b in zip(trend_window, trend_window[1:]))
-        nonfalling60 = rising40 and all(b["m60"] >= a["m60"] for a, b in zip(trend_window, trend_window[1:]))
+                    for a, b in zip(trend_window, trend_window[1:]))
+        rising_background = trend_ready and row["m40"] > row["m60"] \
+            and all(b[key] > a[key] for a, b in zip(trend_window, trend_window[1:]) for key in ("m40", "m60"))
+        nonfalling_background = trend_ready \
+            and all(b[key] >= a[key] for a, b in zip(trend_window, trend_window[1:]) for key in ("m40", "m60"))
         flat_window = rows[max(0, i - rule["flatBars"] + 1):i + 1]
         flat_spread = None
         if len(flat_window) == rule["flatBars"] and all(valid(bar) for bar in flat_window):
@@ -86,12 +87,12 @@ def detect_rising_cluster(rows, rule):
         values.append(row["m60"])
         five_spread = (max(values) - min(values)) / min(values) * 100
         flat = flat_spread is not None and flat_spread <= rule["flatMaxPercent"]
-        if flat and nonfalling60 and five_spread < rule["clusterMaxPercent"]:
+        if flat and nonfalling_background and five_spread < rule["clusterMaxPercent"]:
             cluster = {"index": i, "time": row["t"], "spread": five_spread, "lines": [3, 10, 20, 40, 60]}
-        elif flat and rising60 and spread < rule["clusterMaxPercent"]:
+        elif flat and rising_background and spread < rule["clusterMaxPercent"]:
             cluster = {"index": i, "time": row["t"], "spread": spread, "lines": [3, 10, 20, 40]}
         reference = episode["cluster"] if episode else cluster
-        uptrend = nonfalling60 if reference and len(reference["lines"]) == 5 else rising60
+        uptrend = nonfalling_background if reference and len(reference["lines"]) == 5 else rising_background
         stage = None
         if episode and (row["m3"] <= previous["m3"] or not uptrend):
             episode = None
