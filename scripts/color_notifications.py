@@ -11,6 +11,7 @@ import threading
 import urllib.parse
 import urllib.request
 from recovery_rules import recovery_states
+from notification_prices import price_with_day_change
 
 
 def states(bars):
@@ -92,6 +93,7 @@ def chart_image(candidate, payload):
 
 
 def send(topic, candidate, payload, row, state, kind, current):
+    price_text = price_with_day_change(row["c"], row["t"], candidate.get("displayCharts", {}).get("quote", {}))
     daily = candidate.get("displayCharts", {}).get("daily", {}).get("history", [])
     # One low per trading date; missing sessions must not masquerade as complete coverage.
     lows = {r["d"]: r["l"] for r in daily if r.get("d", "") < row["t"][:10] and isinstance(r.get("l"), (int, float)) and r["l"] > 0}
@@ -109,7 +111,7 @@ def send(topic, candidate, payload, row, state, kind, current):
                    f"- {len(state['clusterLines'])}선 밀집: MA{lines} 최대간격 {state['clusterSpreadPercent']:.2f}% (1% 미만)\n"
                    f"- 빠른 회복 참고: {recovery} · 필수 조건 아님\n"
                    f"- MA3 {row['m3']:,.2f} / MA10 {row['m10']:,.2f} / MA40 {row['m40']:,.2f} / MA60 {row['m60']:,.2f}\n"
-                   f"- 기준봉 종가 {row['c']:,.0f}원\n"
+                   f"- 기준봉 종가 {price_text}\n"
                    f"- 봉 완성 시각 {state['completedAt']}\n"
                    "조건 관찰 신호이며, 이후 상승이나 수익을 보장하지 않습니다.")
     elif kind in ("imageMa3Breakout", "imageMa10Breakout"):
@@ -120,21 +122,22 @@ def send(topic, candidate, payload, row, state, kind, current):
                    f"- 유형: {state['ruleName']}\n"
                    f"- 하락 역배열 후 {line}이 MA40을 상향 돌파했습니다.\n"
                    f"- MA3 {row['m3']:,.2f} / MA10 {row['m10']:,.2f} / MA40 {row['m40']:,.2f}\n"
-                   f"- 기준봉 종가 {row['c']:,.0f}원\n"
+                   f"- 기준봉 종가 {price_text}\n"
                    f"- 봉 완성 시각 {state['completedAt']}\n"
                    "상승을 보장하는 신호가 아니며, 실제 매수 전 현재가와 추세를 확인해 주세요.")
     elif kind == "coreMorningMa3":
         message = (f"핵심종목 {candidate['name']} 가 전일대비 MA 3이 2회이상 상승하였습니다.\n"
                    "매수를 고려한다면 MA3이 급히 상승시 하락안정을 고려하여 판단하기 바랍니다.\n"
-                   f"- 전일 최종 / 09:30 / 10:00 확정 MA3: {state['previousMa3']:,.2f} / {state['firstMa3']:,.2f} / {state['secondMa3']:,.2f}")
+                   f"- 전일 최종 / 09:30 / 10:00 확정 MA3: {state['previousMa3']:,.2f} / {state['firstMa3']:,.2f} / {state['secondMa3']:,.2f}\n"
+                   f"- 기준봉 종가 {price_text}")
     elif kind == "recoveryMa10Breakout":
         message = (f"하락 중이던 {candidate['name']}의 MA10이 MA40을 상향 돌파했습니다.\n"
                    "매수를 고려한다면 MA3이 MA60 아래에 있는지 확인하여 판단하시기 바랍니다.\n"
                    f"- MA10 {row['m10']:,.2f} / MA40 {row['m40']:,.2f}\n"
                    f"- MA3 {row['m3']:,.2f} / MA60 {row['m60']:,.2f}\n"
-                   f"- 기준봉 종가 {row['c']:,.0f}원")
+                   f"- 기준봉 종가 {price_text}")
     else:
-        message = f"{candidate['name']}({candidate['code']})\n- 전체 5개 MA 최대간격 {state['spread']:.2f}%\n- 포착기준매수가 {row['c']:,.0f}원"
+        message = f"{candidate['name']}({candidate['code']})\n- 전체 5개 MA 최대간격 {state['spread']:.2f}%\n- 포착기준매수가 {price_text}"
         if stop is not None and stop < row["c"]:
             message += f"\n- 손절기준 {(stop / row['c'] - 1) * 100:+.2f}% {stop:,.0f}원"
         else:

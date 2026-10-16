@@ -8,7 +8,8 @@ import urllib.request
 from pathlib import Path
 from typing import Any
 
-from update_candidate_monitor import KST, MONITOR_URL, ROOT, USER_AGENT, aggregate_30m, fetch_minute_rows, now_kst, monitor_link
+from update_candidate_monitor import KST, MONITOR_URL, ROOT, USER_AGENT, aggregate_30m, fetch_minute_rows, fetch_display_quote, now_kst, monitor_link
+from notification_prices import price_with_day_change
 
 
 DEFAULT_PATH = ROOT / "data" / "positions.json"
@@ -154,9 +155,14 @@ def send_alert(topic: str, position: dict[str, Any], event: str) -> None:
         "weak": ("추세약화 확인", "30분봉 종가가 MA20 아래이고 MA20이 3봉 연속 하락했습니다."),
     }
     title, reason = labels[event]
+    try:
+        quote = fetch_display_quote(position["code"], now_kst())
+    except (OSError, TimeoutError, ValueError, KeyError, TypeError):
+        quote = {}
+    price_text = price_with_day_change(position["lastPrice"], position.get("lastPriceTime", ""), quote)
     message = (
         f"{position['name']}({position['code']})\n"
-        f"현재 확인가격: {position['lastPrice']:,}원\n"
+        f"현재 확인가격: {price_text}\n"
         f"매수가: {position['buyPrice']:,}원 / 수익률: {position['returnPct']:+.2f}%\n"
         f"손절가: {position['stopPrice']:,}원 / 목표가: {position['targetPrice']:,}원\n"
         f"{reason}\n자동주문이 아닌 매도 검토 알림입니다."

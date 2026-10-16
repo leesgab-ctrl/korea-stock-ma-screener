@@ -13,6 +13,7 @@ from typing import Any
 from zoneinfo import ZoneInfo
 from recovery_rules import recovery_states
 from image_pattern_search import process as process_image_search
+from notification_prices import price_with_day_change
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -1459,7 +1460,7 @@ def notify_ntfy(topic: str, candidate: dict[str, Any], recovery=None) -> None:
         f"신호봉 시작: {intraday['signalTime']}\n"
         f"봉 완성시각: {signal_complete.isoformat(timespec='minutes')}\n"
         f"알림 검사시각: {now_kst().isoformat(timespec='minutes')}\n"
-        f"매수 포착가격: {intraday['signalPrice']:,}원\n"
+        f"매수 포착가격: {price_with_day_change(intraday['signalPrice'], intraday['signalTime'], candidate.get('displayCharts', {}).get('quote', {}))}\n"
         f"MA3 {intraday['signalMa3']:,.2f} → {intraday['signalTarget']} 돌파\n"
         f"MA20 {intraday['signalMa20']:,.2f} / MA40 {intraday['signalMa40']:,.2f} / MA60 {intraday['signalMa60']:,.2f}\n"
         "다음 30분봉부터 HTS 현재가와 거래량을 확인하세요."
@@ -1511,9 +1512,10 @@ def notify_reference_rebounds(payload, current, no_notify=False):
             pending += 1
             if not topic or no_notify:
                 continue
+            price_text = price_with_day_change(event["price"], event["time"], candidate.get("displayCharts", {}).get("quote", {}))
             body = json.dumps({
                 "topic": topic, "title": f"{candidate['name']} 참고종목 재상승",
-                "message": f"{candidate['name']}({candidate['code']})\nMA10 하향 조정 후 MA3 → MA20 상향 돌파\n확정봉: {event['time']}\n포착가격: {event['price']:,.0f}원\nMA20·MA40 밀착 / MA40·MA60 상승\n기존 매수신호와 별도인 관찰 알림입니다.",
+                "message": f"{candidate['name']}({candidate['code']})\nMA10 하향 조정 후 MA3 → MA20 상향 돌파\n확정봉: {event['time']}\n포착가격: {price_text}\nMA20·MA40 밀착 / MA40·MA60 상승\n기존 매수신호와 별도인 관찰 알림입니다.",
                 "priority": 5, "tags": ["chart_with_upwards_trend"],
                 "click": monitor_link(candidate["code"]),
             }, ensure_ascii=False).encode("utf-8")
