@@ -101,11 +101,12 @@ def send(topic, candidate, payload, row, state, kind, current):
     if kind == "imageMa3Rise":
         stage = "1차 포착" if state["stage"] == "primary" else "2차 포착"
         label = f"이미지조건 {stage}"
+        recovery = f"있음 (MA60을 {state['recoveryBars']}봉 만에 회복)" if state.get("fastRecovery") else "없음"
         message = (f"[이미지조건 · {stage}] {candidate['name']}({candidate['code']})\n"
                    f"- 유형: {state['ruleName']}\n"
                    f"- 상승추세의 눌림·밀집 구간에서 MA3가 {state['riseCount']}봉 연속 상승했습니다.\n"
                    f"- 기준 밀집: MA3·10·20·40 최대간격 {state['clusterSpreadPercent']:.2f}% (1% 미만)\n"
-                   f"- MA3가 MA60을 {state['recoveryBars']}봉 만에 회복한 뒤 재상승\n"
+                   f"- 빠른 회복 참고: {recovery} · 필수 조건 아님\n"
                    f"- MA3 {row['m3']:,.2f} / MA10 {row['m10']:,.2f} / MA40 {row['m40']:,.2f} / MA60 {row['m60']:,.2f}\n"
                    f"- 기준봉 종가 {row['c']:,.0f}원\n"
                    f"- 봉 완성 시각 {state['completedAt']}\n"

@@ -58,20 +58,21 @@ def detect_rising_cluster(rows, rule):
             continue
         if previous["m3"] >= previous["m60"] and row["m3"] < row["m60"]:
             dip = i
-            recovery = cluster = episode = None
+            recovery = None
         if dip is not None:
             if i - dip > rule["recoveryMaxBars"]:
                 dip = None
             elif previous["m3"] <= previous["m60"] and row["m3"] > row["m60"]:
                 recovery = {"index": i, "time": row["t"], "bars": i - dip}
                 dip = None
-        if recovery and (i - recovery["index"] > rule["recoveryLookback"] or row["m3"] <= row["m60"]):
-            recovery = cluster = episode = None
-        if not recovery:
-            continue
+        if recovery and i - recovery["index"] > rule["recoveryLookback"]:
+            recovery = None
         trend_window = rows[max(0, i - rule["trendComparisons"]):i + 1]
         uptrend = row["m40"] > row["m60"] and len(trend_window) == rule["trendComparisons"] + 1 \
             and all(valid(bar) for bar in trend_window) \
+            and all(timestamp(a["t"]).date() != timestamp(b["t"]).date()
+                    or timestamp(b["t"]) - timestamp(a["t"]) == dt.timedelta(minutes=30)
+                    for a, b in zip(trend_window, trend_window[1:])) \
             and all(b[key] > a[key] for a, b in zip(trend_window, trend_window[1:]) for key in ("m40", "m60"))
         flat_window = rows[max(0, i - rule["flatBars"] + 1):i + 1]
         flat_spread = None
@@ -84,8 +85,9 @@ def detect_rising_cluster(rows, rule):
         if eligible and spread < rule["clusterMaxPercent"]:
             cluster = {"index": i, "time": row["t"], "spread": spread}
         stage = None
+        if episode and (row["m3"] <= previous["m3"] or not uptrend):
+            episode = None
         if episode:
-            # Consume the second-bar attempt even on failure; a new MA60 dip must rearm it.
             if not episode["done"]:
                 episode["done"] = True
                 if i == episode["index"] + 1 and uptrend and row["m3"] > previous["m3"]:
@@ -102,8 +104,9 @@ def detect_rising_cluster(rows, rule):
                            "completedAt": (timestamp(row["t"]) + dt.timedelta(minutes=30)).isoformat(timespec="minutes"),
                            "setupTime": episode["cluster"]["time"], "episodeTime": episode["time"], "price": row["c"],
                            "clusterSpreadPercent": episode["cluster"]["spread"], "currentSpreadPercent": spread,
-                           "flatSpreadPercent": flat_spread, "recoveryTime": recovery["time"],
-                           "recoveryBars": recovery["bars"], **{key: row[key] for key in KEYS}})
+                           "flatSpreadPercent": flat_spread, "fastRecovery": bool(recovery),
+                           "recoveryTime": recovery["time"] if recovery else None,
+                           "recoveryBars": recovery["bars"] if recovery else None, **{key: row[key] for key in KEYS}})
     return events
 
 

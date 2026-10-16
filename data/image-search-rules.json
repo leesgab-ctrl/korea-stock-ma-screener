@@ -25,20 +25,20 @@
     },
     {
       "id": "rising-cluster-ma3-recovery",
-      "version": 1,
+      "version": 2,
       "name": "상승추세 눌림·밀집 후 MA3 재상승형",
       "type": "rising_cluster_ma3",
       "enabled": true,
       "trendComparisons": 3,
       "flatBars": 4,
-      "flatMaxPercent": 0.3,
+      "flatMaxPercent": 0.5,
       "clusterMaxPercent": 1,
       "recoveryMaxBars": 4,
       "recoveryLookback": 12,
       "imageIds": [
         "cbb69b19-36de-4691-8262-46021e249c44"
       ],
-      "description": "MA40 > MA60이며 두 선이 3봉 연속 상승. 최근 4봉 MA20 최대·최소 간격 0.3% 이내. MA3가 MA60 아래로 이탈한 뒤 4봉 이내 회복한 이력이 최근 12봉 안에 있고, MA3·10·20·40 최대간격이 상승 전환봉 또는 직전 봉에서 1% 미만일 때 MA3 상승 전환 1차, 다음 완성봉 연속 상승 2차. 2차는 밀집 유지 불필요. MA3 상승 중단·MA60 재이탈·장기 상승 배경 상실 시 2차 취소. 새 MA60 이탈·회복 전에는 중복 포착하지 않음."
+      "description": "MA40 > MA60이며 두 선이 3봉 연속 상승. 최근 4봉 MA20 최대·최소 간격 0.5% 이내. MA3·10·20·40 최대간격이 상승 전환봉 또는 직전 봉에서 1% 미만일 때 MA3 상승 전환 1차, 다음 완성봉 연속 상승 2차. 2차는 밀집 유지 불필요. MA3 상승 중단·장기 상승 배경 상실 시 2차 취소. 이후 다시 밀집 상태에서 상승 전환하면 새 포착. MA60 이탈 후 4봉 내 회복 이력은 최근 12봉 범위의 참고 정보이며 필수 조건 아님."
     }
   ]
 }

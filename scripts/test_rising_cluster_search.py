@@ -70,6 +70,12 @@ class RisingClusterTests(unittest.TestCase):
         self.rows[2]["m20"] = 102
         self.assertEqual(self.detect(), [])
 
+    def test_half_percent_flat_limit_allows_point_four_but_not_point_six(self):
+        self.rows[2]["m20"] = 100.7
+        self.assertEqual(len(self.detect()), 2)
+        self.rows[2]["m20"] = 100.9
+        self.assertEqual(self.detect(), [])
+
     def test_flat_or_declining_long_ma_cannot_start_a_signal(self):
         self.rows[3]["m40"] = self.rows[2]["m40"]
         self.assertEqual(self.detect(), [])
@@ -78,31 +84,40 @@ class RisingClusterTests(unittest.TestCase):
             row["m40"] = row["m60"] - .1
         self.assertEqual(self.detect(), [])
 
-    def test_no_dip_and_slow_recovery_are_not_matches(self):
+    def test_no_dip_and_slow_recovery_do_not_block_signals(self):
         self.rows[1]["m3"] = 100.4
-        self.assertEqual(self.detect(), [])
+        events = self.detect()
+        self.assertEqual(len(events), 2)
+        self.assertTrue(all(event["fastRecovery"] is False and event["recoveryBars"] is None for event in events))
         self.setUp()
         for row in self.rows[2:6]:
             row["m3"] = 99.5
-        self.assertEqual(self.detect(), [])
+        events = self.detect()
+        self.assertEqual(len(events), 1)
+        self.assertFalse(events[0]["fastRecovery"])
 
-    def test_expired_recovery_cannot_rearm_from_a_flat_cluster(self):
+    def test_expired_recovery_is_only_reference_and_does_not_block_signal(self):
         first = self.rows[:5]
         for i in range(5, 19):
             first.append({**first[4], "t": (search.timestamp(first[0]["t"]) + dt.timedelta(minutes=30 * i)).isoformat(timespec="minutes"),
                           "m40": 100 + .01 * i, "m60": 99.8 + .01 * i, "m3": 100.2})
         first[-1]["m3"] = 100.3
         self.rows[:] = first
-        self.assertEqual(self.detect(), [])
+        events = self.detect()
+        self.assertEqual(len(events), 1)
+        self.assertFalse(events[0]["fastRecovery"])
 
-    def test_flat_next_bar_cancels_second_and_does_not_repeat_first(self):
+    def test_flat_next_bar_cancels_second_and_fresh_cluster_can_rearm(self):
         self.rows[6]["m3"] = self.rows[5]["m3"]
         for i, value in enumerate([100.4, 100.5, 100.6], start=7):
             self.rows.append({**self.rows[6], "t": (search.timestamp(self.rows[0]["t"]) + dt.timedelta(minutes=30 * i)).isoformat(timespec="minutes"),
                               "m40": 100 + i * .01, "m60": 99.8 + i * .01, "m3": value})
+        self.assertEqual([event["stage"] for event in self.detect()], ["primary", "primary", "confirmation"])
+        for row in self.rows[6:]:
+            row["m10"] = 104
         self.assertEqual([event["stage"] for event in self.detect()], ["primary"])
 
-    def test_missing_bar_invalid_data_or_ma60_rebreak_cancels_second(self):
+    def test_missing_bar_invalid_data_or_ma3_decline_cancels_second(self):
         for change in [{"t": "2026-10-15T12:30+09:00"}, {"m10": None}, {"m3": 99}]:
             with self.subTest(change=change):
                 rows = copy.deepcopy(self.rows)
@@ -110,7 +125,7 @@ class RisingClusterTests(unittest.TestCase):
                 self.assertEqual([event["stage"] for event in search.detect(rows, self.rule)], ["primary"])
 
     def test_new_dip_and_fast_recovery_can_start_a_new_episode(self):
-        for i, value in enumerate([99.6, 102, 100.3, 100.4, 100.5], start=7):
+        for i, value in enumerate([97, 102, 100.3, 100.4, 100.5], start=7):
             self.rows.append({**self.rows[4], "t": (search.timestamp(self.rows[0]["t"]) + dt.timedelta(minutes=30 * i)).isoformat(timespec="minutes"),
                               "m40": 100 + i * .01, "m60": 99.8 + i * .01, "m3": value})
         self.assertEqual([event["stage"] for event in self.detect()], ["primary", "confirmation", "primary", "confirmation"])
@@ -168,6 +183,7 @@ class RisingClusterTests(unittest.TestCase):
         self.assertIn("2차 포착", message)
         self.assertIn("MA3가 2봉 연속 상승", message)
         self.assertIn("밀집", message)
+        self.assertIn("필수 조건 아님", message)
         self.assertNotIn("MA10이 MA40", message)
 
 

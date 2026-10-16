@@ -21,7 +21,7 @@ const image = process.env.STUDY_TEST_IMAGE ? fs.readFileSync(process.env.STUDY_T
 const clusterRule = rules.find(rule => rule.type === 'rising_cluster_ma3');
 payload.imageSearch.matches.push({...payload.imageSearch.matches.find(event => event.code === '128820'),
   ruleId: clusterRule.id, ruleName: clusterRule.name, sourceImageIds: clusterRule.imageIds,
-  signalType: 'ma3Rise', stage: 'confirmation', stageLabel: 'MA3 2봉 연속 상승 · 2차'});
+  signalType: 'ma3Rise', fastRecovery: false, stage: 'confirmation', stageLabel: 'MA3 2봉 연속 상승 · 2차'});
 
 (async () => {
   fs.mkdirSync(output, {recursive: true});
@@ -56,7 +56,9 @@ payload.imageSearch.matches.push({...payload.imageSearch.matches.find(event => e
     assert.ok(comments.some(text => text.includes('대성산업형')));
     assert.ok(comments.some(text => text.includes('대한제강형')));
     assert.ok(comments.some(text => text.includes('MA3 2봉 연속 상승 · 2차')));
+    assert.ok(comments.some(text => text.includes('빠른 회복 참고: 없음')));
     assert.match(await page.locator('#imageSearchConditions').innerText(), /1% 미만/);
+    assert.match(await page.locator('#imageSearchConditions').innerText(), /0.5% 이내/);
     for (const width of [1280, 390, 320]) {
       await page.setViewportSize({width, height: 1000});
       assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1));

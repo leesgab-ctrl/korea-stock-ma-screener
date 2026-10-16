@@ -157,7 +157,8 @@ function renderImageSearch() {
   const notices = new Map();
   for (const event of matches) {
     const stage = event.stageLabel || (event.stage === "primary" ? "MA3 1차" : "MA10 확인");
-    const message = `${event.ruleName} · ${stage} · ${formatDateTime(event.completedAt)} 완성 · 포착 종가 ${formatter.format(event.price)}원${event.dataStatus !== "ok" ? " · 최신 자료 확인 필요" : ""}`;
+    const recovery = event.signalType === "ma3Rise" ? ` · 빠른 회복 참고: ${event.fastRecovery ? "있음" : "없음"}` : "";
+    const message = `${event.ruleName} · ${stage}${recovery} · ${formatDateTime(event.completedAt)} 완성 · 포착 종가 ${formatter.format(event.price)}원${event.dataStatus !== "ok" ? " · 최신 자료 확인 필요" : ""}`;
     const previous = notices.get(event.code);
     notices.set(event.code, {completedAt: previous?.completedAt > event.completedAt ? previous.completedAt : event.completedAt,
       message: previous ? `${previous.message}\n${message}` : message});
