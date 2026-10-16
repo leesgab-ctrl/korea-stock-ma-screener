@@ -18,12 +18,24 @@ const payload = JSON.parse(execFileSync(python, ['-c',
 const image = process.env.STUDY_TEST_IMAGE ? fs.readFileSync(process.env.STUDY_TEST_IMAGE)
   : Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a/wAAAABJRU5ErkJggg==', 'base64');
 // A deterministic UI contract fixture avoids depending on a live stock matching the new rule.
+const marketDays = [...new Set(payload.candidates.flatMap(item => (item.displayCharts?.intraday?.series || []).map(row => row.t.slice(0, 10))))].sort();
+const latestDay = marketDays.at(-1);
+const priorDay = marketDays.at(-2);
+const oldDay = marketDays.at(-3);
+const baseDaesung = payload.imageSearch.matches.find(event => event.code === '128820');
+const baseDaehan = payload.imageSearch.matches.find(event => event.code === '084010');
+const baseInno = payload.imageSearch.matches.find(event => event.code === '274400');
+payload.imageSearch.matches.push({...baseDaesung, time: `${latestDay}T11:00+09:00`, completedAt: `${latestDay}T11:30+09:00`});
+payload.imageSearch.matches.push({...baseDaehan, time: `${priorDay}T12:00+09:00`, completedAt: `${priorDay}T12:30+09:00`});
+payload.imageSearch.matches.push({...baseInno, time: `${latestDay}T14:00+09:00`, completedAt: `${latestDay}T14:30+09:00`});
+payload.candidates.push({...payload.candidates.find(item => item.code === '128820'), code: '999999', name: 'Old signal only'});
+payload.imageSearch.matches.push({...baseDaesung, code: '999999', name: 'Old signal only', time: `${oldDay}T10:00+09:00`, completedAt: `${oldDay}T10:30+09:00`});
 const clusterRule = rules.find(rule => rule.type === 'rising_cluster_ma3');
-payload.imageSearch.matches.push({...payload.imageSearch.matches.find(event => event.code === '128820'),
+payload.imageSearch.matches.push({...baseDaesung, time: `${latestDay}T12:00+09:00`, completedAt: `${latestDay}T12:30+09:00`,
   ruleId: clusterRule.id, ruleName: clusterRule.name, sourceImageIds: clusterRule.imageIds,
   signalType: 'ma3Rise', clusterLines: [3, 10, 20, 40, 60], changePct: 2.9, fastRecovery: false, stage: 'confirmation', stageLabel: '5선 밀집 · MA3 2봉 연속 상승 · 2차'});
 const ma120Rule = rules.find(rule => rule.type === 'ma3_ma120_recovery');
-payload.imageSearch.matches.push({...payload.imageSearch.matches.find(event => event.code === '128820'),
+payload.imageSearch.matches.push({...baseDaesung, time: `${latestDay}T12:00+09:00`, completedAt: `${latestDay}T12:30+09:00`,
   ruleId: ma120Rule.id, ruleName: ma120Rule.name, sourceImageIds: ma120Rule.imageIds,
   signalType: 'ma3Ma120', stage: 'confirmation', stageLabel: '다음 봉 MA3 ≥ MA120 유지 · 2차 확인'});
 const innoCandidate = payload.candidates.find(item => item.code === '274400');
@@ -67,6 +79,8 @@ for (const charts of innoChartSets) charts.quote = {
     await page.waitForFunction(() => document.querySelector('#imageSearchMatches h2')?.textContent === '이미지조건 포착이력');
     await page.locator('#imageSearchMatches details[data-code="128820"]').waitFor();
     for (const code of ['128820', '084010']) assert.equal(await page.locator(`#imageSearchMatches details[data-code="${code}"]`).count(), 1);
+    assert.equal(await page.locator('#imageSearchMatches details[data-code="999999"]').count(), 0, 'A stock with only old signals must be hidden');
+    assert.match(await page.locator('#imageSearchMatches .watch-quote-time').innerText(), /최근 2거래일 포착순/);
     const comments = await page.locator('#imageSearchMatches .image-pattern-comment').allTextContents();
     assert.ok(comments.some(text => text.includes('[하락중 MA10이 MA40 돌파]')));
     assert.ok(comments.some(text => text.includes('[5선 밀집후 MA3 2봉 상승]')));
@@ -75,6 +89,9 @@ for (const charts of innoChartSets) charts.quote = {
     assert.ok(comments.every(text => !/대성산업형|대한제강형|빠른 회복 참고|포착 종가/.test(text)));
     assert.ok(await page.locator('.image-pattern-name').evaluateAll(nodes => nodes.every(node => getComputedStyle(node).color === 'rgb(49, 103, 173)')));
     assert.ok(await page.locator('.image-pattern-time').evaluateAll(nodes => nodes.every(node => /\d{2}\.\d{2}\. \d{2}:\d{2}/.test(node.textContent))));
+    const displayedTimes = await page.locator('.image-pattern-time').allTextContents();
+    const allowedPrefixes = [latestDay, priorDay].map(day => day.slice(5).replace('-', '.') + '.');
+    assert.ok(displayedTimes.every(text => allowedPrefixes.some(prefix => text.trim().startsWith(prefix))), 'Old descriptions must be hidden even on stocks with recent signals');
     assert.equal(await page.locator('#imageSearchConditions').count(), 0);
     assert.equal(await page.locator('#imageSearchPanel > :not([hidden])').first().getAttribute('id'), 'imageSearchMatches');
     const inno = page.locator('#imageSearchMatches details[data-code="274400"]');

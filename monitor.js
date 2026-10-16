@@ -139,6 +139,19 @@ function imagePatternSummary(event) {
     direction: change == null ? "" : change > 0 ? "up" : change < 0 ? "down" : "flat" };
 }
 
+function recentImagePatternMatches(search, candidates, confirmedIds) {
+  if (search?.status !== "ok") return [];
+  const recentDays = new Set(watchQuoteDates(candidates));
+  return (search.matches || []).filter(event => {
+    const stamp = Date.parse(event.completedAt);
+    if (!Number.isFinite(stamp) || !event.sourceImageIds?.some(id => confirmedIds.has(id))) return false;
+    const day = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Seoul", year: "numeric", month: "2-digit", day: "2-digit",
+    }).format(new Date(stamp));
+    return recentDays.has(day);
+  });
+}
+
 function renderImageSearch() {
   const confirmed = window.RisingPatterns?.confirmed || [];
   const confirmedIds = new Set(confirmed.map(item => item.id));
@@ -147,7 +160,8 @@ function renderImageSearch() {
   status.textContent = search?.status === "error" ? "이미지 조건 목록 조회 실패 · 알림 대기"
     : search?.errors?.length ? `알림 확인 필요 ${search.errors.length}건` : "";
   status.hidden = !status.textContent;
-  const matches = search?.status === "ok" ? (search.matches || []).filter(event => event.sourceImageIds.some(id => confirmedIds.has(id))) : [];
+  const candidates = state.payload?.candidates || [];
+  const matches = recentImagePatternMatches(search, candidates, confirmedIds);
   const notices = new Map();
   for (const event of matches) {
     const entry = {...imagePatternSummary(event), event};
@@ -157,11 +171,10 @@ function renderImageSearch() {
     notices.set(event.code, {completedAt: previous?.completedAt > event.completedAt ? previous.completedAt : event.completedAt,
       entries});
   }
-  const candidates = state.payload?.candidates || [];
   document.querySelector("#imageSearchMatches").replaceChildren(buildWatchQuotes(
     candidates.filter(item => notices.has(item.code)), watchQuoteDates(candidates), {
       title: "이미지조건 포착이력", showTrend: true, keyPrefix: "image-pattern", signalNotices: notices,
-      emptyText: search?.status === "error" ? "검색 결과 확인 대기" : "현재 관리 기간 내 포착된 종목이 없습니다.",
+      emptyText: search?.status === "error" ? "검색 결과 확인 대기" : "최근 2거래일 내 포착된 종목이 없습니다.",
     }));
 }
 function screeningFamily(item) {
@@ -1159,7 +1172,7 @@ function buildWatchQuotes(items, tradingDates, {title, showTrend = false, keyPre
   heading.textContent = title;
   content.append(heading);
   meta.className = "watch-quote-time";
-  meta.textContent = `${entries.length}종목 · ${signalNotices ? "관리기간 내 최근 포착순 · 가격 칸은 최신 수집가" : "전일 종가 대비 등락률 순 · 최신 수집 가격 기준"}`;
+  meta.textContent = `${entries.length}종목 · ${signalNotices ? "최근 2거래일 포착순 · 가격 칸은 최신 수집가" : "전일 종가 대비 등락률 순 · 최신 수집 가격 기준"}`;
   content.append(meta);
   const today = tradingDates.at(-1);
   const priorDate = tradingDates.at(-2);
