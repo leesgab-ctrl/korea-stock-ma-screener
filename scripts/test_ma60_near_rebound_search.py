@@ -89,8 +89,8 @@ class Ma60NearReboundTests(unittest.TestCase):
         self.assertTrue(events[0]["simultaneous"])
 
     def test_icom_example_first_rebound_fits_and_next_extended_bar_does_not(self):
-        # The first row supplies turning context; the remaining values are measured native MA values.
-        self.rows[:] = [dict(self.rows[0], t="2026-10-15T19:00+09:00", m3=6970, m60=7000),
+        # Native data has no 19:00 bar; use the actual observed bars rather than filling it.
+        self.rows[:] = [dict(self.rows[0], t="2026-10-15T18:30+09:00", m3=6966.67, m60=6999.33),
                         dict(self.rows[0], t="2026-10-15T19:30+09:00", m3=6966.67, m60=7004.17),
                         dict(self.rows[0], t="2026-10-16T09:00+09:00", m3=7156.67, m60=7017.67, c=7520),
                         dict(self.rows[0], t="2026-10-16T09:30+09:00", m3=7390, m60=7034.83, c=7650)]

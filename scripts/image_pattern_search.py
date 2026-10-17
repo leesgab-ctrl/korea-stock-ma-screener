@@ -269,7 +269,9 @@ def detect_ma60_near_rebound(rows, rule):
             history, episode = [], None
             continue
         previous = history[-1] if history else None
+        # Native aftermarket charts omit no-trade slots; do not fabricate bars or discard their MA continuity.
         missing = previous and timestamp(row["t"]).date() == timestamp(previous["t"]).date() \
+            and timestamp(previous["t"]).time() < dt.time(15, 30) \
             and timestamp(row["t"]) - timestamp(previous["t"]) != dt.timedelta(minutes=30)
         if missing:
             history, episode, previous = [], None, None
