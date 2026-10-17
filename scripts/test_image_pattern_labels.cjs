@@ -20,7 +20,7 @@ assert.equal(context.imagePatternLabel({...event, signalType: 'ma3Rise', cluster
 assert.equal(context.imagePatternLabel({...event, signalType: 'ma3Ma120', stage: 'primary'}), 'MA3가 MA120 재돌파');
 assert.equal(context.imagePatternLabel({...event, signalType: 'ma3Ma120'}), '120MA아래로 3MA하락후 상승');
 assert.equal(context.imagePatternLabel({...event, signalType: 'ma20Pyramid', stage: 'primary'}), '피라미드후 MA3 반등');
-assert.equal(context.imagePatternLabel({...event, signalType: 'ma3Ma60Near', stage: 'primary'}), 'MA60 부근 MA3 반등');
+assert.equal(context.imagePatternLabel({...event, signalType: 'ma3Ma60Near', stage: 'primary'}), '피라미드형3MA반등');
 assert.equal(context.imagePatternLabel({...event, signalType: 'ma3Ma60Near', stage: 'confirmation'}), 'MA60 부근 MA3 돌파 확인');
 assert.equal(context.imagePatternLabel({...event, signalType: 'ma3Ma60Near', stage: 'watch'}), '피라미드형 상승가능성 검토');
 assert.equal(context.imagePatternLabel({...event, signalType: 'ma20Pyramid'}), '피라미드후 MA3가 MA60 돌파');

@@ -304,7 +304,8 @@ class Ma60NearReboundTests(unittest.TestCase):
             message = urllib.parse.parse_qs(urllib.parse.urlsplit(opened.call_args.args[0].full_url).query)["message"][0]
             for expected in ("MA60", "±2%", "전일 대비 +3.00%", "봉 완성 시각"):
                 self.assertIn(expected, message)
-            self.assertNotIn("피라미드", message)
+            self.assertIn("피라미드형3MA반등", message)
+            self.assertNotIn("MA20 급상승", message)
             self.assertNotIn("MA5", message)
 
 

@@ -111,8 +111,8 @@ def send(topic, candidate, payload, row, state, kind, current):
                    "사전 관찰 알림이며, 다음 날 상승이나 수익을 보장하지 않습니다.")
     elif kind == "imageMa60NearRebound":
         primary = state["stage"] == "primary"
-        stage = "1차 반등 포착" if primary else "MA60 돌파 확인"
-        label = f"이미지조건 MA60 부근 {stage}"
+        stage = "피라미드형3MA반등" if primary else "MA60 돌파 확인"
+        label = f"이미지조건 {stage}"
         reason = "MA60 부근에서 MA3가 하락·수평 후 상승 전환했습니다." if primary else "MA60 부근에서 반등한 MA3가 MA60을 실제 상향 돌파했습니다."
         simultaneous = "- 상승 전환과 MA60 돌파가 같은 봉에서 발생해 확인 알림으로 합쳤습니다.\n" if state.get("simultaneous") else ""
         message = (f"[이미지조건 · {stage}] {candidate['name']}({candidate['code']})\n"

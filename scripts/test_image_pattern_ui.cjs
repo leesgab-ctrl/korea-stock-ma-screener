@@ -97,7 +97,7 @@ for (const charts of innoChartSets) charts.quote = {
     assert.ok(comments.some(text => text.includes('[5선 밀집후 MA3 2봉 상승]')));
     assert.ok(comments.some(text => text.includes('+2.9%')));
     assert.ok(comments.some(text => text.includes('[120MA아래로 3MA하락후 상승]')));
-    assert.ok(comments.some(text => text.includes('[MA60 부근 MA3 반등]')));
+    assert.ok(comments.some(text => text.includes('[피라미드형3MA반등]')));
     assert.ok(comments.some(text => text.includes('[MA60 부근 MA3 돌파 확인]')));
     assert.ok(comments.some(text => text.includes('[피라미드형 상승가능성 검토]')));
     assert.ok(comments.every(text => !text.includes('피라미드후')));
@@ -222,7 +222,7 @@ for (const charts of innoChartSets) charts.quote = {
     await card.locator('.capture-confirmation input').uncheck();
     await page.waitForFunction(() => document.querySelector('#captureStatus').textContent.includes('확정을 해제'));
     await page.locator('[data-view="imageSearch"]').click();
-    assert.ok((await page.locator('#imageSearchMatches .image-pattern-comment').allTextContents()).every(text => !/MA60 부근|피라미드형 상승가능성 검토/.test(text)));
+    assert.ok((await page.locator('#imageSearchMatches .image-pattern-comment').allTextContents()).every(text => !/MA60 부근|피라미드형3MA반등|피라미드형 상승가능성 검토/.test(text)));
     assert.equal(await page.locator('#imageSearchRising h2').innerText(), '오늘상승종목');
     assert.deepEqual(errors, []);
     console.log('Image pattern UI passed: independent rules, actual examples, merged stock rows, signal times, chart expansion, shared switch and desktop/mobile layouts.');

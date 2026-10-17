@@ -121,7 +121,7 @@ function compareRegistrationNewest(a, b) {
 }
 function imagePatternLabel(event) {
   if (event.signalType === "ma3Ma60Near" && event.stage === "watch") return "피라미드형 상승가능성 검토";
-  if (event.signalType === "ma3Ma60Near") return event.stage === "primary" ? "MA60 부근 MA3 반등" : "MA60 부근 MA3 돌파 확인";
+  if (event.signalType === "ma3Ma60Near") return event.stage === "primary" ? "피라미드형3MA반등" : "MA60 부근 MA3 돌파 확인";
   if (event.signalType === "ma20Pyramid") return event.stage === "primary" ? "피라미드후 MA3 반등" : "피라미드후 MA3가 MA60 돌파";
   if (event.signalType === "ma3Rise") return `${event.clusterLines?.length || 4}선 밀집후 MA3 ${event.stage === "primary" ? "1봉" : "2봉"} 상승`;
   if (event.signalType === "ma3Ma120") return event.stage === "primary" ? "MA3가 MA120 재돌파" : "120MA아래로 3MA하락후 상승";
