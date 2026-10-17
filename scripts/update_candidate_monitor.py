@@ -30,13 +30,17 @@ CORE_TIER = "core"
 EXPANDED_TIER = "expanded"
 AK_TIER = "expanded_ak"
 AK_SEARCH_ENABLED = True
+AK_RISE_EFFECTIVE_FROM = "2026-10-16"
+AK_RISE_THRESHOLD_PCT = 9
 STRATEGY = {
     "candidateWindowTradingDays": 10,
     "candidateTiers": {
         CORE_TIER: "기존 A-G(A 거래량 +200%, E 종가 +1%)",
-        AK_TIER: "확대 A-K(최근 3일 중 +10% 상승 후 당일 -2% 이하 조정)",
+        AK_TIER: "확대 A-K(최근 3일 중 +9% 상승 후 당일 -2% 이하 조정 · 2026-10-16부터)",
     },
     "akSearchEnabled": AK_SEARCH_ENABLED,
+    "akRiseThresholdPct": AK_RISE_THRESHOLD_PCT,
+    "akRiseThresholdEffectiveFrom": AK_RISE_EFFECTIVE_FROM,
     "expandedAgSearchEnabled": False,
     "akDivergenceRule": "MA10 > MA20, MA10-MA20 간격이 전일보다 확대",
     "minuteTimeframe": "30분봉",
@@ -145,6 +149,7 @@ def evaluate_ak(rows: list[dict[str, Any]], index: int) -> dict[str, Any] | None
     ma5, ma120 = ma(5), ma(120)
     ma10_six, ma60_six = ma(10, 6), ma(60, 6)
     epsilon = max(ma10, ma20, *ma40, ma120) * 1e-12
+    rise_threshold = AK_RISE_THRESHOLD_PCT if rows[index]["date"] >= AK_RISE_EFFECTIVE_FROM else 10
     values = {
         "volumeSpikePct": 100 * (volumes[-1] / volume_ma20 - 1),
         "signalClosePct": change(1, 0),
@@ -161,14 +166,15 @@ def evaluate_ak(rows: list[dict[str, Any]], index: int) -> dict[str, Any] | None
         "D": ma10 > ma20 + epsilon and ma10 - ma20 > prior10 - prior20 + epsilon,
         "G": ma5 <= ma120 + epsilon,
         "H": ma10_six <= ma60_six + epsilon,
-        "I": values["riseThreeToTwoPct"] >= 10 - 1e-9,
-        "J": values["riseTwoToOnePct"] >= 10 - 1e-9,
-        "K": values["riseFourToThreePct"] >= 10 - 1e-9,
+        "I": values["riseThreeToTwoPct"] >= rise_threshold - 1e-9,
+        "J": values["riseTwoToOnePct"] >= rise_threshold - 1e-9,
+        "K": values["riseFourToThreePct"] >= rise_threshold - 1e-9,
     }
     if not all(checks[key] for key in "ABCDGH") or not any(checks[key] for key in "IJK"):
         return None
     return {
         "candidateTier": AK_TIER, "screeningFamily": "A-K",
+        "riseThresholdPct": rise_threshold,
         "close": rows[index]["close"], "spikeDate": rows[index - 1]["date"],
         "preSpikeDate": rows[index - 2]["date"], "preSpikeClose": rows[index - 2]["close"],
         "preSpikeLow": rows[index - 2].get("low"), "patternStartDate": rows[index - 4]["date"],
@@ -334,6 +340,8 @@ def retire_expanded_ag(payload: dict[str, Any], date: str) -> int:
     payload.setdefault("strategy", {}).update({
         "expandedAgSearchEnabled": False,
         "candidateTiers": STRATEGY["candidateTiers"],
+        "akRiseThresholdPct": AK_RISE_THRESHOLD_PCT,
+        "akRiseThresholdEffectiveFrom": AK_RISE_EFFECTIVE_FROM,
     })
     retired = [item for item in payload.get("candidates", []) if item.get("candidateTier") == EXPANDED_TIER]
     if not retired:

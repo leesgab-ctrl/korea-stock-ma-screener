@@ -18,6 +18,17 @@ def qualifying_rows():
     return rows
 
 
+def relaxed_rows(day="2026-10-16", rise=9):
+    rows = qualifying_rows()
+    end = dt.date.fromisoformat(day)
+    for i, row in enumerate(rows):
+        row["date"] = (end - dt.timedelta(days=len(rows) - i - 1)).isoformat()
+    for step in range(1, 4):
+        rows[-5 + step]["close"] = 1000 * (1 + rise / 100) ** step
+    rows[-1]["close"] = rows[-2]["close"] * .98
+    return rows
+
+
 class AkConditionsTest(unittest.TestCase):
     def evaluate(self, rows):
         return monitor.evaluate_ak(rows, len(rows) - 1)
@@ -34,6 +45,43 @@ class AkConditionsTest(unittest.TestCase):
         self.assertAlmostEqual(result["values"]["signalClosePct"], -2)
         self.assertEqual(result["preSpikeDate"], rows[-3]["date"])
         self.assertEqual(result["patternStartDate"], rows[-5]["date"])
+
+    def test_relaxed_boundary_starts_on_selection_date_october_16(self):
+        for day, threshold in [("2026-10-16", 9), ("2026-10-19", 9)]:
+            rows = relaxed_rows(day)
+            result = self.evaluate(rows)
+            self.assertIsNotNone(result)
+            self.assertEqual(result["riseThresholdPct"], threshold)
+            self.assertTrue(all(result["checks"].values()))
+        self.assertIsNone(self.evaluate(relaxed_rows("2026-10-15")))
+        self.assertEqual(self.evaluate(relaxed_rows("2026-10-15", 10))["riseThresholdPct"], 10)
+
+    def test_each_of_i_j_k_can_qualify_alone_at_nine_percent(self):
+        for letter in "IJK":
+            for rise, expected in [(9, True), (8.999, False)]:
+                rows = relaxed_rows()
+                values = {"I": [1000, 1090, 1090], "J": [1000, 1000, 1090], "K": [1090, 1090, 1090]}[letter]
+                values = [1000 + (value - 1000) * rise / 9 for value in values]
+                for row, close in zip(rows[-4:-1], values):
+                    row["close"] = close
+                rows[-1]["close"] = rows[-2]["close"] * .98
+                rows[-44]["close"] = rows[-43]["close"] = 900
+                result = self.evaluate(rows)
+                if expected:
+                    self.assertIsNotNone(result)
+                    self.assertEqual([key for key in "IJK" if result["checks"][key]], [letter])
+                else:
+                    self.assertIsNone(result)
+
+    def test_relaxation_does_not_change_other_ak_checks(self):
+        rows = relaxed_rows()
+        result = self.evaluate(rows)
+        self.assertEqual(result["logic"], "A and B and C and D and G and H and (I or J or K)")
+        rows[-1]["close"] = rows[-2]["close"] * .981
+        self.assertIsNone(self.evaluate(rows), "The -2% pullback still applies")
+        rows = relaxed_rows()
+        rows[-2]["volume"] = 100
+        self.assertIsNone(self.evaluate(rows), "Volume condition is unchanged")
 
     def test_k_is_four_to_three_not_a_duplicate_of_i(self):
         rows = qualifying_rows()
@@ -128,6 +176,19 @@ class AkRegistrationTest(unittest.TestCase):
         self.assertEqual(item["candidateTier"], monitor.AK_TIER)
         self.assertEqual(item["tradingDaysRemaining"], 10)
         self.assertEqual(item["registrationPrice"], qualifying_rows()[-1]["close"])
+
+    def test_new_nine_percent_ak_uses_same_registration_window(self):
+        rows = relaxed_rows()
+        result = self.build(rows)
+        self.assertEqual(len(result["candidates"]), 1)
+        item = result["candidates"][0]
+        self.assertEqual(item["daily"]["riseThresholdPct"], 9)
+        self.assertEqual(item["dailySignalDate"], "2026-10-16")
+        self.assertEqual(item["tradingDaysRemaining"], 10)
+        self.assertEqual(result["strategy"]["akRiseThresholdEffectiveFrom"], "2026-10-16")
+
+    def test_nine_percent_does_not_create_pre_effective_registration(self):
+        self.assertEqual(self.build(relaxed_rows("2026-10-15"))["candidates"], [])
 
     def test_retained_ak_keeps_baseline_charts_and_classification(self):
         rows = qualifying_rows()
