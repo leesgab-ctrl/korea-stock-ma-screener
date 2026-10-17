@@ -50,7 +50,7 @@ class Ma60NearReboundTests(unittest.TestCase):
     def test_two_percent_boundary_on_trough_and_signal_both_sides(self):
         for values, expected in [([99, 98, 99], True), ([99, 97.999, 99], False),
                                  ([100, 99, 102], True), ([100, 99, 102.001], False),
-                                 ([102, 101, 101.5], True), ([103, 102.001, 102.002], False)]:
+                                 ([102, 101, 101.5], False), ([103, 102.001, 102.002], False)]:
             self.setUp()
             self.rows[:] = self.rows[:3]
             for row, value in zip(self.rows, values):
@@ -75,10 +75,24 @@ class Ma60NearReboundTests(unittest.TestCase):
         self.rows[0]["m3"] = self.rows[1]["m3"]
         self.assertEqual(self.detect()[0]["stage"], "primary")
 
-    def test_already_above_rebound_is_primary_not_false_confirmation(self):
+    def test_already_above_rebound_is_excluded(self):
         for row, value in zip(self.rows, [102, 100.5, 101, 101.5, 102]):
             row["m3"] = value
-        self.assertEqual([event["stage"] for event in self.detect()], ["primary"])
+        self.assertEqual(self.detect(), [])
+
+    def test_optus_october_16_evening_tiny_bounces_above_ma60_excluded(self):
+        values = [("15:30", 6096.67, 5974.67, 6100), ("16:00", 6070, 5975.17, 6040),
+                  ("16:30", 6073.33, 5976.33, 6080), ("17:00", 6060, 5976.83, 6060),
+                  ("17:30", 6063.33, 5977.17, 6050)]
+        self.rows[:] = [{"t": f"2026-10-16T{clock}+09:00", "m3": m3, "m60": m60,
+                        "c": price, "complete": True} for clock, m3, m60, price in values]
+        self.assertEqual(self.detect(), [])
+
+    def test_previous_ma3_equal_to_ma60_is_not_below(self):
+        self.rows[:] = self.rows[:3]
+        for row, value in zip(self.rows, [101, 100, 100.5]):
+            row["m3"] = value
+        self.assertEqual(self.detect(), [])
 
     def test_simultaneous_rebound_cross_is_one_confirmation(self):
         self.rows[2]["m3"] = 100.5
