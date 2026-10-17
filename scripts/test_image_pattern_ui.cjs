@@ -100,7 +100,8 @@ for (const charts of innoChartSets) charts.quote = {
     await page.waitForFunction(() => [...document.querySelectorAll('.image-pattern-thumbnail img')].every(img => img.complete && img.naturalWidth > 0));
     const sourceRow = page.locator('#imageSearchMatches details[data-code="128820"]');
     const sourceLine = sourceRow.locator('.image-pattern-entry').filter({hasText: `${latestDay.slice(5).replace('-', '.')}. 11:30`});
-    assert.deepEqual(await sourceLine.locator('.image-pattern-thumbnail').evaluateAll(nodes => nodes.map(node => node.dataset.imageId)), [rules[0].imageIds[0], rules[1].imageIds[0]], 'Merged descriptions must retain both original image references');
+    assert.equal(await sourceLine.count(), 1, 'Matching rule events must remain merged into one description');
+    assert.deepEqual(await sourceLine.locator('.image-pattern-thumbnail').evaluateAll(nodes => nodes.map(node => node.dataset.imageId)), [rules[0].imageIds[0]], 'Merged descriptions show only one representative icon');
     const icon = sourceLine.locator('.image-pattern-thumbnail').first();
     const thumbnailSrc = await icon.locator('img').getAttribute('src');
     const imageId = await icon.getAttribute('data-image-id');
@@ -110,7 +111,7 @@ for (const charts of innoChartSets) charts.quote = {
     assert.equal(await page.locator('#capturePreviewDialog').isVisible(), true);
     assert.ok((await page.locator('#capturePreviewImage').getAttribute('src')).endsWith(referenceImage.imagePath));
     assert.ok(thumbnailSrc.endsWith(rules[0].stageThumbnails.confirmation.path), 'MA10 confirmation uses the newly supplied crossover crop');
-    assert.ok(await sourceLine.locator('.image-pattern-thumbnail img').evaluateAll((nodes, path) => nodes.every(node => node.src.endsWith(path)), rules[1].thumbnail.path), 'Both MA10 confirmation references use the same crop');
+    assert.ok(await sourceLine.locator('.image-pattern-thumbnail img').evaluateAll((nodes, path) => nodes.every(node => node.src.endsWith(path)), rules[1].thumbnail.path), 'MA10 confirmation keeps the supplied crop');
     const primaryIcons = page.locator('.image-pattern-entry').filter({hasText: '[하락중 MA3가 MA40 돌파]'}).locator('.image-pattern-thumbnail img');
     assert.ok(await primaryIcons.count() > 0);
     assert.ok(await primaryIcons.evaluateAll((nodes, path) => nodes.every(node => node.src.endsWith(path)), rules[0].thumbnail.path), 'MA3 primary keeps its previously approved crop');
@@ -133,6 +134,7 @@ for (const charts of innoChartSets) charts.quote = {
     });
     for (const width of [1280, 390, 320]) {
       await page.setViewportSize({width, height: 1000});
+      assert.ok(await page.locator('.image-pattern-entry').evaluateAll(nodes => nodes.every(node => node.querySelectorAll('.image-pattern-thumbnail').length <= 1)), 'Each description has at most one icon across viewports');
       assert.ok(await page.locator('.image-pattern-thumbnail').evaluateAll(nodes => nodes.every(node => {
         const box = node.getBoundingClientRect();
         return box.height === 16 && box.width === 24;

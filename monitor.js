@@ -1301,8 +1301,7 @@ function buildWatchQuotes(items, tradingDates, {title, showTrend = false, keyPre
       for (const entry of signalNotices.get(item.code).entries) {
         const line = document.createElement("span");
         line.className = "image-pattern-entry";
-        for (const image of entry.images) {
-          if (!image.imageUrl) continue;
+        for (const image of entry.images.filter(image => image.imageUrl).slice(0, 1)) {
           const button = document.createElement("button");
           button.type = "button";
           button.className = "image-pattern-thumbnail";
