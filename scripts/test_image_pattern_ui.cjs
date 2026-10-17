@@ -47,7 +47,7 @@ const nearRule = rules.find(rule => rule.type === 'ma3_ma60_near_rebound');
 for (const [stage, clock] of [['watch', '13:30'], ['primary', '14:00'], ['confirmation', '14:30']]) {
   payload.imageSearch.matches.push({...baseDaesung, time: `${latestDay}T${clock}+09:00`, completedAt: `${latestDay}T${clock}+09:00`,
     ruleId: nearRule.id, ruleName: nearRule.name, sourceImageIds: nearRule.imageIds, signalType: 'ma3Ma60Near', stage,
-    gapPercent: stage === 'confirmation' ? 1 : -1, maxGapPercent: 2});
+    gapPercent: stage === 'confirmation' ? 1 : -1, maxGapPercent: 2.5});
 }
 const innoCandidate = payload.candidates.find(item => item.code === '274400');
 const innoChartSets = [innoCandidate.displayCharts, payload.holdingCharts?.['274400']?.displayCharts].filter(Boolean);

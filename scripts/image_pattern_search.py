@@ -291,7 +291,7 @@ def detect_ma60_near_rebound(rows, rule):
                 stage = "confirmation"
         turning_up = len(history) >= 2 and previous["m3"] <= history[-2]["m3"] and row["m3"] > previous["m3"]
         previous_gap = (previous["m3"] / previous["m60"] - 1) * 100 if previous else None
-        if not episode and turning_up and near and abs(previous_gap) <= limit + 1e-9 \
+        if not episode and turning_up and near \
                 and previous["m3"] < previous["m60"]:
             episode = {"time": row["t"], "setupTime": previous["t"], "setupGapPercent": previous_gap}
             stage = "confirmation" if cross else "primary"
@@ -299,7 +299,7 @@ def detect_ma60_near_rebound(rows, rule):
         if stage:
             events.append({"id": f"{rule['id']}|{episode['time']}|{stage}", "ruleId": rule["id"],
                            "ruleVersion": rule["version"], "stage": stage, "signalType": "ma3Ma60Near",
-                           "stageLabel": "MA60 부근 MA3 상승 전환 · 1차" if stage == "primary" else "MA3·MA60 상향 돌파 · 확인",
+                           "stageLabel": "피라미드형3MA반등 · 1차" if stage == "primary" else "MA3·MA60 상향 돌파 · 확인",
                            "time": row["t"], "completedAt": (timestamp(row["t"]) + dt.timedelta(minutes=30)).isoformat(timespec="minutes"),
                            "episodeTime": episode["time"], "setupTime": episode["setupTime"],
                            "setupGapPercent": episode["setupGapPercent"], "gapPercent": gap, "maxGapPercent": limit,

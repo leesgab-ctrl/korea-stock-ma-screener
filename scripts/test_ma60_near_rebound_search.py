@@ -38,7 +38,7 @@ class Ma60NearReboundTests(unittest.TestCase):
         old = next(rule for rule in self.rules if rule["type"] == "ma20_pyramid_ma60_recovery")
         self.assertFalse(old["enabled"])
         self.assertTrue(self.rule["enabled"])
-        self.assertEqual(self.rule["maxGapPercent"], 2)
+        self.assertEqual(self.rule["maxGapPercent"], 2.5)
 
     def test_turn_then_actual_cross_once(self):
         events = self.detect()
@@ -47,9 +47,9 @@ class Ma60NearReboundTests(unittest.TestCase):
         self.assertEqual(events[0]["episodeTime"], events[1]["episodeTime"])
         self.assertFalse(any(event["simultaneous"] for event in events))
 
-    def test_two_percent_boundary_on_trough_and_signal_both_sides(self):
-        for values, expected in [([99, 98, 99], True), ([99, 97.999, 99], False),
-                                 ([100, 99, 102], True), ([100, 99, 102.001], False),
+    def test_two_point_five_percent_signal_boundary_and_previous_below_only(self):
+        for values, expected in [([99, 98, 99], True), ([99, 97.499, 99], True),
+                                 ([100, 99, 102.5], True), ([100, 99, 102.501], False),
                                  ([102, 101, 101.5], False), ([103, 102.001, 102.002], False)]:
             self.setUp()
             self.rows[:] = self.rows[:3]
@@ -119,6 +119,22 @@ class Ma60NearReboundTests(unittest.TestCase):
         for row, value in zip(self.rows, [371, 366.33, 377.33]):
             row.update(m3=value, m60=468.18)
         self.assertEqual(self.detect(), [])
+
+    def test_daesung_october_15_first_rebound_at_2_point_41_percent(self):
+        values = [("2026-10-15T16:00", 4528.33, 4527.92), ("2026-10-15T16:30", 4508.33, 4529.42),
+                  ("2026-10-15T17:00", 4460, 4530.33), ("2026-10-15T17:30", 4436.67, 4533.67),
+                  ("2026-10-15T18:00", 4416.67, 4537.17), ("2026-10-15T18:30", 4431.67, 4541),
+                  ("2026-10-15T19:00", 4433.33, 4544.58), ("2026-10-15T19:30", 4456.67, 4550.08),
+                  ("2026-10-16T09:00", 4503.33, 4557.42), ("2026-10-16T09:30", 4580, 4565.75)]
+        self.rows[:] = [{"t": clock + "+09:00", "m3": m3, "m60": m60, "c": m3, "complete": True}
+                       for clock, m3, m60 in values]
+        events = self.detect()
+        self.assertEqual([event["stage"] for event in events], ["watch", "primary", "confirmation"])
+        primary = events[1]
+        self.assertEqual(primary["completedAt"], "2026-10-15T19:00+09:00")
+        self.assertAlmostEqual(primary["gapPercent"], -2.4076, places=3)
+        self.assertAlmostEqual(primary["setupGapPercent"], -2.6558, places=3)
+        self.assertEqual(events[2]["completedAt"], "2026-10-16T10:00+09:00")
 
     def test_fall_cancels_pending_and_next_turn_starts_new_episode(self):
         self.rows[3]["m3"] = 98.7
@@ -218,14 +234,14 @@ class Ma60NearReboundTests(unittest.TestCase):
         self.assertEqual(watch["nearBelowBars"], 3)
         self.assertEqual(watch["downCrossTime"], self.rows[1]["t"])
         self.assertEqual(len(watch["watchBars"]), 3)
-        self.assertTrue(all(-2 <= bar["gapPercent"] < 0 for bar in watch["watchBars"]))
+        self.assertTrue(all(-2.5 <= bar["gapPercent"] < 0 for bar in watch["watchBars"]))
 
     def test_watch_needs_an_observed_downcross_not_merely_three_below_bars(self):
         self.watch_rows([99.7, 99.5, 99.2, 99])
         self.assertEqual(self.detect(), [])
 
-    def test_watch_two_percent_inclusive_and_outside_restarts_count(self):
-        self.watch_rows([101, 98, 98, 98, 98])
+    def test_watch_two_point_five_percent_inclusive_and_outside_restarts_count(self):
+        self.watch_rows([101, 97.5, 97.5, 97.5, 97.5])
         self.assertEqual([event["stage"] for event in self.detect()], ["watch"])
         self.watch_rows([101, 99.5, 97, 99.5, 99.2, 99])
         watch = [event for event in self.detect() if event["stage"] == "watch"]
@@ -301,7 +317,7 @@ class Ma60NearReboundTests(unittest.TestCase):
                 patch.object(colors.urllib.request, "urlopen", return_value=response) as opened:
             search.send_alert("test-only", self.candidate, self.payload, row, event, search.timestamp(event["completedAt"]))
         message = urllib.parse.parse_qs(urllib.parse.urlsplit(opened.call_args.args[0].full_url).query)["message"][0]
-        for expected in ("피라미드형 상승가능성 검토요청", "2% 이내", "3개 연속", "전일 대비 +3.00%", "아직 상승 전환이나 MA60 돌파가 확인된 것은 아닙니다"):
+        for expected in ("피라미드형 상승가능성 검토요청", "2.5% 이내", "3개 연속", "전일 대비 +3.00%", "아직 상승 전환이나 MA60 돌파가 확인된 것은 아닙니다"):
             self.assertIn(expected, message)
 
     def test_notification_has_gap_and_signed_daily_change_not_pyramid(self):
@@ -316,7 +332,7 @@ class Ma60NearReboundTests(unittest.TestCase):
                     patch.object(colors.urllib.request, "urlopen", return_value=response) as opened:
                 search.send_alert("test-only", self.candidate, self.payload, row, event, search.timestamp(event["completedAt"]))
             message = urllib.parse.parse_qs(urllib.parse.urlsplit(opened.call_args.args[0].full_url).query)["message"][0]
-            for expected in ("MA60", "±2%", "전일 대비 +3.00%", "봉 완성 시각"):
+            for expected in ("MA60", "±2.5%", "전일 대비 +3.00%", "봉 완성 시각"):
                 self.assertIn(expected, message)
             self.assertIn("피라미드형3MA반등", message)
             self.assertNotIn("MA20 급상승", message)

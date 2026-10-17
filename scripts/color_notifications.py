@@ -118,7 +118,7 @@ def send(topic, candidate, payload, row, state, kind, current):
         message = (f"[이미지조건 · {stage}] {candidate['name']}({candidate['code']})\n"
                    f"- 유형: {state['ruleName']}\n- {reason}\n{simultaneous}"
                    f"- 반등 직전 MA3·MA60 간격 {state['setupGapPercent']:+.2f}% / 현재 {state['gapPercent']:+.2f}%\n"
-                   f"- MA60 대비 ±{state['maxGapPercent']:g}% 이내 기준\n"
+                   f"- 반등 확인봉 기준 MA60 대비 ±{state['maxGapPercent']:g}% 이내\n"
                    f"- MA3 {row['m3']:,.2f} / MA60 {row['m60']:,.2f}\n"
                    f"- 기준봉 종가 {price_text}\n- 봉 완성 시각 {state['completedAt']}\n"
                    "조건 관찰 신호이며, 이후 상승이나 수익을 보장하지 않습니다.")
