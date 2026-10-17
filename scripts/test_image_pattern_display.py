@@ -9,7 +9,7 @@ class ImagePatternDisplayTests(unittest.TestCase):
         self.rule = {"id": "test120", "version": 1, "type": "ma3_ma120_recovery", "enabled": True,
                      "imageIds": ["image120"], "name": "MA120 이탈후 재돌파", "description": "test"}
         self.rows = [{"t": f"2026-10-16T{9+i//2:02d}:{'30' if i%2 else '00'}+09:00", "m3": value,
-                      "m120": 100, "c": 103, "complete": True} for i, value in enumerate([102, 99, 101, 101])]
+                      "m60": 110, "m120": 99.9 + i * .01, "c": 103, "complete": True} for i, value in enumerate([102, 99, 101, 101])]
         self.candidate = {"code": "000001", "name": "Test", "registeredAt": "2026-10-15T10:00+09:00", "displayCharts": {
             "intraday": {"series": self.rows, "dataStatus": "ok"},
             "quote": {"price": 150, "previousClose": 100, "time": "2026-10-16T15:00+09:00"},

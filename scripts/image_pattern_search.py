@@ -124,33 +124,38 @@ def detect_rising_cluster(rows, rule):
 
 
 def detect_ma120_recovery(rows, rule):
-    dip = episode = None
-    events = []
-    previous = None
+    episode = None
+    events, history = [], []
+    lookback = rule.get("belowLookbackBars", 5)
     for row in rows:
         valid_row = all(isinstance(row.get(key), (int, float)) and not isinstance(row[key], bool)
-                        and math.isfinite(row[key]) and row[key] > 0 for key in ("m3", "m120", "c"))
+                        and math.isfinite(row[key]) and row[key] > 0 for key in ("m3", "m60", "m120", "c"))
         if not valid_row:
-            dip = episode = previous = None
+            episode, history = None, []
             continue
+        previous = history[-1] if history else None
         missing_bar = previous and timestamp(row["t"]).date() == timestamp(previous["t"]).date() \
             and timestamp(row["t"]) - timestamp(previous["t"]) != dt.timedelta(minutes=30)
         if missing_bar:
-            dip = episode = previous = None
+            episode, history, previous = None, [], None
+        background = previous and row["m120"] > previous["m120"] and row["m60"] > row["m120"]
         stage = None
         if episode:
-            if row["m3"] >= row["m120"]:
+            if background and row["m3"] >= row["m120"]:
                 stage = "confirmation"
             confirmed_episode = episode
             episode = None
         else:
             confirmed_episode = None
-        if row["m3"] < row["m120"] and dip is None:
-            dip = row["t"]
-        if previous and dip and previous["m3"] <= previous["m120"] and row["m3"] > row["m120"]:
-            episode = {"time": row["t"], "setupTime": dip}
-            dip = None
-            stage = "primary"
+        if background and previous["m3"] <= previous["m120"] and row["m3"] > row["m120"]:
+            # The recent below-line observation matters, not when a long dip first began.
+            below = next((history[j] for j in range(len(history) - 1, max(0, len(history) - lookback) - 1, -1)
+                          if j > 0 and history[j]["m3"] < history[j]["m120"]
+                          and history[j]["m60"] > history[j]["m120"]
+                          and history[j]["m120"] > history[j - 1]["m120"]), None)
+            if below:
+                episode = {"time": row["t"], "setupTime": below["t"]}
+                stage = "primary"
         event_episode = episode if stage == "primary" else confirmed_episode
         if stage:
             events.append({"id": f"{rule['id']}|{event_episode['time']}|{stage}", "ruleId": rule["id"],
@@ -158,8 +163,10 @@ def detect_ma120_recovery(rows, rule):
                            "stageLabel": "MA3·MA120 상향 돌파 · 1차" if stage == "primary" else "다음 봉 MA3 ≥ MA120 유지 · 2차 확인",
                            "time": row["t"], "completedAt": (timestamp(row["t"]) + dt.timedelta(minutes=30)).isoformat(timespec="minutes"),
                            "setupTime": event_episode["setupTime"], "episodeTime": event_episode["time"], "price": row["c"],
-                           "m3": row["m3"], "m120": row["m120"]})
-        previous = row
+                           "belowLookbackBars": lookback, "m120Previous": previous["m120"],
+                           "m3": row["m3"], "m60": row["m60"], "m120": row["m120"]})
+        history.append(row)
+        history = history[-(lookback + 1):]
     return events
 
 

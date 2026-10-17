@@ -14,7 +14,8 @@ class Ma120RecoveryTests(unittest.TestCase):
                          if rule["type"] == "ma3_ma120_recovery")
         self.start = dt.datetime(2026, 10, 16, 9, tzinfo=search.KST)
         self.rows = [{"t": (self.start + dt.timedelta(minutes=30 * i)).isoformat(timespec="minutes"),
-                      "m3": value, "m120": 100, "c": 101, "complete": True}
+                      "m3": 99.9 + i * .01 if value == 100 else value,
+                      "m60": 110, "m120": 99.9 + i * .01, "c": 101, "complete": True}
                      for i, value in enumerate([102, 99, 101, 100, 100, 99, 101, 99, 101, 101])]
         self.candidate = {"code": "000002", "name": "MA120", "candidateTier": "expanded_ak",
                           "registeredAt": "2026-10-15T16:40+09:00", "displayCharts": {
@@ -46,13 +47,13 @@ class Ma120RecoveryTests(unittest.TestCase):
             self.assertEqual(self.detect()[1]["stage"], "confirmation")
 
     def test_just_touching_without_crossing_does_not_trigger_first(self):
-        for row in self.rows:
-            row["m3"] = 99 if row is self.rows[0] else 100
+        for i, row in enumerate(self.rows):
+            row["m3"] = 102 if i == 0 else 99 if i == 1 else row["m120"]
         self.assertEqual(self.detect(), [])
 
     def test_failed_next_bar_is_not_confirmed_later(self):
         self.rows[3]["m3"] = 99
-        self.rows[4]["m3"] = 100
+        self.rows[4]["m3"] = self.rows[4]["m120"]
         events = self.detect()
         self.assertNotIn(self.rows[3]["t"], [event["time"] for event in events])
         self.assertNotIn(self.rows[4]["t"], [event["time"] for event in events])
@@ -62,11 +63,75 @@ class Ma120RecoveryTests(unittest.TestCase):
             row["m3"] = 101
         self.assertEqual([event["stage"] for event in self.detect()], ["primary", "confirmation"])
 
-    def test_slow_recovery_and_other_ma_directions_are_not_extra_filters(self):
+    def test_long_dip_is_allowed_if_recent_below_bar_qualifies(self):
         for row in self.rows[1:-2]:
             row["m3"] = 99
             row.update(m40=120, m60=130)
         self.assertEqual(self.detect()[0]["time"], self.rows[-2]["t"])
+
+    def test_ma120_must_be_rising_and_ma60_strictly_above_it(self):
+        for mode in ("flat", "falling", "ma60Below", "ma60Equal"):
+            self.setUp()
+            for i, row in enumerate(self.rows):
+                if mode in ("flat", "falling"):
+                    row["m120"] = 100 - (i * .01 if mode == "falling" else 0)
+                else:
+                    row["m60"] = row["m120"] - (1 if mode == "ma60Below" else 0)
+            self.assertEqual(self.detect(), [], mode)
+
+    def test_ma60_may_fall_while_remaining_above_ma120(self):
+        for i, row in enumerate(self.rows):
+            row["m60"] = 110 - i * .1
+        self.assertTrue(self.detect())
+
+    def test_last_five_bars_not_start_of_dip_controls_eligibility(self):
+        for distance, expected in [(1, True), (5, True), (6, False)]:
+            self.setUp()
+            self.rows[:] = self.rows[:distance + 2]
+            for i, row in enumerate(self.rows):
+                row["m3"] = 102 if i in (0, len(self.rows) - 1) else 99 if i == 1 else row["m120"]
+            events = self.detect()
+            self.assertEqual(bool(events), expected, distance)
+            if expected:
+                self.assertEqual(events[0]["setupTime"], self.rows[1]["t"])
+
+    def test_recent_below_bar_must_also_have_the_required_background(self):
+        self.rows[:] = self.rows[:3]
+        self.rows[1]["m60"] = 90
+        self.assertEqual(self.detect(), [])
+
+    def test_no_new_primary_if_ma3_was_already_above(self):
+        for row in self.rows:
+            row["m3"] = 102
+        self.assertEqual(self.detect(), [])
+
+    def test_gs_global_october_16_cross_with_ma60_below_ma120_is_excluded(self):
+        values = [
+            ("09:30", 2866.67, 2947.33, 3036.67, 2930),
+            ("10:00", 2895, 2945.67, 3034.92, 2895),
+            ("10:30", 2951.67, 2946.17, 3034.33, 3030),
+            ("11:00", 2990, 2946.5, 3034.12, 3045),
+            ("11:30", 3066.67, 2948.67, 3034.33, 3125),
+            ("12:00", 3096.67, 2950.17, 3034.46, 3120),
+        ]
+        rows = [{"t": f"2026-10-16T{clock}+09:00", "m3": m3, "m60": m60, "m120": m120,
+                 "c": price, "complete": True} for clock, m3, m60, m120, price in values]
+        self.assertEqual(search.detect(rows, self.rule), [])
+
+    def test_new_rule_version_initializes_without_replaying_old_history(self):
+        old_key = f"{self.candidate['code']}|{self.candidate['registeredAt']}|{self.rule['id']}|1"
+        self.payload["imageSearchNotificationState"] = {old_key: {"baseline": self.rows[0]["t"], "sent": {}}}
+        self.assertEqual(self.run_at("15:00"), 0)
+        self.sender.assert_not_called()
+        new_key = old_key[:-1] + str(self.rule["version"])
+        self.assertEqual(self.payload["imageSearchNotificationState"][new_key]["baseline"], self.rows[-1]["t"])
+
+    def test_confirmation_requires_background_and_is_not_retried_later(self):
+        for field, value in [("m60", 90), ("m120", 99.92)]:
+            self.setUp()
+            self.rows[3][field] = value
+            self.assertNotIn(self.rows[3]["t"], [event["time"] for event in self.detect()])
+            self.assertNotIn(self.rows[4]["t"], [event["time"] for event in self.detect()])
 
     def test_invalid_ma120_and_same_day_missing_bar_cancel_confirmation(self):
         self.rows[3]["m120"] = None
@@ -154,6 +219,8 @@ class Ma120RecoveryTests(unittest.TestCase):
                 search.send_alert("test-only", self.candidate, self.payload, row, event, search.timestamp(event["completedAt"]))
             message = urllib.parse.parse_qs(urllib.parse.urlsplit(opened.call_args.args[0].full_url).query)["message"][0]
             self.assertIn("MA120", message)
+            self.assertIn("MA120 상승 중", message)
+            self.assertIn("MA60 > MA120", message)
             self.assertIn("전일 대비 +1.00%", message)
             self.assertNotIn("MA10이 MA40", message)
             if event["stage"] == "confirmation":
