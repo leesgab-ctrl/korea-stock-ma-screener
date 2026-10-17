@@ -262,11 +262,14 @@ def detect_pyramid_recovery(rows, rule):
 def detect_ma60_near_rebound(rows, rule):
     events, history, episode = [], [], None
     limit = rule["maxGapPercent"]
+    watch_bars = rule.get("watchBelowBars", 0)
+    dip, below_window, watched = None, [], False
     for row in rows:
         valid_row = all(isinstance(row.get(key), (int, float)) and not isinstance(row[key], bool)
                         and math.isfinite(row[key]) and row[key] > 0 for key in ("m3", "m60", "c"))
         if not valid_row:
             history, episode = [], None
+            dip, below_window, watched = None, [], False
             continue
         previous = history[-1] if history else None
         # Native aftermarket charts omit no-trade slots; do not fabricate bars or discard their MA continuity.
@@ -275,6 +278,7 @@ def detect_ma60_near_rebound(rows, rule):
             and timestamp(row["t"]) - timestamp(previous["t"]) != dt.timedelta(minutes=30)
         if missing:
             history, episode, previous = [], None, None
+            dip, below_window, watched = None, [], False
         gap = (row["m3"] / row["m60"] - 1) * 100
         near = abs(gap) <= limit + 1e-9
         stage, simultaneous = None, False
@@ -301,6 +305,31 @@ def detect_ma60_near_rebound(rows, rule):
                            "price": row["c"], "m3": row["m3"], "m60": row["m60"], "simultaneous": simultaneous})
             if stage == "confirmation" or row["m3"] > row["m60"]:
                 episode = None
+        if row["m3"] >= row["m60"]:
+            dip, below_window, watched = None, [], False
+        elif previous and previous["m3"] >= previous["m60"]:
+            dip, below_window, watched = row["t"], [], False
+        if watch_bars and dip:
+            if near:
+                below_window.append(row)
+                below_window = below_window[-watch_bars:]
+            else:
+                below_window = []
+            if len(below_window) == watch_bars and not watched:
+                watched = True
+                # A rebound/crossover notification on this candle already supersedes the early watch.
+                if not stage:
+                    first = below_window[0]
+                    events.append({"id": f"{rule['id']}|{dip}|watch", "ruleId": rule["id"],
+                                   "ruleVersion": rule["version"], "stage": "watch", "signalType": "ma3Ma60Near",
+                                   "stageLabel": "피라미드형 상승가능성 검토요청",
+                                   "time": row["t"], "completedAt": (timestamp(row["t"]) + dt.timedelta(minutes=30)).isoformat(timespec="minutes"),
+                                   "episodeTime": dip, "downCrossTime": dip, "setupTime": first["t"],
+                                   "setupGapPercent": (first["m3"] / first["m60"] - 1) * 100,
+                                   "gapPercent": gap, "maxGapPercent": limit, "nearBelowBars": watch_bars,
+                                   "watchBars": [{"time": bar["t"], "m3": bar["m3"], "m60": bar["m60"],
+                                                  "gapPercent": (bar["m3"] / bar["m60"] - 1) * 100} for bar in below_window],
+                                   "price": row["c"], "m3": row["m3"], "m60": row["m60"], "simultaneous": False})
         history.append(row)
         history = history[-2:]
     return events
@@ -364,7 +393,8 @@ def detect(rows, rule):
 
 def send_alert(topic, candidate, payload, row, event, current):
     from color_notifications import send
-    kind = "imageMa60NearRebound" if event.get("signalType") == "ma3Ma60Near" else \
+    kind = "imageMa60NearWatch" if event.get("signalType") == "ma3Ma60Near" and event.get("stage") == "watch" else \
+        "imageMa60NearRebound" if event.get("signalType") == "ma3Ma60Near" else \
         "imagePyramidRecovery" if event.get("signalType") == "ma20Pyramid" else \
         "imageMa120Recovery" if event.get("signalType") == "ma3Ma120" else \
         "imageMa3Rise" if event.get("signalType") == "ma3Rise" else \

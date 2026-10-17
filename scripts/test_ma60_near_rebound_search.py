@@ -190,6 +190,106 @@ class Ma60NearReboundTests(unittest.TestCase):
         self.assertNotIn(old_key, self.payload["imageSearchNotificationState"])
         self.sender.assert_not_called()
 
+    def watch_rows(self, values=(101, 99.5, 99.2, 99, 98.8, 99.5, 100.5)):
+        start = search.timestamp("2026-10-16T09:00+09:00")
+        self.rows[:] = [{"t": (start + dt.timedelta(minutes=30 * i)).isoformat(timespec="minutes"),
+                        "m3": value, "m60": 100, "c": 103, "complete": True} for i, value in enumerate(values)]
+
+    def test_watch_on_third_near_below_bar_without_requiring_upturn(self):
+        self.watch_rows()
+        events = self.detect()
+        self.assertEqual([event["stage"] for event in events], ["watch", "primary", "confirmation"])
+        watch = events[0]
+        self.assertEqual(watch["completedAt"], "2026-10-16T11:00+09:00")
+        self.assertEqual(watch["nearBelowBars"], 3)
+        self.assertEqual(watch["downCrossTime"], self.rows[1]["t"])
+        self.assertEqual(len(watch["watchBars"]), 3)
+        self.assertTrue(all(-2 <= bar["gapPercent"] < 0 for bar in watch["watchBars"]))
+
+    def test_watch_needs_an_observed_downcross_not_merely_three_below_bars(self):
+        self.watch_rows([99.7, 99.5, 99.2, 99])
+        self.assertEqual(self.detect(), [])
+
+    def test_watch_two_percent_inclusive_and_outside_restarts_count(self):
+        self.watch_rows([101, 98, 98, 98, 98])
+        self.assertEqual([event["stage"] for event in self.detect()], ["watch"])
+        self.watch_rows([101, 99.5, 97, 99.5, 99.2, 99])
+        watch = [event for event in self.detect() if event["stage"] == "watch"]
+        self.assertEqual(len(watch), 1)
+        self.assertEqual(watch[0]["time"], self.rows[5]["t"])
+
+    def test_watch_only_once_per_below_episode_and_rearms_after_recovery(self):
+        self.watch_rows([101, 99.5, 99.2, 99, 97, 99.2, 99.1, 99, 101, 99.5, 99.2, 99])
+        watch = [event for event in self.detect() if event["stage"] == "watch"]
+        self.assertEqual([event["time"] for event in watch], [self.rows[i]["t"] for i in (3, 11)])
+        self.assertNotEqual(watch[0]["id"], watch[1]["id"])
+
+    def test_rebound_on_third_bar_supersedes_watch_same_candle(self):
+        self.watch_rows([101, 99.5, 99, 99.2, 99.4, 100.5])
+        events = self.detect()
+        self.assertEqual([event["stage"] for event in events], ["primary", "confirmation"])
+        self.assertEqual(events[0]["time"], self.rows[3]["t"])
+
+    def test_watch_missing_regular_bar_and_invalid_data_break_sequence(self):
+        self.watch_rows([101, 99.5, 99.2, 99])
+        self.rows[2]["m60"] = None
+        self.assertEqual(self.detect(), [])
+        self.watch_rows([101, 99.5, 99.2, 99])
+        del self.rows[2]
+        self.assertEqual(self.detect(), [])
+
+    def test_watch_at_market_close_then_next_morning_confirmation(self):
+        self.watch_rows([101, 99.5, 99.2, 99, 100.5])
+        for row, clock in zip(self.rows, ["17:00", "18:00", "18:30", "19:30", "09:00"]):
+            day = "2026-10-16" if clock == "09:00" else "2026-10-15"
+            row["t"] = f"{day}T{clock}+09:00"
+        events = self.detect()
+        self.assertEqual([event["stage"] for event in events], ["watch", "confirmation"])
+        self.assertEqual(events[0]["completedAt"], "2026-10-15T20:00+09:00")
+        self.assertEqual(events[1]["completedAt"], "2026-10-16T09:30+09:00")
+
+    def test_watch_notifies_once_and_preserves_later_rebound_alerts(self):
+        self.watch_rows()
+        self.assertEqual(self.run_at("10:00"), 0)
+        self.assertEqual(self.run_at("10:30"), 0)
+        self.assertEqual(self.run_at("11:00"), 1)
+        self.assertEqual(self.run_at("11:00"), 0)
+        self.assertEqual(self.run_at("11:30"), 0)
+        self.assertEqual(self.run_at("12:00"), 1)
+        self.assertEqual(self.run_at("12:30"), 1)
+        self.assertEqual(self.sender.call_count, 3)
+
+    def test_watch_aftermarket_retry_and_no_historical_replay(self):
+        self.watch_rows()
+        for row in self.rows:
+            row["t"] = (search.timestamp(row["t"]) + dt.timedelta(hours=7)).isoformat(timespec="minutes")
+        self.run_at("17:00")
+        self.sender.side_effect = OSError("offline")
+        self.assertEqual(self.run_at("18:00"), 0)
+        self.sender.side_effect = None
+        self.assertEqual(self.run_at("18:00"), 1)
+        self.assertEqual(self.run_at("18:00"), 0)
+        self.setUp()
+        self.watch_rows()
+        self.assertEqual(self.run_at("15:00"), 0)
+        self.sender.assert_not_called()
+
+    def test_watch_message_is_explicitly_early_review_and_includes_return(self):
+        self.watch_rows()
+        event = self.detect()[0]
+        event["ruleName"] = self.rule["name"]
+        row = self.rows[3]
+        response = Mock()
+        response.read.return_value = b'{"attachment":{"url":"test"}}'
+        response.__enter__ = Mock(return_value=response)
+        response.__exit__ = Mock(return_value=False)
+        with patch.object(colors, "chart_image", return_value=b"image"), \
+                patch.object(colors.urllib.request, "urlopen", return_value=response) as opened:
+            search.send_alert("test-only", self.candidate, self.payload, row, event, search.timestamp(event["completedAt"]))
+        message = urllib.parse.parse_qs(urllib.parse.urlsplit(opened.call_args.args[0].full_url).query)["message"][0]
+        for expected in ("피라미드형 상승가능성 검토요청", "2% 이내", "3개 연속", "전일 대비 +3.00%", "아직 상승 전환이나 MA60 돌파가 확인된 것은 아닙니다"):
+            self.assertIn(expected, message)
+
     def test_notification_has_gap_and_signed_daily_change_not_pyramid(self):
         for event in self.detect():
             event["ruleName"] = self.rule["name"]

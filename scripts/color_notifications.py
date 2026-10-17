@@ -100,7 +100,16 @@ def send(topic, candidate, payload, row, state, kind, current):
     dates = sorted(lows)[-3:]
     stop = min(lows[d] for d in dates) if len(dates) == 3 else None
     label = {"purple": "진한 보라색 조정 관찰", "convergenceBreakout": "MA40·60 밀집 후 MA3 상향돌파 매수 후보", "coreMorningMa3": "핵심종목 아침 MA3 상승", "recoveryMa10Breakout": "조정 후 MA10·MA40 상향돌파"}.get(kind, "전체 5개 MA 밀착")
-    if kind == "imageMa60NearRebound":
+    if kind == "imageMa60NearWatch":
+        label = "피라미드형 상승가능성 검토요청"
+        message = (f"[피라미드형 상승가능성 검토요청] {candidate['name']}({candidate['code']})\n"
+                   f"- MA3가 MA60 아래로 하락한 뒤, MA60 아래에서 두 선의 간격이 {state['maxGapPercent']:g}% 이내인 완성 30분봉이 {state['nearBelowBars']}개 연속 나왔습니다.\n"
+                   "- 아직 상승 전환이나 MA60 돌파가 확인된 것은 아닙니다. 다음 움직임을 미리 검토해 주세요.\n"
+                   f"- 현재 MA3·MA60 간격 {state['gapPercent']:+.2f}%\n"
+                   f"- MA3 {row['m3']:,.2f} / MA60 {row['m60']:,.2f}\n"
+                   f"- 기준봉 종가 {price_text}\n- 봉 완성 시각 {state['completedAt']}\n"
+                   "사전 관찰 알림이며, 다음 날 상승이나 수익을 보장하지 않습니다.")
+    elif kind == "imageMa60NearRebound":
         primary = state["stage"] == "primary"
         stage = "1차 반등 포착" if primary else "MA60 돌파 확인"
         label = f"이미지조건 MA60 부근 {stage}"
