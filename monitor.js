@@ -120,7 +120,7 @@ function compareRegistrationNewest(a, b) {
     || a.name.localeCompare(b.name, "ko");
 }
 function imagePatternLabel(event) {
-  if (event.signalType === "ma3Ma60Near" && event.stage === "watch") return "피라미드형 상승가능성 검토";
+  if (event.signalType === "ma3Ma60Near" && event.stage === "watch") return "피라미드형 1차 검토필요";
   if (event.signalType === "ma3Ma60Near") return event.stage === "primary" ? "피라미드형3MA반등" : "MA60 부근 MA3 돌파 확인";
   if (event.signalType === "ma20Pyramid") return event.stage === "primary" ? "피라미드후 MA3 반등" : "피라미드후 MA3가 MA60 돌파";
   if (event.signalType === "ma3Rise") return `${event.clusterLines?.length || 4}선 밀집후 MA3 ${event.stage === "primary" ? "1봉" : "2봉"} 상승`;
@@ -1349,6 +1349,7 @@ function buildWatchQuotes(items, tradingDates, {title, showTrend = false, showFa
         change.dataset.direction = entry.direction;
         change.textContent = entry.change;
         line.title = `${entry.event.ruleName} · 포착 종가 ${formatter.format(entry.event.price)}원 · 전일 대비 ${entry.change}${entry.event.dataStatus !== "ok" ? " · 최신 자료 확인 필요" : ""}`;
+        if (entry.event.pyramid) line.title += ` · 선행 MA20 하루 상승 +${entry.event.pyramid.riseDayPercent.toFixed(2)}% · 고점 후 하락 -${entry.event.pyramid.fallPercent.toFixed(2)}%`;
         line.append(name, time, change);
         if (entry.strength) {
           const strength = document.createElement("span");

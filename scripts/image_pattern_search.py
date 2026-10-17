@@ -259,80 +259,89 @@ def detect_pyramid_recovery(rows, rule):
     return events
 
 
+def ma60_is_rising(rows, end, comparisons):
+    window = rows[max(0, end - comparisons):end + 1]
+    return len(window) == comparisons + 1 \
+        and all(isinstance(bar.get("m60"), (int, float)) and not isinstance(bar["m60"], bool)
+                and math.isfinite(bar["m60"]) and bar["m60"] > 0 for bar in window) \
+        and all(b["m60"] > a["m60"] for a, b in zip(window, window[1:]))
+
+
+def ma20_recovery_background(rows, start, end, rule):
+    if not ma60_is_rising(rows, end, rule["trendComparisons"]):
+        return None
+    return pyramid_setup(rows, start, end, rule)
+
+
 def detect_ma60_near_rebound(rows, rule):
-    events, history, episode = [], [], None
+    events, previous, review, setup = [], None, None, None
     limit = rule["maxGapPercent"]
-    watch_bars = rule.get("watchBelowBars", 0)
-    dip, below_window, watched = None, [], False
-    for row in rows:
+    watch_bars = rule["watchBelowBars"]
+    dip, below_window = None, []
+    pyramid_start, reviewed_peaks = 0, set()
+    for i, row in enumerate(rows):
+        m20_valid = isinstance(row.get("m20"), (int, float)) and not isinstance(row["m20"], bool) \
+            and math.isfinite(row["m20"]) and row["m20"] > 0
+        if not m20_valid:
+            pyramid_start = i + 1
         valid_row = all(isinstance(row.get(key), (int, float)) and not isinstance(row[key], bool)
                         and math.isfinite(row[key]) and row[key] > 0 for key in ("m3", "m60", "c"))
-        if not valid_row:
-            history, episode = [], None
-            dip, below_window, watched = None, [], False
+        if not valid_row or not m20_valid:
+            previous, review, setup, dip, below_window = None, None, None, None, []
             continue
-        previous = history[-1] if history else None
         # Native aftermarket charts omit no-trade slots; do not fabricate bars or discard their MA continuity.
         missing = previous and timestamp(row["t"]).date() == timestamp(previous["t"]).date() \
             and timestamp(previous["t"]).time() < dt.time(15, 30) \
             and timestamp(row["t"]) - timestamp(previous["t"]) != dt.timedelta(minutes=30)
         if missing:
-            history, episode, previous = [], None, None
-            dip, below_window, watched = None, [], False
+            previous, review, setup, dip, below_window = None, None, None, None, []
+            pyramid_start = i
         gap = (row["m3"] / row["m60"] - 1) * 100
-        near = abs(gap) <= limit + 1e-9
-        stage, simultaneous = None, False
+        rising60 = ma60_is_rising(rows, i, rule["trendComparisons"])
+        background = ma20_recovery_background(rows, pyramid_start, i, rule)
+        if background:
+            setup = {"pyramid": background, "index": i}
+        elif setup and (i - setup["index"] > rule["confirmationMaxBars"] or not rising60):
+            setup = None
         cross = previous and previous["m3"] <= previous["m60"] and row["m3"] > row["m60"] \
             and row["m3"] > previous["m3"]
-        if episode:
-            if not near or row["m3"] < previous["m3"]:
-                episode = None
+        stage, event_review = None, None
+        if review:
+            if not rising60 or gap < -limit - 1e-9 or i - review["index"] > rule["confirmationMaxBars"]:
+                review = None
             elif cross:
                 stage = "confirmation"
-        turning_up = len(history) >= 2 and previous["m3"] <= history[-2]["m3"] and row["m3"] > previous["m3"]
-        previous_gap = (previous["m3"] / previous["m60"] - 1) * 100 if previous else None
-        if not episode and turning_up and near \
-                and previous["m3"] < previous["m60"]:
-            episode = {"time": row["t"], "setupTime": previous["t"], "setupGapPercent": previous_gap}
-            stage = "confirmation" if cross else "primary"
-            simultaneous = bool(cross)
-        if stage:
-            events.append({"id": f"{rule['id']}|{episode['time']}|{stage}", "ruleId": rule["id"],
-                           "ruleVersion": rule["version"], "stage": stage, "signalType": "ma3Ma60Near",
-                           "stageLabel": "피라미드형3MA반등 · 1차" if stage == "primary" else "MA3·MA60 상향 돌파 · 확인",
-                           "time": row["t"], "completedAt": (timestamp(row["t"]) + dt.timedelta(minutes=30)).isoformat(timespec="minutes"),
-                           "episodeTime": episode["time"], "setupTime": episode["setupTime"],
-                           "setupGapPercent": episode["setupGapPercent"], "gapPercent": gap, "maxGapPercent": limit,
-                           "price": row["c"], "m3": row["m3"], "m60": row["m60"], "simultaneous": simultaneous})
-            if stage == "confirmation" or row["m3"] > row["m60"]:
-                episode = None
+                event_review, review = review, None
         if row["m3"] >= row["m60"]:
-            dip, below_window, watched = None, [], False
+            dip, below_window = None, []
         elif previous and previous["m3"] >= previous["m60"]:
-            dip, below_window, watched = row["t"], [], False
-        if watch_bars and dip:
-            if near:
+            dip, below_window = row["t"], []
+        if dip:
+            if gap >= -limit - 1e-9:
                 below_window.append(row)
                 below_window = below_window[-watch_bars:]
             else:
                 below_window = []
-            if len(below_window) == watch_bars and not watched:
-                watched = True
-                # A rebound/crossover notification on this candle already supersedes the early watch.
-                if not stage:
-                    first = below_window[0]
-                    events.append({"id": f"{rule['id']}|{dip}|watch", "ruleId": rule["id"],
-                                   "ruleVersion": rule["version"], "stage": "watch", "signalType": "ma3Ma60Near",
-                                   "stageLabel": "피라미드형 상승가능성 검토요청",
-                                   "time": row["t"], "completedAt": (timestamp(row["t"]) + dt.timedelta(minutes=30)).isoformat(timespec="minutes"),
-                                   "episodeTime": dip, "downCrossTime": dip, "setupTime": first["t"],
-                                   "setupGapPercent": (first["m3"] / first["m60"] - 1) * 100,
-                                   "gapPercent": gap, "maxGapPercent": limit, "nearBelowBars": watch_bars,
-                                   "watchBars": [{"time": bar["t"], "m3": bar["m3"], "m60": bar["m60"],
-                                                  "gapPercent": (bar["m3"] / bar["m60"] - 1) * 100} for bar in below_window],
-                                   "price": row["c"], "m3": row["m3"], "m60": row["m60"], "simultaneous": False})
-        history.append(row)
-        history = history[-2:]
+            if len(below_window) == watch_bars and setup and rising60 and not review and not stage \
+                    and setup["pyramid"]["peakTime"] not in reviewed_peaks:
+                first = below_window[0]
+                review = {"time": row["t"], "index": i, "downCrossTime": dip, "setupTime": first["t"],
+                          "setupGapPercent": (first["m3"] / first["m60"] - 1) * 100, "pyramid": setup["pyramid"],
+                          "watchBars": [{"time": bar["t"], "m3": bar["m3"], "m60": bar["m60"],
+                                         "gapPercent": (bar["m3"] / bar["m60"] - 1) * 100} for bar in below_window]}
+                reviewed_peaks.add(setup["pyramid"]["peakTime"])
+                stage, event_review = "watch", review
+        if stage:
+            events.append({"id": f"{rule['id']}|{event_review['time']}|{stage}", "ruleId": rule["id"],
+                           "ruleVersion": rule["version"], "stage": stage, "signalType": "ma3Ma60Near",
+                           "stageLabel": "피라미드형 1차 검토필요" if stage == "watch" else "MA3·MA60 상향 돌파 · 확인",
+                           "time": row["t"], "completedAt": (timestamp(row["t"]) + dt.timedelta(minutes=30)).isoformat(timespec="minutes"),
+                           "episodeTime": event_review["time"], "downCrossTime": event_review["downCrossTime"],
+                           "setupTime": event_review["setupTime"], "setupGapPercent": event_review["setupGapPercent"],
+                           "gapPercent": gap, "maxGapPercent": limit, "nearBelowBars": watch_bars,
+                           "watchBars": event_review["watchBars"], "pyramid": event_review["pyramid"],
+                           "price": row["c"], "m3": row["m3"], "m60": row["m60"], "simultaneous": False})
+        previous = row
     return events
 
 

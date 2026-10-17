@@ -44,7 +44,7 @@ payload.imageSearch.matches.push({...baseDaesung, time: `${latestDay}T12:00+09:0
   ruleId: ma120Rule.id, ruleName: ma120Rule.name, sourceImageIds: ma120Rule.imageIds,
   signalType: 'ma3Ma120', stage: 'confirmation', stageLabel: '다음 봉 MA3 ≥ MA120 유지 · 2차 확인'});
 const nearRule = rules.find(rule => rule.type === 'ma3_ma60_near_rebound');
-for (const [stage, clock] of [['watch', '13:30'], ['primary', '14:00'], ['confirmation', '14:30']]) {
+for (const [stage, clock] of [['watch', '13:30'], ['confirmation', '14:30']]) {
   payload.imageSearch.matches.push({...baseDaesung, time: `${latestDay}T${clock}+09:00`, completedAt: `${latestDay}T${clock}+09:00`,
     ruleId: nearRule.id, ruleName: nearRule.name, sourceImageIds: nearRule.imageIds, signalType: 'ma3Ma60Near', stage,
     gapPercent: stage === 'confirmation' ? 1 : -1, maxGapPercent: 2.5});
@@ -97,9 +97,9 @@ for (const charts of innoChartSets) charts.quote = {
     assert.ok(comments.some(text => text.includes('[5선 밀집후 MA3 2봉 상승]')));
     assert.ok(comments.some(text => text.includes('+2.9%')));
     assert.ok(comments.some(text => text.includes('[120MA아래로 3MA하락후 상승]')));
-    assert.ok(comments.some(text => text.includes('[피라미드형3MA반등]')));
+    assert.ok(comments.every(text => !text.includes('[피라미드형3MA반등]')), 'A simple MA3 turn must not create a separate primary alert');
     assert.ok(comments.some(text => text.includes('[MA60 부근 MA3 돌파 확인]')));
-    assert.ok(comments.some(text => text.includes('[피라미드형 상승가능성 검토]')));
+    assert.ok(comments.some(text => text.includes('[피라미드형 1차 검토필요]')));
     assert.ok(comments.every(text => !text.includes('피라미드후')));
     assert.equal(await page.locator('.image-pattern-strength').count(), 0);
     assert.ok(comments.every(text => !/대성산업형|대한제강형|빠른 회복 참고|포착 종가/.test(text)));
@@ -231,7 +231,7 @@ for (const charts of innoChartSets) charts.quote = {
     await card.locator('.capture-confirmation input').uncheck();
     await page.waitForFunction(() => document.querySelector('#captureStatus').textContent.includes('확정을 해제'));
     await page.locator('[data-view="imageSearch"]').click();
-    assert.ok((await page.locator('#imageSearchMatches .image-pattern-comment').allTextContents()).every(text => !/MA60 부근|피라미드형3MA반등|피라미드형 상승가능성 검토/.test(text)));
+    assert.ok((await page.locator('#imageSearchMatches .image-pattern-comment').allTextContents()).every(text => !/MA60 부근|피라미드형/.test(text)));
     assert.equal(await page.locator('#imageSearchRising h2').innerText(), '오늘상승종목');
     assert.deepEqual(errors, []);
     console.log('Image pattern UI passed: independent rules, actual examples, merged stock rows, signal times, chart expansion, shared switch and desktop/mobile layouts.');
