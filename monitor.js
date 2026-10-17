@@ -154,6 +154,7 @@ function recentImagePatternMatches(search, candidates, confirmedIds) {
 
 function renderImageSearch() {
   const confirmed = window.RisingPatterns?.confirmed || [];
+  const imagesById = new Map(confirmed.map(item => [item.id, item]));
   const confirmedIds = new Set(confirmed.map(item => item.id));
   const search = state.payload?.imageSearch;
   const status = document.querySelector("#imageSearchStatus");
@@ -164,10 +165,13 @@ function renderImageSearch() {
   const matches = recentImagePatternMatches(search, candidates, confirmedIds);
   const notices = new Map();
   for (const event of matches) {
-    const entry = {...imagePatternSummary(event), event};
+    const entry = {...imagePatternSummary(event), event, images: event.sourceImageIds.map(id => imagesById.get(id)).filter(Boolean)};
     const previous = notices.get(event.code);
     const entries = previous?.entries || [];
-    if (!entries.some(item => item.label === entry.label && item.event.completedAt === event.completedAt && item.event.price === event.price)) entries.push(entry);
+    const duplicate = entries.find(item => item.label === entry.label && item.event.completedAt === event.completedAt && item.event.price === event.price);
+    if (duplicate) {
+      for (const image of entry.images) if (!duplicate.images.some(item => item.id === image.id)) duplicate.images.push(image);
+    } else entries.push(entry);
     notices.set(event.code, {completedAt: previous?.completedAt > event.completedAt ? previous.completedAt : event.completedAt,
       entries});
   }
@@ -1294,6 +1298,28 @@ function buildWatchQuotes(items, tradingDates, {title, showTrend = false, keyPre
       for (const entry of signalNotices.get(item.code).entries) {
         const line = document.createElement("span");
         line.className = "image-pattern-entry";
+        for (const image of entry.images) {
+          if (!image.imageUrl) continue;
+          const button = document.createElement("button");
+          button.type = "button";
+          button.className = "image-pattern-thumbnail";
+          button.dataset.imageId = image.id;
+          button.title = `${entry.label} · ${image.stock || image.title} · 크게 보기`;
+          button.setAttribute("aria-label", `${image.stock || image.title} 참고 이미지 크게 보기`);
+          const thumbnail = document.createElement("img");
+          thumbnail.src = image.thumbnailUrl || image.imageUrl;
+          thumbnail.alt = "";
+          thumbnail.decoding = "async";
+          thumbnail.addEventListener("error", () => button.remove());
+          button.append(thumbnail);
+          button.addEventListener("click", event => {
+            event.preventDefault();
+            event.stopPropagation();
+            window.RisingPatterns?.preview(image.id);
+          });
+          button.addEventListener("keydown", event => event.stopPropagation());
+          line.append(button);
+        }
         const name = document.createElement("strong");
         name.className = "image-pattern-name";
         name.textContent = `[${entry.label}]`;
@@ -1305,8 +1331,8 @@ function buildWatchQuotes(items, tradingDates, {title, showTrend = false, keyPre
         change.dataset.direction = entry.direction;
         change.textContent = entry.change;
         line.title = `${entry.event.ruleName} · 포착 종가 ${formatter.format(entry.event.price)}원 · 전일 대비 ${entry.change}${entry.event.dataStatus !== "ok" ? " · 최신 자료 확인 필요" : ""}`;
-        if (entry.event.dataStatus !== "ok") line.append(document.createTextNode("자료 확인 필요 · "));
         line.append(name, time, change);
+        if (entry.event.dataStatus !== "ok") line.append(document.createTextNode(" · 자료 확인 필요"));
         comment.append(line);
       }
       summary.append(comment);

@@ -156,7 +156,19 @@
   const token = () => { try { return root.localStorage.getItem(TOKEN_KEY) || ""; } catch { return ""; } };
   const store = new StudyImageStore({token: () => ui ? ui.token.value : token()});
   root.RisingPatterns = {get count() { return board.records.filter(item => !item.deletedAt).length; },
-    get confirmed() { return board.records.filter(item => !item.deletedAt && item.conditionConfirmed === true).map(item => ({id: item.id, title: item.title, stock: item.stock})); },
+    get confirmed() { return board.records.filter(item => !item.deletedAt && item.conditionConfirmed === true).map(item => {
+      const thumbnail = board.ruleLinks.find(rule => rule.imageIds?.includes(item.id) && rule.thumbnail)?.thumbnail;
+      const hasCrop = /^data\/pattern-icons\/[a-zA-Z0-9-]+\.png$/.test(thumbnail?.path || "")
+        && Number.isFinite(thumbnail.width) && thumbnail.width > 0 && Number.isFinite(thumbnail.height) && thumbnail.height > 0;
+      const imageUrl = store.imageUrl(item, board.revision);
+      return {id: item.id, title: item.title, stock: item.stock, imageUrl,
+        thumbnailUrl: hasCrop ? new URL(thumbnail.path, root.location.href).href : imageUrl,
+        width: hasCrop ? thumbnail.width : item.width, height: hasCrop ? thumbnail.height : item.height};
+    }); },
+    preview(id) {
+      const item = board.records.find(item => item.id === id && !item.deletedAt && item.conditionConfirmed === true);
+      if (ui && item) preview(item);
+    },
     setRuleLinks(rules) {
       if (JSON.stringify(board.ruleLinks) === JSON.stringify(rules)) return;
       board.ruleLinks = rules;

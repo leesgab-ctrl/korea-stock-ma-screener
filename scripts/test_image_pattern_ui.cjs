@@ -22,10 +22,12 @@ const marketDays = [...new Set(payload.candidates.flatMap(item => (item.displayC
 const latestDay = marketDays.at(-1);
 const priorDay = marketDays.at(-2);
 const oldDay = marketDays.at(-3);
-const baseDaesung = payload.imageSearch.matches.find(event => event.code === '128820');
-const baseDaehan = payload.imageSearch.matches.find(event => event.code === '084010');
+const baseDaesung = payload.imageSearch.matches.find(event => event.code === '128820' && event.ruleId === rules[0].id);
+const baseDaehan = payload.imageSearch.matches.find(event => event.code === '084010' && event.ruleId === rules[1].id);
 const baseInno = payload.imageSearch.matches.find(event => event.code === '274400');
 payload.imageSearch.matches.push({...baseDaesung, time: `${latestDay}T11:00+09:00`, completedAt: `${latestDay}T11:30+09:00`});
+payload.imageSearch.matches.push({...baseDaesung, ruleId: rules[1].id, ruleName: rules[1].name, sourceImageIds: rules[1].imageIds,
+  time: `${latestDay}T11:00+09:00`, completedAt: `${latestDay}T11:30+09:00`});
 payload.imageSearch.matches.push({...baseDaehan, time: `${priorDay}T12:00+09:00`, completedAt: `${priorDay}T12:30+09:00`});
 payload.imageSearch.matches.push({...baseInno, time: `${latestDay}T14:00+09:00`, completedAt: `${latestDay}T14:30+09:00`});
 payload.candidates.push({...payload.candidates.find(item => item.code === '128820'), code: '999999', name: 'Old signal only'});
@@ -94,6 +96,26 @@ for (const charts of innoChartSets) charts.quote = {
     assert.ok(displayedTimes.every(text => allowedPrefixes.some(prefix => text.trim().startsWith(prefix))), 'Old descriptions must be hidden even on stocks with recent signals');
     assert.equal(await page.locator('#imageSearchConditions').count(), 0);
     assert.equal(await page.locator('#imageSearchPanel > :not([hidden])').first().getAttribute('id'), 'imageSearchMatches');
+    await page.waitForFunction(() => [...document.querySelectorAll('.image-pattern-thumbnail img')].every(img => img.complete && img.naturalWidth > 0));
+    const sourceRow = page.locator('#imageSearchMatches details[data-code="128820"]');
+    const sourceLine = sourceRow.locator('.image-pattern-entry').filter({hasText: `${latestDay.slice(5).replace('-', '.')}. 11:30`});
+    assert.deepEqual(await sourceLine.locator('.image-pattern-thumbnail').evaluateAll(nodes => nodes.map(node => node.dataset.imageId)), [rules[0].imageIds[0], rules[1].imageIds[0]], 'Merged descriptions must retain both original image references');
+    const icon = sourceLine.locator('.image-pattern-thumbnail').first();
+    const thumbnailSrc = await icon.locator('img').getAttribute('src');
+    const imageId = await icon.getAttribute('data-image-id');
+    const referenceImage = records.find(item => item.id === imageId);
+    const originalUrl = page.url();
+    await icon.click();
+    assert.equal(await page.locator('#capturePreviewDialog').isVisible(), true);
+    assert.ok((await page.locator('#capturePreviewImage').getAttribute('src')).endsWith(referenceImage.imagePath));
+    assert.ok(thumbnailSrc.endsWith(rules[0].thumbnail.path), 'Daesung uses the supplied crossover crop, not a shrunken full chart');
+    assert.equal(await sourceRow.getAttribute('open'), null, 'Thumbnail clicks must not expand stock charts');
+    assert.equal(await sourceRow.locator('iframe').count(), 0);
+    assert.equal(page.url(), originalUrl, 'Preview must stay in Rising Search');
+    await page.locator('#capturePreviewClose').click();
+    await icon.press('Enter');
+    assert.equal(await page.locator('#capturePreviewDialog').isVisible(), true);
+    await page.locator('#capturePreviewClose').click();
     const inno = page.locator('#imageSearchMatches details[data-code="274400"]');
     assert.match(await inno.locator('summary .watch-quote-price').nth(0).innerText(), /2,365원/);
     assert.equal(await inno.locator('summary .watch-quote-price').nth(1).innerText(), '+7.0%');
@@ -106,6 +128,10 @@ for (const charts of innoChartSets) charts.quote = {
     });
     for (const width of [1280, 390, 320]) {
       await page.setViewportSize({width, height: 1000});
+      assert.ok(await page.locator('.image-pattern-thumbnail').evaluateAll(nodes => nodes.every(node => {
+        const box = node.getBoundingClientRect();
+        return box.height === 16 && box.width === 24;
+      })), 'All reference icons must be exactly 16px high and 24px wide across viewports');
       await page.waitForFunction(() => {
         const frame = document.querySelector('#imageSearchMatches details[data-code="274400"] iframe');
         return ['maChart', 'dailyChart'].every(id => {
