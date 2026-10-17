@@ -183,7 +183,7 @@ function renderImageSearch() {
   }
   document.querySelector("#imageSearchMatches").replaceChildren(buildWatchQuotes(
     candidates.filter(item => notices.has(item.code)), watchQuoteDates(candidates), {
-      title: "이미지조건 포착이력", showTrend: true, keyPrefix: "image-pattern", signalNotices: notices,
+      title: "이미지조건 포착이력", showTrend: true, showFamily: true, keyPrefix: "image-pattern", signalNotices: notices,
       emptyText: search?.status === "error" ? "검색 결과 확인 대기" : "최근 2거래일 내 포착된 종목이 없습니다.",
     }));
 }
@@ -398,7 +398,7 @@ function render() {
     const dates = watchQuoteDates(activeCandidates);
     document.querySelector("#imageSearchRising").replaceChildren(buildWatchQuotes(
       activeCandidates.filter(item => isTodayRising(item, dates.at(-1))), dates, {
-        title: "오늘상승종목", showTrend: true, keyPrefix: "image-search-rising",
+        title: "오늘상승종목", showTrend: true, showFamily: true, keyPrefix: "image-search-rising",
         emptyText: "현재 전일 종가보다 상승한 감시대상 종목이 없습니다.",
       }));
   }
@@ -1163,9 +1163,9 @@ function renderWatchQuotes(coreOnly = false) {
   }
 }
 
-function buildWatchQuotes(items, tradingDates, {title, showTrend = false, keyPrefix, emptyText, signalNotices = null}) {
+function buildWatchQuotes(items, tradingDates, {title, showTrend = false, showFamily = false, keyPrefix, emptyText, signalNotices = null}) {
   const content = document.createElement("div");
-  content.className = `watch-quotes${showTrend ? " core-quotes" : ""}`;
+  content.className = `watch-quotes${showTrend ? " core-quotes" : ""}${showFamily ? " family-quotes" : ""}`;
   content.dataset.list = keyPrefix;
   content.setAttribute("role", "region");
   content.setAttribute("aria-label", title);
@@ -1189,9 +1189,16 @@ function buildWatchQuotes(items, tradingDates, {title, showTrend = false, keyPre
   meta.textContent += today ? ` · 기준 ${today}` : "";
   const header = document.createElement("div");
   header.className = "watch-quote-header";
-  for (const label of ["종목명", "유형", "감시현황", "등록기간", "최종가격", "등락률", "최고수익률", "현재수익률"]) {
+  for (const label of ["종목명", showFamily ? "대상종목" : "유형", "감시현황", "등록기간", "최종가격", "등락률", "최고수익률", "현재수익률"]) {
     const cell = document.createElement("span");
     cell.textContent = label;
+    if (label === "대상종목") {
+      cell.replaceChildren(...["대상", "종목"].map(text => {
+        const part = document.createElement("span");
+        part.textContent = text;
+        return part;
+      }));
+    }
     if (label === "감시현황") {
       cell.title = "30분봉 감시현황";
       const dates = document.createElement("small");
@@ -1231,7 +1238,9 @@ function buildWatchQuotes(items, tradingDates, {title, showTrend = false, keyPre
     name.textContent = item.name;
     const group = document.createElement("span");
     group.className = "watch-quote-group";
-    group.textContent = { reference: "상승", target: "조정", insufficient: "대기", unclassified: "대기" }[chartGroup(item)] || "대기";
+    group.textContent = showFamily ? screeningFamily(item).replace("-", "")
+      : { reference: "상승", target: "조정", insufficient: "대기", unclassified: "대기" }[chartGroup(item)] || "대기";
+    if (showFamily) group.title = screeningFamily(item);
     const swatches = document.createElement("span");
     swatches.className = "watch-quote-swatches";
     const snapshots = watchColorSnapshots(item, tradingDates);
@@ -1258,10 +1267,12 @@ function buildWatchQuotes(items, tradingDates, {title, showTrend = false, keyPre
     change.textContent = quote.change == null ? "대기" : `${quote.change > 0 ? "+" : ""}${percentFormatter.format(quote.change)}%`;
     price.title = quote.time ? `${formatDateTime(quote.time)} 수집 기준` : "가격 대기";
     if (signalNotices && quote.time) {
-      const stamp = document.createElement("small");
-      stamp.className = "watch-quote-timestamp";
-      stamp.textContent = quote.time.slice(11, 16);
-      price.append(stamp);
+      if (!showFamily) {
+        const stamp = document.createElement("small");
+        stamp.className = "watch-quote-timestamp";
+        stamp.textContent = quote.time.slice(11, 16);
+        price.append(stamp);
+      }
       price.setAttribute("aria-label", `${Math.round(quote.price).toLocaleString("ko-KR")}원 · ${formatDateTime(quote.time)} 기준`);
     }
     const returns = watchReturns(item, quote);

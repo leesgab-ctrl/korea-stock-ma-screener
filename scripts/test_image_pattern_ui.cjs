@@ -109,6 +109,17 @@ for (const charts of innoChartSets) charts.quote = {
     assert.ok(displayedTimes.every(text => allowedPrefixes.some(prefix => text.trim().startsWith(prefix))), 'Old descriptions must be hidden even on stocks with recent signals');
     assert.equal(await page.locator('#imageSearchConditions').count(), 0);
     assert.equal(await page.locator('#imageSearchPanel > :not([hidden])').first().getAttribute('id'), 'imageSearchMatches');
+    for (const section of ['#imageSearchMatches', '#imageSearchRising']) {
+      assert.equal(await page.locator(`${section} .watch-quote-header > :nth-child(2)`).textContent(), '대상종목');
+      const familyLabels = await page.locator(`${section} .watch-quote-row`).evaluateAll(rows => rows.map(row => ({
+        code: row.dataset.code, family: row.querySelector('summary > :nth-child(2)').textContent
+      })));
+      assert.ok(familyLabels.length > 0);
+      for (const {code, family} of familyLabels) {
+        assert.equal(family, payload.candidates.find(item => item.code === code).candidateTier === 'expanded_ak' ? 'AK' : 'AG');
+      }
+      assert.equal(await page.locator(`${section} .watch-quote-timestamp`).count(), 0, 'Price observation time must not be repeated below every price');
+    }
     await page.waitForFunction(() => [...document.querySelectorAll('.image-pattern-thumbnail img')].every(img => img.complete && img.naturalWidth > 0));
     const sourceRow = page.locator('#imageSearchMatches details[data-code="128820"]');
     const sourceLine = sourceRow.locator('.image-pattern-entry').filter({hasText: `${latestDay.slice(5).replace('-', '.')}. 11:30`});
@@ -180,7 +191,9 @@ for (const charts of innoChartSets) charts.quote = {
       })), 'Both expanded charts must contain rendered candles and moving-average colors');
       assert.ok(await inno.locator('iframe').evaluate(frame => [...frame.contentDocument.querySelectorAll('.phase-legend span')]
         .every(el => el.getBoundingClientRect().right <= frame.contentWindow.innerWidth)), 'Every color legend label must stay visible');
-      assert.equal(await inno.locator('.watch-quote-timestamp').count(), 1, 'Latest price must show its own observation time');
+      assert.equal(await inno.locator('.watch-quote-timestamp').count(), 0, 'Remove repeated 20:xx time below prices');
+      assert.match(await inno.locator('summary .watch-quote-price').first().getAttribute('title'), /수집 기준/, 'Keep the price timestamp in its tooltip');
+      assert.ok(await page.locator('.family-quotes .watch-quote-header > :nth-child(2) > span').evaluateAll(nodes => nodes.every(node => node.scrollWidth <= node.clientWidth + 1)), 'The target-family heading must fit on mobile');
       await inno.screenshot({path: path.join(output, `expanded-274400-${width}.png`)});
       await page.screenshot({path: path.join(output, `matches-${width}.png`), fullPage: true});
     }
