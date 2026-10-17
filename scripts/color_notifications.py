@@ -100,7 +100,22 @@ def send(topic, candidate, payload, row, state, kind, current):
     dates = sorted(lows)[-3:]
     stop = min(lows[d] for d in dates) if len(dates) == 3 else None
     label = {"purple": "진한 보라색 조정 관찰", "convergenceBreakout": "MA40·60 밀집 후 MA3 상향돌파 매수 후보", "coreMorningMa3": "핵심종목 아침 MA3 상승", "recoveryMa10Breakout": "조정 후 MA10·MA40 상향돌파"}.get(kind, "전체 5개 MA 밀착")
-    if kind == "imageMa120Recovery":
+    if kind == "imagePyramidRecovery":
+        primary = state["stage"] == "primary"
+        stage = "1차 반등 포착" if primary else "MA60 돌파 확인"
+        label = f"이미지조건 피라미드 {stage}"
+        reason = "MA60 아래로 내려갔던 MA3가 상승을 시작했습니다." if primary else "MA3가 MA60을 상향 돌파했습니다."
+        simultaneous = "- 상승 전환과 MA60 돌파가 같은 봉에서 발생해 확인 알림으로 합쳤습니다.\n" if state.get("simultaneous") else ""
+        strength = " · 강한 상승 이력" if state.get("strongRise") is True else ""
+        message = (f"[이미지조건 · {stage}] {candidate['name']}({candidate['code']})\n"
+                   f"- 유형: {state['ruleName']}\n- MA20 급상승 후 급하락하는 피라미드형 조정\n"
+                   f"- MA20 하루 상승 {state['riseDayPercent']:.2f}% ({state['riseDay']}, 전일 마지막 MA20 대비){strength}\n"
+                   f"- MA20 상승 {state['risePercent']:.2f}% / 하락 {state['fallPercent']:.2f}%\n"
+                   f"- {reason}\n{simultaneous}"
+                   f"- MA3 {row['m3']:,.2f} / MA60 {row['m60']:,.2f}\n"
+                   f"- 기준봉 종가 {price_text}\n- 봉 완성 시각 {state['completedAt']}\n"
+                   "조건 관찰 신호이며, 이후 상승이나 수익을 보장하지 않습니다.")
+    elif kind == "imageMa120Recovery":
         primary = state["stage"] == "primary"
         stage = "1차 포착" if primary else "2차 유지 확인"
         label = f"이미지조건 MA120 {stage}"

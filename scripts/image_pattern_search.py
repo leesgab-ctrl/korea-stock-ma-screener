@@ -10,7 +10,7 @@ KST = dt.timezone(dt.timedelta(hours=9))
 RULES_PATH = Path(__file__).resolve().parents[1] / "data/image-search-rules.json"
 BOARD_URL = "https://raw.githubusercontent.com/leesgab-ctrl/korea-stock-ma-screener/codex/study-images/data/study-images.json"
 KEYS = ("m3", "m10", "m20", "m40", "m60")
-RULE_TYPES = ("decline_ma40_recovery", "decline_ma10_ma40", "rising_cluster_ma3", "ma3_ma120_recovery")
+RULE_TYPES = ("decline_ma40_recovery", "decline_ma10_ma40", "rising_cluster_ma3", "ma3_ma120_recovery", "ma20_pyramid_ma60_recovery")
 
 
 def timestamp(value):
@@ -163,7 +163,98 @@ def detect_ma120_recovery(rows, rule):
     return events
 
 
+def pyramid_setup(rows, start, end, rule):
+    """Use only the already observed rise and fall, never the later rebound."""
+    minimum, maximum = rule["minLegBars"], rule["maxLegBars"]
+    for peak in range(end - minimum, max(start + minimum, end - maximum) - 1, -1):
+        if not rows[peak - 1]["m20"] < rows[peak]["m20"] >= rows[peak + 1]["m20"]:
+            continue
+        left = min(range(max(start, peak - maximum), peak - minimum + 1), key=lambda j: rows[j]["m20"])
+        up, down = rows[left:peak + 1], rows[peak:end + 1]
+        rise = (up[-1]["m20"] / up[0]["m20"] - 1) * 100
+        fall = (1 - down[-1]["m20"] / down[0]["m20"]) * 100
+        rise_bars, fall_bars = len(up) - 1, len(down) - 1
+        rise_speed, fall_speed = rise / rise_bars, fall / fall_bars
+        if rise < rule["minRisePercent"] or fall < rule["minFallPercent"] \
+                or fall_speed < rise_speed * rule["minFallSpeedRatio"]:
+            continue
+        if sum(b["m20"] > a["m20"] for a, b in zip(up, up[1:])) / rise_bars < rule["minDirectionalRatio"] \
+                or sum(b["m20"] < a["m20"] for a, b in zip(down, down[1:])) / fall_bars < rule["minDirectionalRatio"]:
+            continue
+        day = timestamp(up[0]["t"]).date()
+        baseline = next((rows[j]["m20"] for j in range(left - 1, start - 1, -1)
+                         if timestamp(rows[j]["t"]).date() != day), None)
+        day_rise, rise_day = 0, None
+        for j, bar in enumerate(up):
+            current_day = timestamp(bar["t"]).date()
+            if current_day != day:
+                day, baseline = current_day, up[j - 1]["m20"]
+            change = (bar["m20"] / baseline - 1) * 100 if baseline else 0
+            if change > day_rise:
+                day_rise, rise_day = change, day.isoformat()
+        if day_rise + 1e-9 < rule["minRiseDayPercent"]:
+            continue
+        return {"peakTime": rows[peak]["t"], "setupTime": rows[left]["t"], "risePercent": rise,
+                "fallPercent": fall, "riseBars": rise_bars, "fallBars": fall_bars,
+                "riseDayPercent": day_rise, "riseDay": rise_day,
+                "strongRise": day_rise + 1e-9 >= rule["strongRiseDayPercent"]}
+    return None
+
+
+def detect_pyramid_recovery(rows, rule):
+    events, used_peaks = [], set()
+    segment_start, dip, episode = 0, None, None
+    for i, row in enumerate(rows):
+        previous = rows[i - 1] if i else None
+        missing = previous and timestamp(row["t"]).date() == timestamp(previous["t"]).date() \
+            and timestamp(row["t"]) - timestamp(previous["t"]) != dt.timedelta(minutes=30)
+        if not valid(row):
+            segment_start, dip, episode = i + 1, None, None
+            continue
+        if missing or previous and not valid(previous):
+            segment_start, dip, episode = i, None, None
+        if i == segment_start:
+            continue
+        trend = rows[max(segment_start, i - rule["trendComparisons"]):i + 1]
+        rising60 = len(trend) == rule["trendComparisons"] + 1 \
+            and all(b["m60"] > a["m60"] for a, b in zip(trend, trend[1:]))
+        if previous["m3"] >= previous["m60"] and row["m3"] < row["m60"]:
+            dip = row["t"]
+        if i - segment_start < 2:
+            continue
+        cross = previous["m3"] <= previous["m60"] and row["m3"] > row["m60"] and row["m3"] > previous["m3"]
+        stage, simultaneous = None, False
+        if episode:
+            if not rising60 or row["m3"] < previous["m3"] or i - episode["index"] > rule["confirmationMaxBars"]:
+                episode = None
+            elif cross:
+                stage = "confirmation"
+        turning_up = previous["m3"] <= rows[i - 2]["m3"] and row["m3"] > previous["m3"]
+        if not episode and dip and rising60 and turning_up and previous["m3"] < previous["m60"]:
+            setup = pyramid_setup(rows, segment_start, i, rule)
+            if setup and setup["peakTime"] not in used_peaks:
+                episode = {**setup, "index": i, "time": row["t"], "dipTime": dip}
+                used_peaks.add(setup["peakTime"])
+                stage = "confirmation" if cross else "primary"
+                simultaneous = cross
+        if stage:
+            events.append({"id": f"{rule['id']}|{episode['time']}|{stage}", "ruleId": rule["id"],
+                           "ruleVersion": rule["version"], "stage": stage, "signalType": "ma20Pyramid",
+                           "stageLabel": "MA60 아래 MA3 상승 전환 · 1차" if stage == "primary" else "MA3·MA60 상향 돌파 · 확인",
+                           "time": row["t"], "completedAt": (timestamp(row["t"]) + dt.timedelta(minutes=30)).isoformat(timespec="minutes"),
+                           "episodeTime": episode["time"], "price": row["c"], "simultaneous": simultaneous,
+                           **{key: episode[key] for key in ("setupTime", "peakTime", "dipTime", "risePercent", "fallPercent", "riseBars", "fallBars", "riseDayPercent", "riseDay", "strongRise")},
+                           **{key: row[key] for key in KEYS}})
+            if stage == "confirmation":
+                episode = None
+        if row["m3"] >= row["m60"]:
+            dip = None
+    return events
+
+
 def detect(rows, rule):
+    if rule["type"] == "ma20_pyramid_ma60_recovery":
+        return detect_pyramid_recovery(rows, rule)
     if rule["type"] == "ma3_ma120_recovery":
         return detect_ma120_recovery(rows, rule)
     if rule["type"] == "rising_cluster_ma3":
@@ -217,7 +308,8 @@ def detect(rows, rule):
 
 def send_alert(topic, candidate, payload, row, event, current):
     from color_notifications import send
-    kind = "imageMa120Recovery" if event.get("signalType") == "ma3Ma120" else \
+    kind = "imagePyramidRecovery" if event.get("signalType") == "ma20Pyramid" else \
+        "imageMa120Recovery" if event.get("signalType") == "ma3Ma120" else \
         "imageMa3Rise" if event.get("signalType") == "ma3Rise" else \
         "imageMa3Breakout" if event["stage"] == "primary" else "imageMa10Breakout"
     send(topic, candidate, payload, row, event, kind, current)
@@ -304,7 +396,7 @@ def process(payload, current, topic="", no_notify=True, board=None, rules=None, 
                 start = timestamp(event["time"])
                 age = current - completion
                 delivery = f"{candidate['code']}|{registered}|{event['time']}|{event['stage']}"
-                if event.get("signalType") in ("ma3Rise", "ma3Ma120"):
+                if event.get("signalType") in ("ma3Rise", "ma3Ma120", "ma20Pyramid"):
                     delivery += "|" + event["signalType"]
                 if start <= timestamp(saved["baseline"]) or completion < enabled_at or delivery in saved["sent"] \
                         or completion.date() != current.date() or not dt.time(9) <= start.time() <= dt.time(20) \

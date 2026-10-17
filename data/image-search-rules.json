@@ -51,6 +51,25 @@
       "enabled": true,
       "imageIds": ["4c67c6aa-9987-420e-aee1-db90370a63f4"],
       "description": "완성된 30분봉에서 MA3가 MA120 아래로 내려간 이력 후 MA120을 상향 돌파하면 1차. 바로 다음 완성봉도 MA3가 MA120 이상이면 확인 알림. 다음 봉의 추가 상승은 불필요하며 MA120과 같아도 허용. MA120 아래로 돌아오면 확인 취소. 밀집·회복 속도·MA40·MA60 방향은 추가 필수 조건으로 제한하지 않음."
+    },
+    {
+      "id": "ma20-pyramid-ma60-recovery",
+      "version": 1,
+      "name": "MA20 피라미드후 MA3 회복",
+      "type": "ma20_pyramid_ma60_recovery",
+      "enabled": true,
+      "minLegBars": 3,
+      "maxLegBars": 22,
+      "minRisePercent": 3,
+      "minRiseDayPercent": 3,
+      "strongRiseDayPercent": 5,
+      "minFallPercent": 2,
+      "minFallSpeedRatio": 0.5,
+      "minDirectionalRatio": 0.8,
+      "trendComparisons": 3,
+      "confirmationMaxBars": 12,
+      "imageIds": ["4d923542-862d-43e6-bedc-4fd4cf4c8d0f", "7167e60c-b018-4cf6-9ccf-c3d40be2a815"],
+      "description": "MA20 피라미드 상승부에 전일 마지막 완성봉 MA20 대비 당일 MA20이 3% 이상 상승한 날이 있어야 함(주가 등락률 아님). 5% 이상이면 강한 상승 이력으로 별도 표시하며 추가 알림은 보내지 않음. 상승부는 3~22봉 3% 이상, 하락부는 우선 3~22봉 2% 이상 및 상승 속도의 50% 이상으로 판정. 각 구간 비교의 80% 이상이 해당 방향. MA60은 최근 3봉 연속 상승. MA40 방향·밀집·MA20의 MA40 돌파는 필수 아님. MA3가 MA60 아래로 하락한 뒤 처음 상승 전환하면 1차, 이후 12봉 이내 MA3가 MA60을 상향 돌파하면 확인. 확인 전 MA3 재하락 또는 MA60 상승 조건 상실 시 취소. 같은 MA20 꼭짓점에서는 1차를 반복하지 않음. 한 봉에서 상승 전환과 돌파가 동시에 발생하면 확인 알림 1건만 발송. 완성된 30분봉만 판정하며 장후 포함."
     }
   ]
 }

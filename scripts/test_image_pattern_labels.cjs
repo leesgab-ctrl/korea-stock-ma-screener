@@ -19,6 +19,11 @@ assert.equal(context.imagePatternLabel({...event, signalType: 'ma3Rise', cluster
 assert.equal(context.imagePatternLabel({...event, signalType: 'ma3Rise', clusterLines: [3,10,20,40,60]}), '5선 밀집후 MA3 2봉 상승');
 assert.equal(context.imagePatternLabel({...event, signalType: 'ma3Ma120', stage: 'primary'}), 'MA3가 MA120 재돌파');
 assert.equal(context.imagePatternLabel({...event, signalType: 'ma3Ma120'}), 'MA3가 MA120 이상 유지');
+assert.equal(context.imagePatternLabel({...event, signalType: 'ma20Pyramid', stage: 'primary'}), '피라미드후 MA3 반등');
+assert.equal(context.imagePatternLabel({...event, signalType: 'ma20Pyramid'}), '피라미드후 MA3가 MA60 돌파');
+assert.equal(context.imagePatternSummary({...event, signalType: 'ma20Pyramid', strongRise: true}).strength, '강한 상승 이력');
+assert.equal(context.imagePatternSummary({...event, signalType: 'ma20Pyramid', strongRise: false}).strength, '');
+assert.equal(context.imagePatternSummary({...event, strongRise: true}).strength, '');
 assert.equal(context.imagePatternSummary({...event, changePct: null}).change, '등락률 미확인');
 assert.equal(context.imagePatternSummary({...event, completedAt: 'invalid'}).time, '시각 미확인');
 assert.equal(context.imagePatternSummary({...event, changePct: 0}).change, '0.0%');

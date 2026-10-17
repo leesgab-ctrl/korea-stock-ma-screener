@@ -120,6 +120,7 @@ function compareRegistrationNewest(a, b) {
     || a.name.localeCompare(b.name, "ko");
 }
 function imagePatternLabel(event) {
+  if (event.signalType === "ma20Pyramid") return event.stage === "primary" ? "피라미드후 MA3 반등" : "피라미드후 MA3가 MA60 돌파";
   if (event.signalType === "ma3Rise") return `${event.clusterLines?.length || 4}선 밀집후 MA3 ${event.stage === "primary" ? "1봉" : "2봉"} 상승`;
   if (event.signalType === "ma3Ma120") return event.stage === "primary" ? "MA3가 MA120 재돌파" : "MA3가 MA120 이상 유지";
   if (["daesung-decline-ma40-recovery", "daehan-recovery-pattern"].includes(event.ruleId)) {
@@ -135,6 +136,7 @@ function imagePatternSummary(event) {
   }).formatToParts(date).map(part => [part.type, part.value])) : null;
   const change = Number.isFinite(event.changePct) ? event.changePct : null;
   return { label: imagePatternLabel(event), time: parts ? `${parts.month}.${parts.day}. ${parts.hour}:${parts.minute}` : "시각 미확인",
+    strength: event.signalType === "ma20Pyramid" && event.strongRise === true ? "강한 상승 이력" : "",
     change: change == null ? "등락률 미확인" : `${change > 0 ? "+" : ""}${change.toFixed(1)}%`,
     direction: change == null ? "" : change > 0 ? "up" : change < 0 ? "down" : "flat" };
 }
@@ -1334,6 +1336,14 @@ function buildWatchQuotes(items, tradingDates, {title, showTrend = false, keyPre
         change.textContent = entry.change;
         line.title = `${entry.event.ruleName} · 포착 종가 ${formatter.format(entry.event.price)}원 · 전일 대비 ${entry.change}${entry.event.dataStatus !== "ok" ? " · 최신 자료 확인 필요" : ""}`;
         line.append(name, time, change);
+        if (entry.strength) {
+          const strength = document.createElement("span");
+          strength.className = "image-pattern-strength";
+          strength.textContent = ` · ${entry.strength}`;
+          strength.title = Number.isFinite(entry.event.riseDayPercent)
+            ? `MA20 하루 상승 +${entry.event.riseDayPercent.toFixed(2)}% · 전일 마지막 MA20 대비` : "MA20 하루 5% 이상 상승 이력";
+          line.append(strength);
+        }
         if (entry.event.dataStatus !== "ok") line.append(document.createTextNode(" · 자료 확인 필요"));
         comment.append(line);
       }
