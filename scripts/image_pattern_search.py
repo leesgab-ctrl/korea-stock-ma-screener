@@ -275,6 +275,7 @@ def ma20_recovery_background(rows, start, end, rule):
 
 def detect_ma60_near_rebound(rows, rule):
     events, previous, review, setup = [], None, None, None
+    rearm = None
     limit = rule["maxGapPercent"]
     watch_bars = rule["watchBelowBars"]
     dip, below_window = None, []
@@ -288,6 +289,7 @@ def detect_ma60_near_rebound(rows, rule):
                         and math.isfinite(row[key]) and row[key] > 0 for key in ("m3", "m60", "c"))
         if not valid_row or not m20_valid:
             previous, review, setup, dip, below_window = None, None, None, None, []
+            rearm = None
             continue
         # Native aftermarket charts omit no-trade slots; do not fabricate bars or discard their MA continuity.
         missing = previous and timestamp(row["t"]).date() == timestamp(previous["t"]).date() \
@@ -295,6 +297,7 @@ def detect_ma60_near_rebound(rows, rule):
             and timestamp(row["t"]) - timestamp(previous["t"]) != dt.timedelta(minutes=30)
         if missing:
             previous, review, setup, dip, below_window = None, None, None, None, []
+            rearm = None
             pyramid_start = i
         gap = (row["m3"] / row["m60"] - 1) * 100
         rising60 = ma60_is_rising(rows, i, rule["trendComparisons"])
@@ -306,14 +309,20 @@ def detect_ma60_near_rebound(rows, rule):
         cross = previous and previous["m3"] <= previous["m60"] and row["m3"] > row["m60"] \
             and row["m3"] > previous["m3"]
         stage, event_review = None, None
+        if rearm and (not rising60 or i - rearm["index"] > rule["confirmationMaxBars"]):
+            rearm = None
         if review:
-            if not rising60 or gap < -limit - 1e-9 or i - review["index"] > rule["confirmationMaxBars"]:
-                review = None
+            if not rising60 or i - review["index"] > rule["confirmationMaxBars"]:
+                review, rearm = None, None
+            elif gap < -limit - 1e-9:
+                rearm, review = review, None
+                below_window = []
             elif cross:
                 stage = "confirmation"
                 event_review, review = review, None
         if row["m3"] >= row["m60"]:
             dip, below_window = None, []
+            rearm = None
         elif previous and previous["m3"] >= previous["m60"]:
             dip, below_window = row["t"], []
         if dip:
@@ -322,15 +331,22 @@ def detect_ma60_near_rebound(rows, rule):
                 below_window = below_window[-watch_bars:]
             else:
                 below_window = []
+            peak = setup["pyramid"]["peakTime"] if setup else None
+            first_review = peak not in reviewed_peaks
+            restarting = rearm and rearm["pyramid"]["peakTime"] == peak
             if len(below_window) == watch_bars and setup and rising60 and not review and not stage \
-                    and setup["pyramid"]["peakTime"] not in reviewed_peaks:
+                    and (first_review or restarting):
                 first = below_window[0]
-                review = {"time": row["t"], "index": i, "downCrossTime": dip, "setupTime": first["t"],
+                review = {"time": row["t"] if first_review else rearm["time"], "index": i,
+                          "downCrossTime": dip, "setupTime": first["t"],
                           "setupGapPercent": (first["m3"] / first["m60"] - 1) * 100, "pyramid": setup["pyramid"],
                           "watchBars": [{"time": bar["t"], "m3": bar["m3"], "m60": bar["m60"],
                                          "gapPercent": (bar["m3"] / bar["m60"] - 1) * 100} for bar in below_window]}
                 reviewed_peaks.add(setup["pyramid"]["peakTime"])
-                stage, event_review = "watch", review
+                rearm = None
+                # Requalification restores confirmation only, without repeating the first SMS.
+                if first_review:
+                    stage, event_review = "watch", review
         if stage:
             events.append({"id": f"{rule['id']}|{event_review['time']}|{stage}", "ruleId": rule["id"],
                            "ruleVersion": rule["version"], "stage": stage, "signalType": "ma3Ma60Near",

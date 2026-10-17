@@ -39,10 +39,13 @@ class PyramidReviewTests(unittest.TestCase):
         return search.process(self.payload, search.timestamp("2026-10-15T" + clock + "+09:00"), "test-only", no_notify,
                               board=self.board, rules=[self.rule], sender=self.sender)[0]
 
-    def test_fixed_ma20_gate_keeps_original_numbers_and_image_binding(self):
+    def test_fixed_ma20_gate_only_relaxes_approved_speed_and_keeps_image_binding(self):
         for key in ("minLegBars", "maxLegBars", "minRisePercent", "minRiseDayPercent", "strongRiseDayPercent",
-                    "minFallPercent", "minFallSpeedRatio", "minDirectionalRatio", "trendComparisons", "confirmationMaxBars"):
+                    "minFallPercent", "minDirectionalRatio", "trendComparisons", "confirmationMaxBars"):
             self.assertEqual(self.rule[key], self.legacy[key], key)
+        self.assertEqual(self.rule["minFallSpeedRatio"], .45)
+        self.assertEqual(self.legacy["minFallSpeedRatio"], .5)
+        self.assertEqual(self.rule["version"], 6)
         self.assertEqual(self.rule["maxGapPercent"], 2.5)
         self.assertEqual(self.rule["watchBelowBars"], 3)
         self.assertEqual(self.rule["imageIds"], ["7167e60c-b018-4cf6-9ccf-c3d40be2a815"])
@@ -172,6 +175,43 @@ class PyramidReviewTests(unittest.TestCase):
     def test_below_band_exit_cancels_confirmation_without_repeat_for_same_peak(self):
         self.bar(12)["m3"] = self.bar(12)["m60"] * .97
         self.assertEqual([event["stage"] for event in self.detect()], ["watch"])
+
+    def test_three_new_below_bars_restore_confirmation_without_duplicate_review(self):
+        self.bar(12)["m3"] = self.bar(12)["m60"] * .97
+        for i in (13, 14, 15):
+            self.bar(i)["m3"] = self.bar(i)["m60"] * .99
+        events = self.detect()
+        self.assertEqual([event["stage"] for event in events], ["watch", "confirmation"])
+        self.assertEqual(events[1]["time"], self.bar(16)["t"])
+        self.assertEqual(events[0]["episodeTime"], events[1]["episodeTime"])
+        self.assertEqual([bar["time"] for bar in events[1]["watchBars"]],
+                         [self.bar(i)["t"] for i in (13, 14, 15)])
+
+    def test_requalification_cannot_bypass_invalid_data_or_ma60_trend_loss(self):
+        for invalid in ("m20", "m60"):
+            self.setUp()
+            self.bar(12)["m3"] = self.bar(12)["m60"] * .97
+            for i in (13, 14, 15):
+                self.bar(i)["m3"] = self.bar(i)["m60"] * .99
+            if invalid == "m20":
+                self.bar(13)["m20"] = None
+            else:
+                self.bar(13)["m60"] = self.bar(12)["m60"] - .1
+            self.assertEqual([event["stage"] for event in self.detect()], ["watch"])
+
+    def test_fall_speed_near_45_percent_passes_but_below_it_fails(self):
+        self.rows[0]["m20"] = 100
+        for i in range(7):
+            self.bar(i)["m20"] = 100 + i
+        for i in range(7, 17):
+            self.bar(i)["m20"] = 106 * (1 - (.06 / 7 * .45001) * (i - 6))
+        setup = search.pyramid_setup(self.rows, 0, 13, self.rule)
+        self.assertIsNotNone(setup)
+        strict = {**self.rule, "minFallSpeedRatio": .5}
+        self.assertIsNone(search.pyramid_setup(self.rows, 0, 13, strict))
+        for i in range(7, 17):
+            self.bar(i)["m20"] = 106 * (1 - (.06 / 7 * .44999) * (i - 6))
+        self.assertIsNone(search.pyramid_setup(self.rows, 0, 13, self.rule))
 
     def test_ma60_trend_loss_cancels_confirmation(self):
         self.bar(12)["m60"] = self.bar(11)["m60"] - .5
