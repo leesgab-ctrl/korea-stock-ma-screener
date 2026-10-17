@@ -165,7 +165,10 @@ function renderImageSearch() {
   const matches = recentImagePatternMatches(search, candidates, confirmedIds);
   const notices = new Map();
   for (const event of matches) {
-    const entry = {...imagePatternSummary(event), event, images: event.sourceImageIds.map(id => imagesById.get(id)).filter(Boolean)};
+    const images = event.sourceImageIds.map(id => imagesById.get(id)).filter(Boolean).map(image => ({
+      ...image, thumbnailUrl: image.stageThumbnailUrls?.[event.stage] || image.thumbnailUrl
+    }));
+    const entry = {...imagePatternSummary(event), event, images};
     const previous = notices.get(event.code);
     const entries = previous?.entries || [];
     const duplicate = entries.find(item => item.label === entry.label && item.event.completedAt === event.completedAt && item.event.price === event.price);

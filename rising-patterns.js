@@ -157,13 +157,17 @@
   const store = new StudyImageStore({token: () => ui ? ui.token.value : token()});
   root.RisingPatterns = {get count() { return board.records.filter(item => !item.deletedAt).length; },
     get confirmed() { return board.records.filter(item => !item.deletedAt && item.conditionConfirmed === true).map(item => {
-      const thumbnail = board.ruleLinks.find(rule => rule.imageIds?.includes(item.id) && rule.thumbnail)?.thumbnail;
-      const hasCrop = /^data\/pattern-icons\/[a-zA-Z0-9-]+\.png$/.test(thumbnail?.path || "")
-        && Number.isFinite(thumbnail.width) && thumbnail.width > 0 && Number.isFinite(thumbnail.height) && thumbnail.height > 0;
+      const rule = board.ruleLinks.find(rule => rule.imageIds?.includes(item.id));
+      const thumbnail = rule?.thumbnail;
+      const cropUrl = crop => /^data\/pattern-icons\/[a-zA-Z0-9-]+\.png$/.test(crop?.path || "")
+        && Number.isFinite(crop.width) && crop.width > 0 && Number.isFinite(crop.height) && crop.height > 0
+        ? new URL(crop.path, root.location.href).href : null;
+      const thumbnailUrl = cropUrl(thumbnail);
       const imageUrl = store.imageUrl(item, board.revision);
       return {id: item.id, title: item.title, stock: item.stock, imageUrl,
-        thumbnailUrl: hasCrop ? new URL(thumbnail.path, root.location.href).href : imageUrl,
-        width: hasCrop ? thumbnail.width : item.width, height: hasCrop ? thumbnail.height : item.height};
+        thumbnailUrl: thumbnailUrl || imageUrl,
+        stageThumbnailUrls: Object.fromEntries(Object.entries(rule?.stageThumbnails || {}).map(([stage, crop]) => [stage, cropUrl(crop)])),
+        width: thumbnailUrl ? thumbnail.width : item.width, height: thumbnailUrl ? thumbnail.height : item.height};
     }); },
     preview(id) {
       const item = board.records.find(item => item.id === id && !item.deletedAt && item.conditionConfirmed === true);

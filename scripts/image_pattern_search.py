@@ -251,8 +251,9 @@ def process(payload, current, topic="", no_notify=True, board=None, rules=None, 
         images = [records[key] for key in rule["imageIds"] if key in records]
         active = rule.get("enabled") is True and bool(images) and rule.get("type") in RULE_TYPES
         summary = {key: rule[key] for key in ("id", "version", "name", "description", "imageIds")}
-        if rule.get("thumbnail"):
-            summary["thumbnail"] = rule["thumbnail"]
+        for key in ("thumbnail", "stageThumbnails"):
+            if rule.get(key):
+                summary[key] = rule[key]
         summary.update(active=active, enabled=rule.get("enabled") is True, confirmedImageIds=[item["id"] for item in images])
         snapshot["rules"].append(summary)
         if not active:

@@ -28,6 +28,14 @@ class ImagePatternDisplayTests(unittest.TestCase):
         self.assertEqual(event["changePct"], 3)
         self.assertEqual(event["previousClose"], 100)
 
+    def test_thumbnail_metadata_survives_snapshot(self):
+        crop = {"path": "data/pattern-icons/test.png", "width": 116, "height": 78}
+        self.rule.update(thumbnail=crop, stageThumbnails={"confirmation": crop})
+        self.process()
+        summary = self.payload["imageSearch"]["rules"][0]
+        self.assertEqual(summary["thumbnail"], crop)
+        self.assertEqual(summary["stageThumbnails"], {"confirmation": crop})
+
     def test_preserve_capture_baseline_across_days_and_bar_revisions(self):
         self.process()
         self.candidate["displayCharts"]["quote"] = {"price": 210, "previousClose": 200, "time": "2026-10-17T15:00+09:00"}

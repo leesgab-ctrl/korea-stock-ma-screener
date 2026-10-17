@@ -25,6 +25,7 @@ const oldDay = marketDays.at(-3);
 const baseDaesung = payload.imageSearch.matches.find(event => event.code === '128820' && event.ruleId === rules[0].id);
 const baseDaehan = payload.imageSearch.matches.find(event => event.code === '084010' && event.ruleId === rules[1].id);
 const baseInno = payload.imageSearch.matches.find(event => event.code === '274400');
+payload.imageSearch.matches.push({...baseDaesung, stage: 'primary', time: `${latestDay}T10:00+09:00`, completedAt: `${latestDay}T10:30+09:00`});
 payload.imageSearch.matches.push({...baseDaesung, time: `${latestDay}T11:00+09:00`, completedAt: `${latestDay}T11:30+09:00`});
 payload.imageSearch.matches.push({...baseDaesung, ruleId: rules[1].id, ruleName: rules[1].name, sourceImageIds: rules[1].imageIds,
   time: `${latestDay}T11:00+09:00`, completedAt: `${latestDay}T11:30+09:00`});
@@ -108,7 +109,11 @@ for (const charts of innoChartSets) charts.quote = {
     await icon.click();
     assert.equal(await page.locator('#capturePreviewDialog').isVisible(), true);
     assert.ok((await page.locator('#capturePreviewImage').getAttribute('src')).endsWith(referenceImage.imagePath));
-    assert.ok(thumbnailSrc.endsWith(rules[0].thumbnail.path), 'Daesung uses the supplied crossover crop, not a shrunken full chart');
+    assert.ok(thumbnailSrc.endsWith(rules[0].stageThumbnails.confirmation.path), 'MA10 confirmation uses the newly supplied crossover crop');
+    assert.ok(await sourceLine.locator('.image-pattern-thumbnail img').evaluateAll((nodes, path) => nodes.every(node => node.src.endsWith(path)), rules[1].thumbnail.path), 'Both MA10 confirmation references use the same crop');
+    const primaryIcons = page.locator('.image-pattern-entry').filter({hasText: '[하락중 MA3가 MA40 돌파]'}).locator('.image-pattern-thumbnail img');
+    assert.ok(await primaryIcons.count() > 0);
+    assert.ok(await primaryIcons.evaluateAll((nodes, path) => nodes.every(node => node.src.endsWith(path)), rules[0].thumbnail.path), 'MA3 primary keeps its previously approved crop');
     assert.equal(await sourceRow.getAttribute('open'), null, 'Thumbnail clicks must not expand stock charts');
     assert.equal(await sourceRow.locator('iframe').count(), 0);
     assert.equal(page.url(), originalUrl, 'Preview must stay in Rising Search');
