@@ -103,7 +103,16 @@ for (const charts of innoChartSets) charts.quote = {
     assert.ok(comments.every(text => !text.includes('피라미드후')));
     assert.equal(await page.locator('.image-pattern-strength').count(), 0);
     assert.ok(comments.every(text => !/대성산업형|대한제강형|빠른 회복 참고|포착 종가/.test(text)));
-    assert.ok(await page.locator('.image-pattern-name').evaluateAll(nodes => nodes.every(node => getComputedStyle(node).color === 'rgb(49, 103, 173)')));
+    assert.ok(await page.locator('.image-pattern-name').evaluateAll(nodes => nodes.every(node => {
+      const pyramid = node.textContent.startsWith('[피라미드형');
+      return getComputedStyle(node).color === (pyramid ? 'rgb(186, 63, 63)' : 'rgb(49, 103, 173)')
+        && node.classList.contains('is-pyramid') === pyramid;
+    })), 'Only pyramid labels change from blue to red');
+    assert.ok(await page.locator('.image-pattern-time').evaluateAll(nodes => nodes.every(node => getComputedStyle(node).color === 'rgb(100, 116, 108)')), 'Times keep their muted color');
+    assert.ok(await page.locator('.image-pattern-change').evaluateAll(nodes => nodes.every(node => {
+      const color = node.dataset.direction === 'up' ? 'rgb(186, 63, 63)' : node.dataset.direction === 'down' ? 'rgb(49, 103, 173)' : 'rgb(100, 116, 108)';
+      return getComputedStyle(node).color === color;
+    })), 'Capture returns keep their original up/down colors');
     assert.ok(await page.locator('.image-pattern-time').evaluateAll(nodes => nodes.every(node => /\d{2}\.\d{2}\. \d{2}:\d{2}/.test(node.textContent))));
     const displayedTimes = await page.locator('.image-pattern-time').allTextContents();
     const allowedPrefixes = [latestDay, priorDay].map(day => day.slice(5).replace('-', '.') + '.');

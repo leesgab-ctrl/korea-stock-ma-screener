@@ -1339,6 +1339,7 @@ function buildWatchQuotes(items, tradingDates, {title, showTrend = false, showFa
         }
         const name = document.createElement("strong");
         name.className = "image-pattern-name";
+        name.classList.toggle("is-pyramid", entry.event.signalType === "ma3Ma60Near" && ["watch", "primary"].includes(entry.event.stage));
         name.textContent = `[${entry.label}]`;
         const time = document.createElement("span");
         time.className = "image-pattern-time";
