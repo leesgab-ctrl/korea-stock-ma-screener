@@ -157,7 +157,7 @@
   const store = new StudyImageStore({token: () => ui ? ui.token.value : token()});
   root.RisingPatterns = {get count() { return board.records.filter(item => !item.deletedAt).length; },
     get confirmed() { return board.records.filter(item => !item.deletedAt && item.conditionConfirmed === true).map(item => {
-      const rule = board.ruleLinks.find(rule => rule.imageIds?.includes(item.id));
+      const rule = board.ruleLinks.find(rule => rule.enabled && rule.imageIds?.includes(item.id));
       const thumbnail = rule?.thumbnail;
       const cropUrl = crop => /^data\/pattern-icons\/[a-zA-Z0-9-]+\.png$/.test(crop?.path || "")
         && Number.isFinite(crop.width) && crop.width > 0 && Number.isFinite(crop.height) && crop.height > 0

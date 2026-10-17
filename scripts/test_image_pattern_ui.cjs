@@ -8,10 +8,10 @@ const {FakeGithub, record} = require('./test_study_images.cjs');
 const root = path.resolve(__dirname, '..');
 const output = path.join(root, 'outputs', 'image-pattern-ui');
 const rules = JSON.parse(fs.readFileSync(path.join(root, 'data/image-search-rules.json'), 'utf8')).rules;
-const records = rules.flatMap((rule, i) => rule.imageIds.map((id, j) => ({...record(id),
-  title: ['대성산업 참고', '대한제강 참고', '79397 밀집 참고', 'MA120 회복 참고', 'MA20 피라미드 참고'][i] + (j ? ` ${j + 1}` : ''),
-  stock: ['대성산업', '대한제강', '', '', ''][i],
-  conditionConfirmed: true, conditionConfirmedAt: '2026-10-01T08:00:00+09:00'})));
+const records = [...new Map(rules.flatMap((rule, i) => rule.imageIds.map(id => [id, {...record(id),
+  title: ['대성산업 참고', '대한제강 참고', '79397 밀집 참고', 'MA120 회복 참고', 'MA20 피라미드 참고'][i] || rule.name,
+  stock: i === 0 ? '대성산업' : i === 1 ? '대한제강' : '',
+  conditionConfirmed: true, conditionConfirmedAt: '2026-10-01T08:00:00+09:00'}]))).values()];
 const github = new FakeGithub(records);
 const python = process.env.PYTHON_EXE || 'python';
 const payload = JSON.parse(execFileSync(python, ['-c',
@@ -43,11 +43,11 @@ const ma120Rule = rules.find(rule => rule.type === 'ma3_ma120_recovery');
 payload.imageSearch.matches.push({...baseDaesung, time: `${latestDay}T12:00+09:00`, completedAt: `${latestDay}T12:30+09:00`,
   ruleId: ma120Rule.id, ruleName: ma120Rule.name, sourceImageIds: ma120Rule.imageIds,
   signalType: 'ma3Ma120', stage: 'confirmation', stageLabel: '다음 봉 MA3 ≥ MA120 유지 · 2차 확인'});
-const pyramidRule = rules.find(rule => rule.type === 'ma20_pyramid_ma60_recovery');
+const nearRule = rules.find(rule => rule.type === 'ma3_ma60_near_rebound');
 for (const [stage, clock] of [['primary', '14:00'], ['confirmation', '14:30']]) {
   payload.imageSearch.matches.push({...baseDaesung, time: `${latestDay}T${clock}+09:00`, completedAt: `${latestDay}T${clock}+09:00`,
-    ruleId: pyramidRule.id, ruleName: pyramidRule.name, sourceImageIds: pyramidRule.imageIds, signalType: 'ma20Pyramid', stage,
-    riseDayPercent: stage === 'confirmation' ? 6 : 4, strongRise: stage === 'confirmation'});
+    ruleId: nearRule.id, ruleName: nearRule.name, sourceImageIds: nearRule.imageIds, signalType: 'ma3Ma60Near', stage,
+    gapPercent: stage === 'confirmation' ? 1 : -1, maxGapPercent: 2});
 }
 const innoCandidate = payload.candidates.find(item => item.code === '274400');
 const innoChartSets = [innoCandidate.displayCharts, payload.holdingCharts?.['274400']?.displayCharts].filter(Boolean);
@@ -96,12 +96,11 @@ for (const charts of innoChartSets) charts.quote = {
     assert.ok(comments.some(text => text.includes('[하락중 MA10이 MA40 돌파]')));
     assert.ok(comments.some(text => text.includes('[5선 밀집후 MA3 2봉 상승]')));
     assert.ok(comments.some(text => text.includes('+2.9%')));
-    assert.ok(comments.some(text => text.includes('[MA3가 MA120 이상 유지]')));
-    assert.ok(comments.some(text => text.includes('[피라미드후 MA3 반등]')));
-    assert.ok(comments.some(text => text.includes('[피라미드후 MA3가 MA60 돌파]')));
-    const pyramidLines = page.locator('#imageSearchMatches details[data-code="128820"] .image-pattern-entry');
-    assert.equal(await pyramidLines.filter({hasText: `[피라미드후 MA3가 MA60 돌파] ${latestDay.slice(5).replace('-', '.')}. 14:30`}).locator('.image-pattern-strength').count(), 1);
-    assert.equal(await pyramidLines.filter({hasText: `[피라미드후 MA3 반등] ${latestDay.slice(5).replace('-', '.')}. 14:00`}).locator('.image-pattern-strength').count(), 0);
+    assert.ok(comments.some(text => text.includes('[120MA아래로 3MA하락후 상승]')));
+    assert.ok(comments.some(text => text.includes('[MA60 부근 MA3 반등]')));
+    assert.ok(comments.some(text => text.includes('[MA60 부근 MA3 돌파 확인]')));
+    assert.ok(comments.every(text => !text.includes('피라미드후')));
+    assert.equal(await page.locator('.image-pattern-strength').count(), 0);
     assert.ok(comments.every(text => !/대성산업형|대한제강형|빠른 회복 참고|포착 종가/.test(text)));
     assert.ok(await page.locator('.image-pattern-name').evaluateAll(nodes => nodes.every(node => getComputedStyle(node).color === 'rgb(49, 103, 173)')));
     assert.ok(await page.locator('.image-pattern-time').evaluateAll(nodes => nodes.every(node => /\d{2}\.\d{2}\. \d{2}:\d{2}/.test(node.textContent))));
@@ -202,17 +201,14 @@ for (const charts of innoChartSets) charts.quote = {
     assert.equal(await page.locator('#imageSearchStatus').isVisible(), false);
     assert.ok((await page.locator('#imageSearchMatches .image-pattern-comment').allTextContents()).every(text => !text.includes('5선 밀집후 MA3 2봉 상승')));
     await page.locator('[data-view="capture"]').click();
-    for (let i = 0; i < pyramidRule.imageIds.length; i++) {
-      const card = page.locator(`.capture-item[data-id="${pyramidRule.imageIds[i]}"]`);
-      assert.match(await card.innerText(), /검색·알림 사용 중/);
-      await card.locator('.capture-confirmation input').uncheck();
-      await page.waitForFunction(() => document.querySelector('#captureStatus').textContent.includes('확정을 해제'));
-      await page.locator('[data-view="imageSearch"]').click();
-      const visible = (await page.locator('#imageSearchMatches .image-pattern-comment').allTextContents()).some(text => text.includes('피라미드후'));
-      assert.equal(visible, i === 0, 'Shared pyramid stays enabled until both reference images are unchecked');
-      await page.locator('[data-view="capture"]').click();
-    }
+    const retainedImage = page.locator('.capture-item[data-id="4d923542-862d-43e6-bedc-4fd4cf4c8d0f"]');
+    assert.equal(await retainedImage.count(), 1, 'Daesung study image must remain stored');
+    const card = page.locator(`.capture-item[data-id="${nearRule.imageIds[0]}"]`);
+    assert.match(await card.innerText(), /검색·알림 사용 중/);
+    await card.locator('.capture-confirmation input').uncheck();
+    await page.waitForFunction(() => document.querySelector('#captureStatus').textContent.includes('확정을 해제'));
     await page.locator('[data-view="imageSearch"]').click();
+    assert.ok((await page.locator('#imageSearchMatches .image-pattern-comment').allTextContents()).every(text => !text.includes('MA60 부근')));
     assert.equal(await page.locator('#imageSearchRising h2').innerText(), '오늘상승종목');
     assert.deepEqual(errors, []);
     console.log('Image pattern UI passed: independent rules, actual examples, merged stock rows, signal times, chart expansion, shared switch and desktop/mobile layouts.');

@@ -10,7 +10,7 @@ KST = dt.timezone(dt.timedelta(hours=9))
 RULES_PATH = Path(__file__).resolve().parents[1] / "data/image-search-rules.json"
 BOARD_URL = "https://raw.githubusercontent.com/leesgab-ctrl/korea-stock-ma-screener/codex/study-images/data/study-images.json"
 KEYS = ("m3", "m10", "m20", "m40", "m60")
-RULE_TYPES = ("decline_ma40_recovery", "decline_ma10_ma40", "rising_cluster_ma3", "ma3_ma120_recovery", "ma20_pyramid_ma60_recovery")
+RULE_TYPES = ("decline_ma40_recovery", "decline_ma10_ma40", "rising_cluster_ma3", "ma3_ma120_recovery", "ma20_pyramid_ma60_recovery", "ma3_ma60_near_rebound")
 
 
 def timestamp(value):
@@ -259,7 +259,54 @@ def detect_pyramid_recovery(rows, rule):
     return events
 
 
+def detect_ma60_near_rebound(rows, rule):
+    events, history, episode = [], [], None
+    limit = rule["maxGapPercent"]
+    for row in rows:
+        valid_row = all(isinstance(row.get(key), (int, float)) and not isinstance(row[key], bool)
+                        and math.isfinite(row[key]) and row[key] > 0 for key in ("m3", "m60", "c"))
+        if not valid_row:
+            history, episode = [], None
+            continue
+        previous = history[-1] if history else None
+        missing = previous and timestamp(row["t"]).date() == timestamp(previous["t"]).date() \
+            and timestamp(row["t"]) - timestamp(previous["t"]) != dt.timedelta(minutes=30)
+        if missing:
+            history, episode, previous = [], None, None
+        gap = (row["m3"] / row["m60"] - 1) * 100
+        near = abs(gap) <= limit + 1e-9
+        stage, simultaneous = None, False
+        cross = previous and previous["m3"] <= previous["m60"] and row["m3"] > row["m60"] \
+            and row["m3"] > previous["m3"]
+        if episode:
+            if not near or row["m3"] < previous["m3"]:
+                episode = None
+            elif cross:
+                stage = "confirmation"
+        turning_up = len(history) >= 2 and previous["m3"] <= history[-2]["m3"] and row["m3"] > previous["m3"]
+        previous_gap = (previous["m3"] / previous["m60"] - 1) * 100 if previous else None
+        if not episode and turning_up and near and abs(previous_gap) <= limit + 1e-9:
+            episode = {"time": row["t"], "setupTime": previous["t"], "setupGapPercent": previous_gap}
+            stage = "confirmation" if cross else "primary"
+            simultaneous = bool(cross)
+        if stage:
+            events.append({"id": f"{rule['id']}|{episode['time']}|{stage}", "ruleId": rule["id"],
+                           "ruleVersion": rule["version"], "stage": stage, "signalType": "ma3Ma60Near",
+                           "stageLabel": "MA60 부근 MA3 상승 전환 · 1차" if stage == "primary" else "MA3·MA60 상향 돌파 · 확인",
+                           "time": row["t"], "completedAt": (timestamp(row["t"]) + dt.timedelta(minutes=30)).isoformat(timespec="minutes"),
+                           "episodeTime": episode["time"], "setupTime": episode["setupTime"],
+                           "setupGapPercent": episode["setupGapPercent"], "gapPercent": gap, "maxGapPercent": limit,
+                           "price": row["c"], "m3": row["m3"], "m60": row["m60"], "simultaneous": simultaneous})
+            if stage == "confirmation" or row["m3"] > row["m60"]:
+                episode = None
+        history.append(row)
+        history = history[-2:]
+    return events
+
+
 def detect(rows, rule):
+    if rule["type"] == "ma3_ma60_near_rebound":
+        return detect_ma60_near_rebound(rows, rule)
     if rule["type"] == "ma20_pyramid_ma60_recovery":
         return detect_pyramid_recovery(rows, rule)
     if rule["type"] == "ma3_ma120_recovery":
@@ -315,7 +362,8 @@ def detect(rows, rule):
 
 def send_alert(topic, candidate, payload, row, event, current):
     from color_notifications import send
-    kind = "imagePyramidRecovery" if event.get("signalType") == "ma20Pyramid" else \
+    kind = "imageMa60NearRebound" if event.get("signalType") == "ma3Ma60Near" else \
+        "imagePyramidRecovery" if event.get("signalType") == "ma20Pyramid" else \
         "imageMa120Recovery" if event.get("signalType") == "ma3Ma120" else \
         "imageMa3Rise" if event.get("signalType") == "ma3Rise" else \
         "imageMa3Breakout" if event["stage"] == "primary" else "imageMa10Breakout"
@@ -403,7 +451,7 @@ def process(payload, current, topic="", no_notify=True, board=None, rules=None, 
                 start = timestamp(event["time"])
                 age = current - completion
                 delivery = f"{candidate['code']}|{registered}|{event['time']}|{event['stage']}"
-                if event.get("signalType") in ("ma3Rise", "ma3Ma120", "ma20Pyramid"):
+                if event.get("signalType") in ("ma3Rise", "ma3Ma120", "ma20Pyramid", "ma3Ma60Near"):
                     delivery += "|" + event["signalType"]
                 if start <= timestamp(saved["baseline"]) or completion < enabled_at or delivery in saved["sent"] \
                         or completion.date() != current.date() or not dt.time(9) <= start.time() <= dt.time(20) \

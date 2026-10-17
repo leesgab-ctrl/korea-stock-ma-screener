@@ -12,6 +12,8 @@ class PyramidRecoveryTests(unittest.TestCase):
     def setUp(self):
         self.rule = next(rule for rule in json.loads(search.RULES_PATH.read_text(encoding="utf-8"))["rules"]
                          if rule["type"] == "ma20_pyramid_ma60_recovery")
+        # Historical regression only; this rule is disabled in production.
+        self.rule = {**self.rule, "enabled": True}
         start = search.timestamp("2026-10-16T09:00+09:00")
         m20 = [100, 101, 102, 103, 104, 105, 106, 105, 104, 103, 102, 101, 100, 100]
         m3 = [102] * 9 + [99, 98, 98.5, 99.5, 101]

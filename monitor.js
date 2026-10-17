@@ -120,9 +120,10 @@ function compareRegistrationNewest(a, b) {
     || a.name.localeCompare(b.name, "ko");
 }
 function imagePatternLabel(event) {
+  if (event.signalType === "ma3Ma60Near") return event.stage === "primary" ? "MA60 부근 MA3 반등" : "MA60 부근 MA3 돌파 확인";
   if (event.signalType === "ma20Pyramid") return event.stage === "primary" ? "피라미드후 MA3 반등" : "피라미드후 MA3가 MA60 돌파";
   if (event.signalType === "ma3Rise") return `${event.clusterLines?.length || 4}선 밀집후 MA3 ${event.stage === "primary" ? "1봉" : "2봉"} 상승`;
-  if (event.signalType === "ma3Ma120") return event.stage === "primary" ? "MA3가 MA120 재돌파" : "MA3가 MA120 이상 유지";
+  if (event.signalType === "ma3Ma120") return event.stage === "primary" ? "MA3가 MA120 재돌파" : "120MA아래로 3MA하락후 상승";
   if (["daesung-decline-ma40-recovery", "daehan-recovery-pattern"].includes(event.ruleId)) {
     return event.stage === "primary" ? "하락중 MA3가 MA40 돌파" : "하락중 MA10이 MA40 돌파";
   }

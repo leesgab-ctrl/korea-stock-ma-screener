@@ -100,7 +100,20 @@ def send(topic, candidate, payload, row, state, kind, current):
     dates = sorted(lows)[-3:]
     stop = min(lows[d] for d in dates) if len(dates) == 3 else None
     label = {"purple": "진한 보라색 조정 관찰", "convergenceBreakout": "MA40·60 밀집 후 MA3 상향돌파 매수 후보", "coreMorningMa3": "핵심종목 아침 MA3 상승", "recoveryMa10Breakout": "조정 후 MA10·MA40 상향돌파"}.get(kind, "전체 5개 MA 밀착")
-    if kind == "imagePyramidRecovery":
+    if kind == "imageMa60NearRebound":
+        primary = state["stage"] == "primary"
+        stage = "1차 반등 포착" if primary else "MA60 돌파 확인"
+        label = f"이미지조건 MA60 부근 {stage}"
+        reason = "MA60 부근에서 MA3가 하락·수평 후 상승 전환했습니다." if primary else "MA60 부근에서 반등한 MA3가 MA60을 실제 상향 돌파했습니다."
+        simultaneous = "- 상승 전환과 MA60 돌파가 같은 봉에서 발생해 확인 알림으로 합쳤습니다.\n" if state.get("simultaneous") else ""
+        message = (f"[이미지조건 · {stage}] {candidate['name']}({candidate['code']})\n"
+                   f"- 유형: {state['ruleName']}\n- {reason}\n{simultaneous}"
+                   f"- 반등 직전 MA3·MA60 간격 {state['setupGapPercent']:+.2f}% / 현재 {state['gapPercent']:+.2f}%\n"
+                   f"- MA60 대비 ±{state['maxGapPercent']:g}% 이내 기준\n"
+                   f"- MA3 {row['m3']:,.2f} / MA60 {row['m60']:,.2f}\n"
+                   f"- 기준봉 종가 {price_text}\n- 봉 완성 시각 {state['completedAt']}\n"
+                   "조건 관찰 신호이며, 이후 상승이나 수익을 보장하지 않습니다.")
+    elif kind == "imagePyramidRecovery":
         primary = state["stage"] == "primary"
         stage = "1차 반등 포착" if primary else "MA60 돌파 확인"
         label = f"이미지조건 피라미드 {stage}"
