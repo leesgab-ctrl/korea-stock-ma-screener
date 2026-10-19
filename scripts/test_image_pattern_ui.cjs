@@ -23,7 +23,6 @@ const image = process.env.STUDY_TEST_IMAGE ? fs.readFileSync(process.env.STUDY_T
 const marketDays = [...new Set(payload.candidates.flatMap(item => (item.displayCharts?.intraday?.series || []).map(row => row.t.slice(0, 10))))].sort();
 const latestDay = marketDays.at(-1);
 const priorDay = marketDays.at(-2);
-const oldDay = marketDays.at(-3);
 const baseDaesung = payload.imageSearch.matches.find(event => event.code === '128820' && event.ruleId === rules[0].id);
 const baseDaehan = payload.imageSearch.matches.find(event => event.code === '084010' && event.ruleId === rules[1].id);
 const baseInno = payload.imageSearch.matches.find(event => event.code === '274400');
@@ -31,10 +30,10 @@ payload.imageSearch.matches.push({...baseDaesung, stage: 'primary', time: `${lat
 payload.imageSearch.matches.push({...baseDaesung, time: `${latestDay}T11:00+09:00`, completedAt: `${latestDay}T11:30+09:00`});
 payload.imageSearch.matches.push({...baseDaesung, ruleId: rules[1].id, ruleName: rules[1].name, sourceImageIds: rules[1].imageIds,
   time: `${latestDay}T11:00+09:00`, completedAt: `${latestDay}T11:30+09:00`});
-payload.imageSearch.matches.push({...baseDaehan, time: `${priorDay}T12:00+09:00`, completedAt: `${priorDay}T12:30+09:00`});
+payload.imageSearch.matches.push({...baseDaehan, time: `${latestDay}T12:00+09:00`, completedAt: `${latestDay}T12:30+09:00`});
 payload.imageSearch.matches.push({...baseInno, time: `${latestDay}T14:00+09:00`, completedAt: `${latestDay}T14:30+09:00`});
 payload.candidates.push({...payload.candidates.find(item => item.code === '128820'), code: '999999', name: 'Old signal only'});
-payload.imageSearch.matches.push({...baseDaesung, code: '999999', name: 'Old signal only', time: `${oldDay}T10:00+09:00`, completedAt: `${oldDay}T10:30+09:00`});
+payload.imageSearch.matches.push({...baseDaesung, code: '999999', name: 'Old signal only', time: `${priorDay}T10:00+09:00`, completedAt: `${priorDay}T10:30+09:00`});
 const clusterRule = rules.find(rule => rule.type === 'rising_cluster_ma3');
 payload.imageSearch.matches.push({...baseDaesung, time: `${latestDay}T12:00+09:00`, completedAt: `${latestDay}T12:30+09:00`,
   ruleId: clusterRule.id, ruleName: clusterRule.name, sourceImageIds: clusterRule.imageIds,
@@ -84,6 +83,7 @@ for (const charts of innoChartSets) charts.quote = {
     });
     await context.route('https://raw.githubusercontent.com/**', route => route.fulfill({contentType: 'image/png', body: image}));
     const page = await context.newPage();
+    await page.clock.install({time: new Date(`${latestDay}T20:30+09:00`)});
     const errors = [];
     page.on('pageerror', error => errors.push(error.message));
     await page.goto(`http://127.0.0.1:${server.address().port}/monitor.html`);
@@ -91,7 +91,7 @@ for (const charts of innoChartSets) charts.quote = {
     await page.locator('#imageSearchMatches details[data-code="128820"]').waitFor();
     for (const code of ['128820', '084010']) assert.equal(await page.locator(`#imageSearchMatches details[data-code="${code}"]`).count(), 1);
     assert.equal(await page.locator('#imageSearchMatches details[data-code="999999"]').count(), 0, 'A stock with only old signals must be hidden');
-    assert.match(await page.locator('#imageSearchMatches .watch-quote-time').innerText(), /최근 2거래일 포착순/);
+    assert.match(await page.locator('#imageSearchMatches .watch-quote-time').innerText(), /오늘 포착순/);
     const comments = await page.locator('#imageSearchMatches .image-pattern-comment').allTextContents();
     assert.ok(comments.some(text => text.includes('[하락중 MA10이 MA40 돌파]')));
     assert.ok(comments.some(text => text.includes('[5선 밀집후 MA3 2봉 상승]')));
@@ -233,6 +233,15 @@ for (const charts of innoChartSets) charts.quote = {
     await page.locator('[data-view="imageSearch"]').click();
     assert.ok((await page.locator('#imageSearchMatches .image-pattern-comment').allTextContents()).every(text => !/MA60 부근|피라미드형/.test(text)));
     assert.equal(await page.locator('#imageSearchRising h2').innerText(), '오늘상승종목');
+    await page.clock.setSystemTime(new Date(Date.parse(`${latestDay}T09:00+09:00`) + 86400000));
+    await page.evaluate(() => refreshImagePatternDay());
+    assert.equal(await page.locator('#imageSearchMatches .watch-quote-row').count(), 0,
+      'The next opening must clear old signals even if chart data has not refreshed');
+    assert.match(await page.locator('#imageSearchMatches').innerText(), /오늘 포착된 종목이 없습니다/);
+    await page.screenshot({path: path.join(output, 'today-only-empty.png'), fullPage: true});
+    await page.reload();
+    await page.waitForFunction(() => document.querySelector('#imageSearchMatches')?.textContent.includes('오늘 포착된 종목이 없습니다'));
+    assert.equal(await page.locator('#imageSearchMatches .watch-quote-row').count(), 0);
     assert.deepEqual(errors, []);
     console.log('Image pattern UI passed: independent rules, actual examples, merged stock rows, signal times, chart expansion, shared switch and desktop/mobile layouts.');
   } finally { await browser.close(); await new Promise(resolve => server.close(resolve)); }

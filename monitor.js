@@ -143,17 +143,23 @@ function imagePatternSummary(event) {
     direction: change == null ? "" : change > 0 ? "up" : change < 0 ? "down" : "flat" };
 }
 
-function recentImagePatternMatches(search, candidates, confirmedIds) {
-  if (search?.status !== "ok") return [];
-  const recentDays = new Set(watchQuoteDates(candidates));
+function recentImagePatternMatches(search, candidates, confirmedIds, now = new Date()) {
+  if (search?.status !== "ok" || !candidates.length) return [];
+  const today = imagePatternDay(now);
   return (search.matches || []).filter(event => {
     const stamp = Date.parse(event.completedAt);
     if (!Number.isFinite(stamp) || !event.sourceImageIds?.some(id => confirmedIds.has(id))) return false;
     const day = new Intl.DateTimeFormat("en-CA", {
       timeZone: "Asia/Seoul", year: "numeric", month: "2-digit", day: "2-digit",
     }).format(new Date(stamp));
-    return recentDays.has(day);
+    return day === today && stamp <= now.getTime();
   });
+}
+
+function imagePatternDay(now = new Date()) {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Seoul", year: "numeric", month: "2-digit", day: "2-digit",
+  }).format(now);
 }
 
 function renderImageSearch() {
@@ -182,10 +188,12 @@ function renderImageSearch() {
     notices.set(event.code, {completedAt: previous?.completedAt > event.completedAt ? previous.completedAt : event.completedAt,
       entries});
   }
-  document.querySelector("#imageSearchMatches").replaceChildren(buildWatchQuotes(
+  const container = document.querySelector("#imageSearchMatches");
+  container.dataset.day = imagePatternDay();
+  container.replaceChildren(buildWatchQuotes(
     candidates.filter(item => notices.has(item.code)), watchQuoteDates(candidates), {
       title: "이미지조건 포착이력", showTrend: true, showFamily: true, keyPrefix: "image-pattern", signalNotices: notices,
-      emptyText: search?.status === "error" ? "검색 결과 확인 대기" : "최근 2거래일 내 포착된 종목이 없습니다.",
+      emptyText: search?.status === "error" ? "검색 결과 확인 대기" : "오늘 포착된 종목이 없습니다.",
     }));
 }
 function screeningFamily(item) {
@@ -1183,7 +1191,7 @@ function buildWatchQuotes(items, tradingDates, {title, showTrend = false, showFa
   heading.textContent = title;
   content.append(heading);
   meta.className = "watch-quote-time";
-  meta.textContent = `${entries.length}종목 · ${signalNotices ? "최근 2거래일 포착순 · 가격 칸은 최신 수집가" : "전일 종가 대비 등락률 순 · 최신 수집 가격 기준"}`;
+  meta.textContent = `${entries.length}종목 · ${signalNotices ? "오늘 포착순 · 가격 칸은 최신 수집가" : "전일 종가 대비 등락률 순 · 최신 수집 가격 기준"}`;
   content.append(meta);
   const today = tradingDates.at(-1);
   const priorDate = tradingDates.at(-2);
@@ -2808,7 +2816,14 @@ elements.positionDialog.addEventListener("click", (event) => {
 });
 function refreshVisibleData(maxAge = 60000) {
   if (document.visibilityState !== "visible" || document.querySelector("dialog[open]")) return;
+  refreshImagePatternDay();
   if (Date.now() - state.lastLoadedAt >= maxAge) loadData();
+}
+
+function refreshImagePatternDay() {
+  if (state.view !== "imageSearch" || !state.payload || document.visibilityState !== "visible"
+      || document.querySelector("dialog[open]")) return;
+  if (document.querySelector("#imageSearchMatches").dataset.day !== imagePatternDay()) renderImageSearch();
 }
 
 document.addEventListener("visibilitychange", () => refreshVisibleData());
@@ -2816,6 +2831,7 @@ window.addEventListener("pageshow", (event) => {
   if (event.persisted) refreshVisibleData(0);
 });
 window.setInterval(() => refreshVisibleData(600000), 600000);
+window.setInterval(refreshImagePatternDay, 60000);
 
 window.addEventListener("resize", () => {
   if (!state.payload) return;
