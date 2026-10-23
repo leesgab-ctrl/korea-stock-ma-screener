@@ -49,6 +49,7 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add data/candidate-monitor.json
           git diff --cached --quiet || git commit -m "Update A-G and A-K candidate monitor"
+          git pull --rebase --autostash origin main
           git push
       - name: Configure Pages
         uses: actions/configure-pages@v5
