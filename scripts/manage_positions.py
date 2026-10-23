@@ -10,6 +10,7 @@ from typing import Any
 
 from update_candidate_monitor import KST, MONITOR_URL, ROOT, USER_AGENT, aggregate_30m, fetch_minute_rows, fetch_display_quote, now_kst, monitor_link
 from notification_prices import price_with_day_change
+from notification_history import record_delivery
 
 
 DEFAULT_PATH = ROOT / "data" / "positions.json"
@@ -217,6 +218,11 @@ def monitor_positions(payload: dict[str, Any], current: dt.datetime, count: int,
                 continue
             if topic and not no_notify:
                 send_alert(topic, position, event)
+                marker_time = bars[-1]["time"] if event == "weak" and bars else price_time.replace(
+                    minute=(price_time.minute // 30) * 30, second=0, microsecond=0)
+                label = {"target": "보유종목 목표수익 도달", "stop": "보유종목 손절가 도달", "weak": "보유종목 추세약화 확인"}[event]
+                record_delivery(payload, position["code"], position["name"], marker_time.isoformat(),
+                                current.isoformat(), "position_" + event, label, signature=signature)
                 notified.add(signature)
                 new_alerts += 1
     payload["notifiedEvents"] = sorted(notified)[-200:]

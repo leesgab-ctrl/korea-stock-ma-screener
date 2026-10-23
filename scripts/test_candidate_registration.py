@@ -60,6 +60,10 @@ class CurrentSearchRegistrationTests(unittest.TestCase):
         self.assertEqual(repeated["candidates"][0]["registeredAt"], first["candidates"][0]["registeredAt"])
         self.assertEqual(repeated["candidates"][0]["registrationPrice"], first["candidates"][0]["registrationPrice"])
 
+    def test_daily_scan_preserves_delivery_history(self):
+        receipts = [{"id": "receipt", "code": "001440", "barTime": "2026-10-08T09:30+09:00"}]
+        self.assertEqual(self.build(0, {"notificationHistory": receipts})["notificationHistory"], receipts)
+
     def test_stale_data_cannot_create_new_candidate(self):
         result = self.build(0, stale=True)
         self.assertEqual(result["candidates"], [])

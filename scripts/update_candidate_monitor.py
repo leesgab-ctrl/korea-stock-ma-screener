@@ -636,6 +636,7 @@ def build_daily_candidates(stock_data: Path, previous: dict[str, Any]) -> dict[s
         "paperTrading": previous.get("paperTrading"),
         "holdingCharts": previous.get("holdingCharts", {}),
         "notifiedSignals": previous.get("notifiedSignals", []),
+        "notificationHistory": previous.get("notificationHistory", []),
         "coreMorningNotificationState": previous.get("coreMorningNotificationState", {}),
         "imageSearchNotificationState": previous.get("imageSearchNotificationState", {}),
     }
@@ -1721,6 +1722,8 @@ def main() -> None:
     args = parse_args()
     output = ROOT / args.output
     previous = load_previous(output)
+    from notification_history import restore_delivery_receipts
+    restored_deliveries = restore_delivery_receipts(previous)
     if args.mode == "daily":
         payload = build_daily_candidates(ROOT / args.stock_data, previous)
     else:
@@ -1798,7 +1801,7 @@ def main() -> None:
         payload, current, os.getenv("NTFY_TOPIC", "").strip(), args.no_notify or args.mode in ("charts", "daily"),
     )
     alerts += image_alerts
-    color_changed = color_changed or image_changed
+    color_changed = color_changed or image_changed or restored_deliveries
     payload.setdefault("summary", {})["imageSearchMatches"] = len(payload.get("imageSearch", {}).get("matches", []))
     if args.mode == "daily":
         payload["candidateScan"]["completedAt"] = now_kst().isoformat(timespec="seconds")
@@ -1813,6 +1816,7 @@ def main() -> None:
         with open(args.github_output, "a", encoding="utf-8") as handle:
             handle.write(f"color_state_changed={str(color_changed).lower()}\n")
             handle.write(f"archive_tracking_changed={str(archive_tracking_changed).lower()}\n")
+            handle.write(f"notification_history_changed={str(restored_deliveries).lower()}\n")
     print(
         json.dumps(
             {"mode": args.mode, "active": len(payload["candidates"]), "alerts": alerts, "pending": pending},

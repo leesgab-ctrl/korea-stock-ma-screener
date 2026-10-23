@@ -708,6 +708,12 @@ body.inline-chart-mode .detail-content { padding-top: 0; }
 .history-table .history-prices > span { display: block; white-space: nowrap; }
 .history-table td { white-space: nowrap; }
 .candidate-scan { padding: 16px 4px; max-width: 760px; }
+#notificationMarkers { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+.notification-marker { position: absolute; z-index: 2; width: 22px; height: 18px; padding: 0; border: 0; background: transparent; color: #202621; font: 16px/18px Arial, sans-serif; text-shadow: 1px 0 white, -1px 0 white, 0 1px white, 0 -1px white; transform: translate(-50%, -100%); pointer-events: auto; cursor: pointer; touch-action: manipulation; }
+.notification-marker:focus-visible { outline: 2px solid #3167ad; border-radius: 2px; }
+.notification-marker::before { content: ""; position: absolute; bottom: 0; left: 5px; border-left: 6px solid transparent; border-right: 6px solid transparent; border-top: 8px solid #202621; filter: drop-shadow(0 0 1px white); }
+.notification-tooltip { z-index: 4; white-space: normal; width: max-content; max-width: min(300px, calc(100% - 8px)); overflow-wrap: anywhere; box-sizing: border-box; }
+.notification-tooltip-entry { white-space: pre-line; border-top: 1px solid var(--line); margin-top: 5px; padding-top: 5px; }
 #candidateScanButton { white-space: normal; line-height: 1.4; }
 .candidate-scan .muted { color: var(--muted); font-size: 13px; }
 .candidate-scan h2 { margin: 0 0 16px; font-size: 20px; }

@@ -12,6 +12,7 @@ import urllib.parse
 import urllib.request
 from recovery_rules import recovery_states
 from notification_prices import price_with_day_change
+from notification_history import record_delivery
 
 
 def states(bars):
@@ -207,6 +208,14 @@ def send(topic, candidate, payload, row, state, kind, current):
     with urllib.request.urlopen(request, timeout=30) as response:
         if not json.load(response).get("attachment"):
             raise RuntimeError("Attachment not confirmed")
+    # Keep the receipt only after ntfy acknowledges the attachment.
+    signature = None
+    if kind.startswith("image"):
+        signature = f"{candidate['code']}|{candidate.get('registeredAt') or candidate.get('dailySignalDate')}|{row['t']}|{state.get('stage', '')}"
+        if state.get("signalType") in ("ma3Rise", "ma3Ma120", "ma20Pyramid", "ma3Ma60Near"):
+            signature += "|" + state["signalType"]
+    record_delivery(payload, candidate["code"], candidate["name"], row["t"], current.isoformat(), kind,
+                    state.get("ruleName") or label, signature=signature, stage=state.get("stage", ""))
 
 
 def initialize_recovery_baselines(payload):

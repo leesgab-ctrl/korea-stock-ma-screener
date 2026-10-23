@@ -5,7 +5,8 @@ const historyChartMode = new URLSearchParams(window.location.search).get("histor
 const inlineChartMode = new URLSearchParams(window.location.search).get("inlineChart") === "1";
 const inlineChartItems = new Map();
 const inlineChartObservers = [];
-window.getMonitorInlineChart = key => ({ item: inlineChartItems.get(key), payload: state.payload });
+window.getMonitorInlineChart = key => ({ item: inlineChartItems.get(key), payload: {...state.payload,
+  notificationHistory: [...(state.payload?.notificationHistory || []), ...(state.positions?.notificationHistory || [])]} });
 const PENDING_EXCLUSION_KEY = "koreaStockMonitor.pendingExclusions";
 function readPendingExclusions() {
   try {
@@ -257,6 +258,7 @@ async function loadData({ pollOnly = false } = {}) {
     ]);
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     state.payload = await response.json();
+    state.positions = positionsResponse.ok ? await positionsResponse.json() : { positions: [] };
     if (historyChartMode) {
       const referenceStart = new URLSearchParams(window.location.search).get('referenceStart');
       const archived = [...(state.payload.history || []), ...(referenceStart ? state.payload.candidates || [] : [])].find(item => item.code === requestedCode);
@@ -298,7 +300,6 @@ async function loadData({ pollOnly = false } = {}) {
       return;
     }
     applyPendingExclusions();
-    state.positions = positionsResponse.ok ? await positionsResponse.json() : { positions: [] };
     state.positions.positions = [...(state.positions.positions || []), ...(state.payload.paperTrading?.positions || [])];
     globalThis.CandidateScan?.refresh();
     state.lastLoadedAt = Date.now();
@@ -1724,6 +1725,7 @@ function renderDetail(item) {
     elements.signalMessage.textContent = `밀착 후 재상승 · ${formatDateTime(rebound.time)} · 포착가격 ${formatter.format(rebound.price)}원 · MA10 조정 후 MA3 → MA20 상향 돌파 (별도 관찰 신호)`;
   }
   const fullSeries = chartSeriesWithMa120(native);
+  chartViewport.notifications = window.NotificationMarkers?.forCode(state.payload, state.positions, item.code) || [];
   if (chartViewport.count == null && fullSeries.length) {
     const dates = [...new Set(fullSeries.map(row => row.t.slice(0, 10)))].slice(historyChartMode ? 0 : -5);
     chartViewport.start = fullSeries.findIndex(row => dates.includes(row.t.slice(0, 10)));
@@ -2041,6 +2043,7 @@ function chartSeriesWithMa120(chart, timeKey = "t") {
 
 function drawChart(series, dailyMa10, recoveryHistory = {}) {
   hideMaTooltip();
+  window.NotificationMarkers?.draw([], [], () => 0, () => 0, {top: 0}, 0);
   maHover.pad = null;
   chartViewport.series = series;
   chartViewport.dailyMa10 = dailyMa10;
@@ -2102,6 +2105,7 @@ function drawChart(series, dailyMa10, recoveryHistory = {}) {
     legendX += entryWidth;
   }
   pad.top = Math.max(pad.top, legendY + 9);
+  if (chartViewport.notifications?.length) pad.top = Math.max(pad.top, legendY + 26);
   const volumeHeight = Math.max(44, Math.round(height * 0.2));
   const volumeTop = height - pad.bottom - volumeHeight;
   const priceBottom = volumeTop - 10;
@@ -2194,6 +2198,7 @@ function drawChart(series, dailyMa10, recoveryHistory = {}) {
   drawRegistrationMarker(ctx, series, "t", chartViewport.registeredAt, x, pad, width, height, { labelOffset: priceBottom - pad.top - 20 });
   drawTradeMarkers(ctx, series, x, pad, width, height);
   drawVisibleLow(ctx, series, y, pad, width, priceBottom, mobile);
+  window.NotificationMarkers?.draw(chartViewport.notifications || [], series, x, y, pad, priceBottom);
 }
 
 function drawVisibleLow(ctx, series, y, pad, width, priceBottom, mobile) {
