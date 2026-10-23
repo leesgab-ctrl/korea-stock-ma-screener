@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#176b58">
     <title>A-G 30분봉 신호 감시</title>
-    <link rel="stylesheet" href="monitor.css?v=20261023-3">
+    <link rel="stylesheet" href="monitor.css?v=20261024-ah1">
   </head>
   <body>
     <header class="topbar">
@@ -13,7 +13,7 @@
         <span class="brand-mark">K</span>
         <div>
           <h1>A-G 30분봉 신호 감시</h1>
-          <p>등록 후 10거래일 후보 관리</p>
+          <p>AG·AK 10거래일 · AH 최근 5거래일 신규 편입 관리</p>
         </div>
       </div>
       <button id="refreshButton" class="external-link" type="button">새로고침</button>
@@ -24,6 +24,7 @@
         <button class="view-tab active" data-view="imageSearch" type="button" role="tab" aria-selected="true">상승검색</button>
         <button class="view-tab" data-view="ak" type="button" role="tab" aria-selected="false">대상종목AK</button>
         <button class="view-tab" data-view="ag" type="button" role="tab" aria-selected="false">대상종목AG</button>
+        <button class="view-tab" data-view="ah" type="button" role="tab" aria-selected="false">대상종목AH</button>
         <button class="view-tab" data-view="capture" type="button" role="tab" aria-selected="false">이미지공부</button>
         <button class="view-tab" data-view="operations" type="button" role="tab" aria-selected="false">운영관리</button>
       </nav>
@@ -291,6 +292,31 @@
           <p class="criteria-note">A·B·C·D·G·H를 모두 만족하고, I·J·K 중 하나 이상을 만족해야 합니다. +9% 기준은 2026-10-16 선정분부터 적용하며, 이전 선정분은 +10% 기준을 유지합니다.</p>
         </section>
 
+        <section id="ahCriteria">
+          <div class="criteria-section-heading"><strong>대상종목 AH 선정기준</strong><span>일봉 A·B·C·D·E·H 모두 충족</span></div>
+          <p class="criteria-note">0봉은 검색 기준일, 1봉 전은 직전 거래일입니다. 모든 이동평균은 종가 기준 단순이동평균입니다. 장중에는 당일 종가 자리에 현재가를 반영하여 판단합니다.</p>
+          <div class="criteria-table-wrap">
+            <table class="criteria-table">
+              <tbody>
+                <tr><th>A</th><td>25거래일 전 시점의 MA60이 직전 20거래일 동안 연속 하락 (45봉 전부터 25봉 전까지 20회 하락)</td></tr>
+                <tr><th>B</th><td>현재 MA60이 2회 연속 상승 (2봉 전 &lt; 1봉 전 &lt; 0봉)</td></tr>
+                <tr><th>C</th><td>12·11·10봉 전 모두 MA4 &gt; MA60 (10봉 전 기준 3봉 지속)</td></tr>
+                <tr><th>D</th><td>5·4봉 전 모두 MA4 &le; MA60 (4봉 전 기준 2봉 지속)</td></tr>
+                <tr><th>E</th><td>1·0봉 모두 MA4 &ge; MA60 (현재 기준 2봉 지속)</td></tr>
+                <tr><th>H</th><td>1봉 전 기준 (MA60 ÷ MA4 − 1) × 100 &le; 1%. 절댓값 간격이 아닌 단방향 비교</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="criteria-note">HTS의 A AND B AND C AND D AND E AND H를 그대로 적용합니다. H는 E의 1봉 전 조건과 겹치더라도 임의로 바꾸지 않습니다. 기존 A-G·A-K 선정식과는 별개이며, AH는 최근 5거래일 신규 편입 종목을 중복 없이 관리하는 기준입니다.</p>
+          <div class="criteria-section-heading"><strong>AH 매수검토 알림기준</strong><span>30분봉 완성봉</span></div>
+          <ol class="criteria-steps">
+            <li>AH 대상종목에서 직전 MA120 &le; MA180, 현재 MA120 &gt; MA180으로 상향 돌파하고 같은 봉의 MA10 &gt; MA120이면 매수검토 알림 대상입니다.</li>
+            <li>신규 편입 시에는 편입 당일 또는 직전 1거래일에 돌파한 종목도 확인합니다. 돌파 봉부터 편입 시점의 최근 완성봉까지 MA120 &gt; MA180과 MA10 &gt; MA120을 계속 유지한 경우 편입 알림을 1회 보냅니다.</li>
+            <li>같은 봉의 신규 돌파 알림과 편입 알림은 중복 발송하지 않습니다. 초기 자료 등록 시 과거 포착분을 일괄 발송하지 않습니다.</li>
+          </ol>
+          <p class="criteria-note">부족한 과거 30분봉 구간에만 일봉의 시가 25%·종가 75%를 하루 22봉으로 환산한 근사값을 사용하며, 확보된 실제 30분봉을 대체하지 않습니다. 근사 판정은 HTS의 실제 돌파 시점과 다를 수 있습니다. 이미지공부의 대표 차트는 비교용이며, 이미지 등록만으로 검색식이나 알림조건이 변경되지는 않습니다. AH는 기존 10분 간격 감시 작업에서 별도로 검색·등록·알림 처리합니다. GitHub 실행 지연으로 실시간 시세와 차이가 날 수 있습니다.</p>
+        </section>
+
         <section>
           <div class="criteria-section-heading"><strong>화면 분류·차트 표시</strong></div>
           <p>상승조정형은 등록 이후 최근 4개 완성봉에서 MA20이 MA40 위를 유지하고 MA40이 3회 연속 상승한 종목입니다. 조정회복형은 등록 이후 MA20이 MA40 아래로 실제 하향 교차하고 아직 아래인 종목입니다. 나머지는 분류 대기입니다. 등록 이전 봉은 이평선 계산에만 사용하며 상태 배경과 매수신호를 표시하지 않습니다.</p>
@@ -388,9 +414,9 @@
     </dialog>
   <script src="price-analysis.js?v=20261010-48"></script>
   <script src="rising-patterns.js?v=20261017-3"></script>
-  <script src="candidate-scan.js?v=20261023-2"></script>
+  <script src="candidate-scan.js?v=20261024-ah1"></script>
   <script src="notification-markers.js?v=20261023-1"></script>
-  <script src="monitor.js?v=20261023-3"></script>
+  <script src="monitor.js?v=20261024-ah1"></script>
   <dialog id="capturePreviewDialog" class="capture-preview-dialog">
     <header><h2 id="capturePreviewTitle">공부용 이미지</h2><button id="capturePreviewClose" class="external-link" type="button">닫기</button></header>
     <img id="capturePreviewImage" alt="등록된 공부용 이미지">

@@ -37,7 +37,7 @@
     field("last").textContent = date(report?.completedAt);
     field("basis").textContent = report?.asOf || payload?.asOf || "-";
     field("checked").textContent = report ? `${report.checkedStocks.toLocaleString("ko-KR")}종목` : "기록 없음";
-    field("counts").textContent = `AG ${candidates.filter(item => item.candidateTier === "core").length} · AK ${candidates.filter(item => item.candidateTier === "expanded_ak").length}`;
+    field("counts").textContent = `AG ${candidates.filter(item => item.candidateTier === "core").length} · AK ${candidates.filter(item => item.candidateTier === "expanded_ak").length} · AH ${candidates.filter(item => item.candidateTier === "ah").length}`;
     field("added").textContent = report ? `${report.newRegistrations.length}종목` : "기록 없음";
     field("dataNote").textContent = report && !report.currentDayData ? "당일 일봉 미수집 · 이전 거래일 데이터로 신규 등록하지 않았습니다." : "";
     const list = field("newList");
@@ -51,7 +51,7 @@
     recent.replaceChildren();
     for (const item of [...candidates].sort((a, b) => String(b.registeredAt).localeCompare(String(a.registeredAt))).slice(0, 10)) {
       const li = document.createElement("li");
-      li.textContent = `${date(item.registeredAt)} · ${item.name} · ${item.candidateTier === "expanded_ak" ? "AK" : "AG"}`;
+      li.textContent = `${date(item.registeredAt)} · ${item.name} · ${item.candidateTier === "ah" ? "AH" : item.candidateTier === "expanded_ak" ? "AK" : "AG"}`;
       recent.append(li);
     }
   }
@@ -90,7 +90,7 @@
       savePending({...pending, runId: run.id});
       showRun(run.id);
       if (run.status !== "completed") {
-        status(run.status === "in_progress" ? "A-G·A-K 검색·등록·배포 진행 중" : "다른 작업 완료 후 실행 대기 중");
+        status(run.status === "in_progress" ? "A-G·A-K·A-H 검색·등록·배포 진행 중" : "다른 작업 완료 후 실행 대기 중");
         return;
       }
       if (run.conclusion !== "success") {
@@ -178,7 +178,7 @@
             <p class="muted">이 저장소의 Actions 읽기·쓰기 권한</p>
           </details>
           <div class="candidate-scan-actions">
-            <button data-scan="submit" class="external-link" type="submit">A-G·A-K 검색 및 추가</button>
+            <button data-scan="submit" class="external-link" type="submit">A-G·A-K·A-H 검색 및 추가</button>
             <button data-scan="check" class="external-link" type="button" hidden>상태 확인</button>
             <a data-scan="run" target="_blank" rel="noopener noreferrer" hidden>실행 내역</a>
           </div>

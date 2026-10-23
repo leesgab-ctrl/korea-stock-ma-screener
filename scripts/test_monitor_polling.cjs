@@ -18,6 +18,7 @@ let server = {
   paperTrading: { positions: [{ id: 'paper', status: 'open' }] },
 };
 let positions = { positions: [{ id: 'holding', status: 'open' }] };
+let ah = {candidates: []};
 const state = { pendingExclusions: new Map([['000001', { action: 'exclude', at: now }]]),
   payload: null, positions: null, selectedCode: '000002', exclusionMessage: '' };
 const elements = { refreshButton: { disabled: false }, runStatus: {}, updatedAt: {}, pushState: {}, candidateList: {} };
@@ -28,10 +29,11 @@ const context = vm.createContext({ state, elements, Date: class extends Date { s
   clearTimeout: id => timers.delete(id),
   fetch: async url => {
     if (fetchFails) throw new Error('Network unavailable');
-    return { ok: true, json: async () => structuredClone(url.startsWith('data/positions') ? positions : server) };
+    return { ok: true, json: async () => structuredClone(url.startsWith('data/positions') ? positions : url.startsWith('data/ah-monitor') ? ah : server) };
   },
   document: { querySelector: () => ({ classList: { contains: () => true } }) },
   formatDateTime: value => value,
+  currentCandidates: () => (state.view === 'ah' ? state.ahPayload : state.payload)?.candidates || [],
   render: () => { renders++; }, renderManualExclusions: () => { exclusionRenders++; },
 });
 const section = (start, end) => source.slice(source.indexOf(start), source.indexOf(end));
@@ -91,5 +93,11 @@ async function poll() {
   assert.equal(state.payload.candidates.length, 1, 'Timed-out requests restore the server view');
   assert.equal(timers.size, 0);
   assert.match(state.exclusionMessage, /지연/);
+  const previousRenders = renders;
+  ah.candidates.push({code: '000003', candidateTier: 'ah'});
+  await context.loadData({pollOnly: true});
+  assert.equal(renders, previousRenders + 1, 'Changed AH data must update the display');
+  await context.loadData({pollOnly: true});
+  assert.equal(renders, previousRenders + 1, 'Identical AH data must keep chart frames');
   console.log('Monitor polling tests passed: unchanged polls, quotes, holdings, manual refresh, confirmation and timeout.');
 })().catch(error => { console.error(error); process.exitCode = 1; });

@@ -58,6 +58,18 @@ jobs:
         env:
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
         run: python scripts/manage_positions.py --action monitor --github-output "$GITHUB_OUTPUT"
+      - name: Check AH candidates and review alerts
+        continue-on-error: true
+        env:
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          CHARTS_ONLY: ${{ inputs.charts_only || false }}
+        run: |
+          python -m unittest discover -s scripts -p test_ah_monitor.py
+          if [ "$CHARTS_ONLY" = "true" ]; then
+            python scripts/update_ah_monitor.py --charts-only --no-notify
+          else
+            python scripts/update_ah_monitor.py
+          fi
       - name: Save newly notified signals
         if: steps.monitor.outputs.notification_history_changed == 'true' || (inputs.charts_only != true && (steps.monitor.outputs.alerts != '0' || (steps.positions.outputs.alerts != '' && steps.positions.outputs.alerts != '0') || steps.monitor.outputs.color_state_changed == 'true' || steps.monitor.outputs.archive_tracking_changed == 'true'))
         run: |
@@ -69,6 +81,16 @@ jobs:
           git push
       - name: Build daily price analysis records
         run: node scripts/build_price_analysis.cjs
+      - name: Save AH membership and acknowledged alerts
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/ah-monitor.json
+          if ! git diff --cached --quiet; then
+            git commit -m "Update AH candidate monitor"
+            git pull --rebase --autostash origin main
+            git push
+          fi
       - name: Save price analysis records
         run: |
           git config user.name "github-actions[bot]"
