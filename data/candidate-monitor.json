@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-10-23T13:53:19+09:00",
+  "generatedAt": "2026-10-23T14:24:39+09:00",
   "asOf": "2026-10-23",
   "source": "네이버 증권 일봉 및 분봉",
   "strategy": {
@@ -26,8 +26,8 @@
     "expandedAkCandidates": 3,
     "signals": 0,
     "signalHistory": 0,
-    "setup": 1,
-    "rising": 1,
+    "setup": 2,
+    "rising": 0,
     "watching": 9,
     "insufficient": 0,
     "ineligible": 1,
@@ -858,12 +858,12 @@
             "o": 9520,
             "h": 10320,
             "l": 8400,
-            "c": 9930,
-            "v": 326044,
-            "m5": 8640.0,
-            "m10": 7833.0,
-            "m20": 8028.0,
-            "m60": 8775.67
+            "c": 10030,
+            "v": 337368,
+            "m5": 8660.0,
+            "m10": 7843.0,
+            "m20": 8033.0,
+            "m60": 8777.33
           }
         ]
       },
@@ -1564,6 +1564,14 @@
             "l": 9880,
             "c": 9900,
             "v": 7558
+          },
+          {
+            "t": "2026-10-23T13:30+09:00",
+            "o": 9900,
+            "h": 9970,
+            "l": 9840,
+            "c": 9970,
+            "v": 5708
           }
         ]
       },
@@ -1573,25 +1581,25 @@
         "baselineTime": "2026-10-23T11:00+09:00"
       },
       "intraday": {
-        "quotePrice": 9930,
-        "quoteTime": "2026-10-23T13:53+09:00",
+        "quotePrice": 10030,
+        "quoteTime": "2026-10-23T14:24+09:00",
         "quotePreviousClose": 8710,
-        "quoteChangePct": 14.01,
+        "quoteChangePct": 15.15,
         "sessionRecovery": {
           "date": "2026-10-23",
           "matched": false,
           "dataStatus": "pending"
         },
         "dataStatus": "ok",
-        "barCount": 87,
-        "lastBarTime": "2026-10-23T13:00+09:00",
-        "lastPrice": 9900,
+        "barCount": 88,
+        "lastBarTime": "2026-10-23T13:30+09:00",
+        "lastPrice": 9970,
         "baselineMa20AboveMa40": true,
         "baselineInferred": false,
-        "ma3": 9966.67,
-        "ma20": 9162.5,
-        "ma40": 8947.0,
-        "ma60": 8490.5,
+        "ma3": 9976.67,
+        "ma20": 9203.5,
+        "ma40": 8997.5,
+        "ma60": 8537.83,
         "dailyMa10": 7811.0,
         "fallCount": 0,
         "structuralExcluded": false,
@@ -1601,7 +1609,7 @@
         "priorDeathCross": false,
         "deathCrossIndex": null,
         "eligibleReversal": false,
-        "rawRiseCount": 7,
+        "rawRiseCount": 8,
         "ma60Ready": false,
         "breachedMa60": false,
         "recoveredMa60": false,
@@ -2342,6 +2350,18 @@
             "m20": 9162.5,
             "m40": 8947.0,
             "m60": 8490.5
+          },
+          {
+            "t": "2026-10-23T13:30+09:00",
+            "o": 9900,
+            "h": 9970,
+            "l": 9840,
+            "c": 9970,
+            "v": 5708,
+            "m3": 9976.67,
+            "m20": 9203.5,
+            "m40": 8997.5,
+            "m60": 8537.83
           }
         ]
       },
@@ -2453,6 +2473,18 @@
           "m20": 9162.5,
           "m40": 8947.0,
           "m60": 8490.5
+        },
+        {
+          "t": "2026-10-23T13:30+09:00",
+          "o": 9900,
+          "h": 9970,
+          "l": 9840,
+          "c": 9970,
+          "v": 5708,
+          "m3": 9976.67,
+          "m20": 9203.5,
+          "m40": 8997.5,
+          "m60": 8537.83
         }
       ],
       "outcome": {
@@ -2464,9 +2496,9 @@
         "peakPrice": 10180,
         "peakDate": "2026-10-23",
         "peakReturnPct": 4.84,
-        "finalPrice": 9900,
+        "finalPrice": 9970,
         "finalDate": "2026-10-23",
-        "finalReturnPct": 1.96,
+        "finalReturnPct": 2.68,
         "reached5Pct": false,
         "reached5PctDate": null,
         "reached5PctTradingDays": null,
@@ -2480,10 +2512,10 @@
           "timeframe": "minute30",
           "session": "regular_and_aftermarket",
           "dataStatus": "ok",
-          "fetchedAt": "2026-10-23T13:53:19+09:00",
-          "sourceAsOf": "20261023135300",
+          "fetchedAt": "2026-10-23T14:24:39+09:00",
+          "sourceAsOf": "20261023142500",
           "marketStatus": "OPEN",
-          "barCount": 135,
+          "barCount": 136,
           "history": [
             {
               "t": "2026-10-15T09:00+09:00",
@@ -3560,10 +3592,18 @@
             {
               "t": "2026-10-23T13:30+09:00",
               "o": 9900.0,
-              "h": 9960.0,
+              "h": 9970.0,
               "l": 9800.0,
-              "c": 9930.0,
-              "v": 4943.0
+              "c": 9970.0,
+              "v": 5708.0
+            },
+            {
+              "t": "2026-10-23T14:00+09:00",
+              "o": 9960.0,
+              "h": 10250.0,
+              "l": 9700.0,
+              "c": 10030.0,
+              "v": 10559.0
             }
           ],
           "series": [
@@ -6920,16 +6960,41 @@
             {
               "t": "2026-10-23T13:30+09:00",
               "o": 9900.0,
-              "h": 9960.0,
+              "h": 9970.0,
               "l": 9800.0,
-              "c": 9930.0,
-              "v": 4943.0,
-              "m3": 9963.33,
-              "m10": 9606.0,
-              "m20": 9163.5,
-              "m40": 8998.25,
-              "m60": 8894.0,
-              "m120": 8144.25,
+              "c": 9970.0,
+              "v": 5708.0,
+              "m3": 9976.67,
+              "m10": 9610.0,
+              "m20": 9165.5,
+              "m40": 8999.25,
+              "m60": 8894.67,
+              "m120": 8144.58,
+              "complete": true,
+              "phase": "confirmed",
+              "recoveryActive": false,
+              "recoveryReached60": false,
+              "recoveryMa10Breakout": false,
+              "recoveryCycle": "2026-10-22T16:30+09:00",
+              "recoveryFailed": false,
+              "recoveryStrengthened": true,
+              "phaseTarget": 60,
+              "referencePullback": false,
+              "referenceQualified": false
+            },
+            {
+              "t": "2026-10-23T14:00+09:00",
+              "o": 9960.0,
+              "h": 10250.0,
+              "l": 9700.0,
+              "c": 10030.0,
+              "v": 10559.0,
+              "m3": 9966.67,
+              "m10": 9742.0,
+              "m20": 9230.0,
+              "m40": 9029.5,
+              "m60": 8926.83,
+              "m120": 8170.83,
               "complete": false,
               "phase": "confirmed",
               "recoveryActive": false,
@@ -6952,7 +7017,7 @@
           "timeframe": "day",
           "session": "regular_and_aftermarket",
           "dataStatus": "ok",
-          "fetchedAt": "2026-10-23T13:53:19+09:00",
+          "fetchedAt": "2026-10-23T14:24:39+09:00",
           "sourceAsOf": null,
           "marketStatus": null,
           "barCount": 250,
@@ -8954,8 +9019,8 @@
               "o": 9520.0,
               "h": 10320.0,
               "l": 8400.0,
-              "c": 9930.0,
-              "v": 326044.0
+              "c": 10030.0,
+              "v": 337368.0
             }
           ],
           "series": [
@@ -9731,13 +9796,13 @@
               "o": 9520.0,
               "h": 10320.0,
               "l": 8400.0,
-              "c": 9930.0,
-              "v": 326044.0,
-              "m5": 8640.0,
-              "m10": 7833.0,
-              "m20": 8028.0,
-              "m60": 8775.67,
-              "m120": 11954.67
+              "c": 10030.0,
+              "v": 337368.0,
+              "m5": 8660.0,
+              "m10": 7843.0,
+              "m20": 8033.0,
+              "m60": 8777.33,
+              "m120": 11955.5
             }
           ],
           "referenceRebounds": []
@@ -9745,15 +9810,15 @@
         "quote": {
           "source": "naver_quote",
           "dataStatus": "ok",
-          "price": 9930.0,
+          "price": 10070.0,
           "previousClose": 8820.0,
-          "change": 12.59,
-          "time": "2026-10-23T13:53:49+09:00",
-          "fetchedAt": "2026-10-23T13:53:19+09:00"
+          "change": 14.17,
+          "time": "2026-10-23T14:25:06+09:00",
+          "fetchedAt": "2026-10-23T14:24:39+09:00"
         }
       },
       "paperStrategy": {
-        "group": "unclassified",
+        "group": "reference",
         "excludedReason": null,
         "events": [],
         "historicalPatterns": [],
@@ -10549,12 +10614,12 @@
             "o": 4510,
             "h": 4960,
             "l": 4510,
-            "c": 4565,
-            "v": 3518748,
-            "m5": 4442.0,
-            "m10": 4351.0,
-            "m20": 4412.25,
-            "m60": 4079.42
+            "c": 4600,
+            "v": 3569975,
+            "m5": 4449.0,
+            "m10": 4354.5,
+            "m20": 4414.0,
+            "m60": 4080.0
           }
         ]
       },
@@ -11255,6 +11320,14 @@
             "l": 4520,
             "c": 4565,
             "v": 77368
+          },
+          {
+            "t": "2026-10-23T13:30+09:00",
+            "o": 4575,
+            "h": 4585,
+            "l": 4540,
+            "c": 4575,
+            "v": 36883
           }
         ]
       },
@@ -11264,30 +11337,30 @@
         "baselineTime": "2026-10-23T11:00+09:00"
       },
       "intraday": {
-        "quotePrice": 4565,
-        "quoteTime": "2026-10-23T13:51+09:00",
+        "quotePrice": 4600,
+        "quoteTime": "2026-10-23T14:23+09:00",
         "quotePreviousClose": 4465,
-        "quoteChangePct": 2.24,
+        "quoteChangePct": 3.02,
         "sessionRecovery": {
           "date": "2026-10-23",
           "matched": false,
           "dataStatus": "pending"
         },
         "dataStatus": "ok",
-        "barCount": 87,
-        "lastBarTime": "2026-10-23T13:00+09:00",
-        "lastPrice": 4565,
+        "barCount": 88,
+        "lastBarTime": "2026-10-23T13:30+09:00",
+        "lastPrice": 4575,
         "baselineMa20AboveMa40": true,
         "baselineInferred": false,
-        "ma3": 4571.67,
-        "ma20": 4641.5,
-        "ma40": 4583.55,
-        "ma60": 4490.53,
+        "ma3": 4563.33,
+        "ma20": 4639.75,
+        "ma40": 4592.05,
+        "ma60": 4495.53,
         "dailyMa10": 4368.0,
-        "fallCount": 2,
+        "fallCount": 3,
         "structuralExcluded": false,
         "riseCount": 0,
-        "reversalIndex": 86,
+        "reversalIndex": 87,
         "reversalUnderMa40": false,
         "priorDeathCross": false,
         "deathCrossIndex": null,
@@ -12033,6 +12106,18 @@
             "m20": 4641.5,
             "m40": 4583.55,
             "m60": 4490.53
+          },
+          {
+            "t": "2026-10-23T13:30+09:00",
+            "o": 4575,
+            "h": 4585,
+            "l": 4540,
+            "c": 4575,
+            "v": 36883,
+            "m3": 4563.33,
+            "m20": 4639.75,
+            "m40": 4592.05,
+            "m60": 4495.53
           }
         ]
       },
@@ -12144,6 +12229,18 @@
           "m20": 4641.5,
           "m40": 4583.55,
           "m60": 4490.53
+        },
+        {
+          "t": "2026-10-23T13:30+09:00",
+          "o": 4575,
+          "h": 4585,
+          "l": 4540,
+          "c": 4575,
+          "v": 36883,
+          "m3": 4563.33,
+          "m20": 4639.75,
+          "m40": 4592.05,
+          "m60": 4495.53
         }
       ],
       "outcome": {
@@ -12155,9 +12252,9 @@
         "peakPrice": 4860,
         "peakDate": "2026-10-23",
         "peakReturnPct": 2.64,
-        "finalPrice": 4565,
+        "finalPrice": 4575,
         "finalDate": "2026-10-23",
-        "finalReturnPct": -3.59,
+        "finalReturnPct": -3.38,
         "reached5Pct": false,
         "reached5PctDate": null,
         "reached5PctTradingDays": null,
@@ -12171,10 +12268,10 @@
           "timeframe": "minute30",
           "session": "regular_and_aftermarket",
           "dataStatus": "ok",
-          "fetchedAt": "2026-10-23T13:53:19+09:00",
-          "sourceAsOf": "20261023135300",
+          "fetchedAt": "2026-10-23T14:24:39+09:00",
+          "sourceAsOf": "20261023142500",
           "marketStatus": "OPEN",
-          "barCount": 142,
+          "barCount": 143,
           "history": [
             {
               "t": "2026-10-15T09:00+09:00",
@@ -13307,10 +13404,18 @@
             {
               "t": "2026-10-23T13:30+09:00",
               "o": 4575.0,
-              "h": 4585.0,
+              "h": 4590.0,
               "l": 4540.0,
-              "c": 4565.0,
-              "v": 27570.0
+              "c": 4575.0,
+              "v": 36883.0
+            },
+            {
+              "t": "2026-10-23T14:00+09:00",
+              "o": 4580.0,
+              "h": 4605.0,
+              "l": 4560.0,
+              "c": 4600.0,
+              "v": 41914.0
             }
           ],
           "series": [
@@ -16842,16 +16947,41 @@
             {
               "t": "2026-10-23T13:30+09:00",
               "o": 4575.0,
-              "h": 4585.0,
+              "h": 4590.0,
               "l": 4540.0,
-              "c": 4565.0,
-              "v": 27570.0,
-              "m3": 4560.0,
-              "m10": 4698.0,
-              "m20": 4598.5,
-              "m40": 4601.25,
-              "m60": 4564.7,
-              "m120": 4429.43,
+              "c": 4575.0,
+              "v": 36883.0,
+              "m3": 4563.33,
+              "m10": 4699.0,
+              "m20": 4599.0,
+              "m40": 4601.5,
+              "m60": 4564.87,
+              "m120": 4429.52,
+              "complete": true,
+              "phase": "pullback",
+              "recoveryActive": false,
+              "recoveryReached60": false,
+              "recoveryMa10Breakout": false,
+              "recoveryCycle": "2026-10-23T12:30+09:00",
+              "recoveryFailed": true,
+              "recoveryStrengthened": false,
+              "phaseTarget": 40,
+              "referencePullback": false,
+              "referenceQualified": false
+            },
+            {
+              "t": "2026-10-23T14:00+09:00",
+              "o": 4580.0,
+              "h": 4605.0,
+              "l": 4560.0,
+              "c": 4600.0,
+              "v": 41914.0,
+              "m3": 4580.0,
+              "m10": 4691.0,
+              "m20": 4601.0,
+              "m40": 4601.62,
+              "m60": 4571.2,
+              "m120": 4432.77,
               "complete": false,
               "phase": "pullback",
               "recoveryActive": false,
@@ -16874,7 +17004,7 @@
           "timeframe": "day",
           "session": "regular_and_aftermarket",
           "dataStatus": "ok",
-          "fetchedAt": "2026-10-23T13:53:19+09:00",
+          "fetchedAt": "2026-10-23T14:24:39+09:00",
           "sourceAsOf": null,
           "marketStatus": null,
           "barCount": 250,
@@ -18876,8 +19006,8 @@
               "o": 4510.0,
               "h": 4960.0,
               "l": 4510.0,
-              "c": 4565.0,
-              "v": 3518748.0
+              "c": 4600.0,
+              "v": 3569975.0
             }
           ],
           "series": [
@@ -19653,13 +19783,13 @@
               "o": 4510.0,
               "h": 4960.0,
               "l": 4510.0,
-              "c": 4565.0,
-              "v": 3518748.0,
-              "m5": 4442.0,
-              "m10": 4351.0,
-              "m20": 4412.25,
-              "m60": 4079.42,
-              "m120": 4353.04
+              "c": 4600.0,
+              "v": 3569975.0,
+              "m5": 4449.0,
+              "m10": 4354.5,
+              "m20": 4414.0,
+              "m60": 4080.0,
+              "m120": 4353.33
             }
           ],
           "referenceRebounds": []
@@ -19667,11 +19797,11 @@
         "quote": {
           "source": "naver_quote",
           "dataStatus": "ok",
-          "price": 4565.0,
+          "price": 4600.0,
           "previousClose": 4490.0,
-          "change": 1.67,
-          "time": "2026-10-23T13:53:52+09:00",
-          "fetchedAt": "2026-10-23T13:53:19+09:00"
+          "change": 2.45,
+          "time": "2026-10-23T14:25:08+09:00",
+          "fetchedAt": "2026-10-23T14:24:39+09:00"
         }
       },
       "paperStrategy": {
@@ -20561,6 +20691,14 @@
             "l": 3985,
             "c": 3995,
             "v": 1361911
+          },
+          {
+            "t": "2026-10-23T13:30+09:00",
+            "o": 4010,
+            "h": 4025,
+            "l": 3880,
+            "c": 3880,
+            "v": 980058
           }
         ]
       },
@@ -20572,10 +20710,10 @@
           "timeframe": "minute30",
           "session": "regular_and_aftermarket",
           "dataStatus": "ok",
-          "fetchedAt": "2026-10-23T13:53:19+09:00",
-          "sourceAsOf": "20261023135300",
+          "fetchedAt": "2026-10-23T14:24:39+09:00",
+          "sourceAsOf": "20261023142500",
           "marketStatus": "OPEN",
-          "barCount": 164,
+          "barCount": 165,
           "history": [
             {
               "t": "2026-10-14T09:00+09:00",
@@ -21885,9 +22023,17 @@
               "t": "2026-10-23T13:30+09:00",
               "o": 3995.0,
               "h": 4030.0,
-              "l": 3965.0,
-              "c": 3985.0,
-              "v": 560008.0
+              "l": 3870.0,
+              "c": 3880.0,
+              "v": 980058.0
+            },
+            {
+              "t": "2026-10-23T14:00+09:00",
+              "o": 3880.0,
+              "h": 3895.0,
+              "l": 3720.0,
+              "c": 3725.0,
+              "v": 1717495.0
             }
           ],
           "series": [
@@ -25970,15 +26116,40 @@
               "t": "2026-10-23T13:30+09:00",
               "o": 3995.0,
               "h": 4030.0,
-              "l": 3965.0,
-              "c": 3985.0,
-              "v": 560008.0,
-              "m3": 3996.67,
-              "m10": 4146.5,
-              "m20": 3976.0,
-              "m40": 3700.12,
-              "m60": 3509.67,
-              "m120": 3228.17,
+              "l": 3870.0,
+              "c": 3880.0,
+              "v": 980058.0,
+              "m3": 3961.67,
+              "m10": 4136.0,
+              "m20": 3970.75,
+              "m40": 3697.5,
+              "m60": 3507.92,
+              "m120": 3227.29,
+              "complete": true,
+              "phase": "pullback",
+              "recoveryActive": false,
+              "recoveryReached60": false,
+              "recoveryMa10Breakout": false,
+              "recoveryCycle": "2026-10-22T19:00+09:00",
+              "recoveryFailed": true,
+              "recoveryStrengthened": false,
+              "phaseTarget": 40,
+              "referencePullback": false,
+              "referenceQualified": false
+            },
+            {
+              "t": "2026-10-23T14:00+09:00",
+              "o": 3880.0,
+              "h": 3895.0,
+              "l": 3720.0,
+              "c": 3725.0,
+              "v": 1717495.0,
+              "m3": 3866.67,
+              "m10": 4084.5,
+              "m20": 3969.5,
+              "m40": 3713.38,
+              "m60": 3516.58,
+              "m120": 3235.08,
               "complete": false,
               "phase": "pullback",
               "recoveryActive": false,
@@ -26001,7 +26172,7 @@
           "timeframe": "day",
           "session": "regular_and_aftermarket",
           "dataStatus": "ok",
-          "fetchedAt": "2026-10-23T13:53:19+09:00",
+          "fetchedAt": "2026-10-23T14:24:39+09:00",
           "sourceAsOf": null,
           "marketStatus": null,
           "barCount": 250,
@@ -28002,9 +28173,9 @@
               "d": "2026-10-23",
               "o": 3905.0,
               "h": 4550.0,
-              "l": 3815.0,
-              "c": 3985.0,
-              "v": 35492234.0
+              "l": 3720.0,
+              "c": 3725.0,
+              "v": 37633552.0
             }
           ],
           "series": [
@@ -28779,14 +28950,14 @@
               "d": "2026-10-23",
               "o": 3905.0,
               "h": 4550.0,
-              "l": 3815.0,
-              "c": 3985.0,
-              "v": 35492234.0,
-              "m5": 3431.0,
-              "m10": 3130.5,
-              "m20": 3064.75,
-              "m60": 2935.83,
-              "m120": 3376.75
+              "l": 3720.0,
+              "c": 3725.0,
+              "v": 37633552.0,
+              "m5": 3379.0,
+              "m10": 3104.5,
+              "m20": 3051.75,
+              "m60": 2931.5,
+              "m120": 3374.58
             }
           ],
           "referenceRebounds": []
@@ -28794,11 +28965,11 @@
         "quote": {
           "source": "naver_quote",
           "dataStatus": "ok",
-          "price": 3975.0,
+          "price": 3730.0,
           "previousClose": 3750.0,
-          "change": 6.0,
-          "time": "2026-10-23T13:53:55+09:00",
-          "fetchedAt": "2026-10-23T13:53:19+09:00"
+          "change": -0.53,
+          "time": "2026-10-23T14:25:11+09:00",
+          "fetchedAt": "2026-10-23T14:24:39+09:00"
         }
       },
       "registrationDayBars": [
@@ -29674,36 +29845,36 @@
             "d": "2026-10-23",
             "o": 3905,
             "h": 4550,
-            "l": 3815,
-            "c": 3985,
-            "v": 35492234,
-            "m5": 3431.0,
-            "m10": 3130.5,
-            "m20": 3064.75,
-            "m60": 2935.83
+            "l": 3720,
+            "c": 3725,
+            "v": 37633552,
+            "m5": 3379.0,
+            "m10": 3104.5,
+            "m20": 3051.75,
+            "m60": 2931.5
           }
         ]
       },
       "intraday": {
-        "quotePrice": 3980,
-        "quoteTime": "2026-10-23T13:51+09:00",
+        "quotePrice": 3725,
+        "quoteTime": "2026-10-23T14:24+09:00",
         "quotePreviousClose": 3760,
-        "quoteChangePct": 5.85,
+        "quoteChangePct": -0.93,
         "sessionRecovery": {
           "date": "2026-10-23",
           "matched": false,
           "dataStatus": "pending"
         },
         "dataStatus": "ok",
-        "barCount": 100,
-        "lastBarTime": "2026-10-23T13:00+09:00",
-        "lastPrice": 3995,
+        "barCount": 101,
+        "lastBarTime": "2026-10-23T13:30+09:00",
+        "lastPrice": 3880,
         "baselineMa20AboveMa40": true,
         "baselineInferred": false,
-        "ma3": 4061.67,
-        "ma20": 3891.0,
-        "ma40": 3527.62,
-        "ma60": 3328.58,
+        "ma3": 3961.67,
+        "ma20": 3902.25,
+        "ma40": 3541.88,
+        "ma60": 3345.58,
         "dailyMa10": 3155.5,
         "fallCount": 0,
         "structuralExcluded": false,
@@ -29713,7 +29884,7 @@
         "priorDeathCross": false,
         "deathCrossIndex": null,
         "eligibleReversal": false,
-        "rawRiseCount": 69,
+        "rawRiseCount": 70,
         "ma60Ready": false,
         "breachedMa60": false,
         "recoveredMa60": false,
@@ -30454,6 +30625,18 @@
             "m20": 3891.0,
             "m40": 3527.62,
             "m60": 3328.58
+          },
+          {
+            "t": "2026-10-23T13:30+09:00",
+            "o": 4010,
+            "h": 4025,
+            "l": 3880,
+            "c": 3880,
+            "v": 980058,
+            "m3": 3961.67,
+            "m20": 3902.25,
+            "m40": 3541.88,
+            "m60": 3345.58
           }
         ]
       },
@@ -30466,9 +30649,9 @@
         "peakPrice": 4550,
         "peakDate": "2026-10-23",
         "peakReturnPct": 16.97,
-        "finalPrice": 3985,
+        "finalPrice": 3725,
         "finalDate": "2026-10-23",
-        "finalReturnPct": 2.44,
+        "finalReturnPct": -4.24,
         "reached5Pct": true,
         "reached5PctDate": "2026-10-23",
         "reached5PctTradingDays": 1,
@@ -31777,6 +31960,14 @@
             "l": 6650,
             "c": 6660,
             "v": 10114
+          },
+          {
+            "t": "2026-10-23T13:30+09:00",
+            "o": 6670,
+            "h": 6730,
+            "l": 6660,
+            "c": 6720,
+            "v": 5896
           }
         ]
       },
@@ -31788,10 +31979,10 @@
           "timeframe": "minute30",
           "session": "regular_and_aftermarket",
           "dataStatus": "ok",
-          "fetchedAt": "2026-10-23T13:53:19+09:00",
-          "sourceAsOf": "20261023135300",
+          "fetchedAt": "2026-10-23T14:24:39+09:00",
+          "sourceAsOf": "20261023142500",
           "marketStatus": "OPEN",
-          "barCount": 251,
+          "barCount": 252,
           "history": [
             {
               "t": "2026-10-07T09:00+09:00",
@@ -33796,10 +33987,18 @@
             {
               "t": "2026-10-23T13:30+09:00",
               "o": 6680.0,
-              "h": 6710.0,
+              "h": 6730.0,
               "l": 6660.0,
-              "c": 6710.0,
-              "v": 4079.0
+              "c": 6720.0,
+              "v": 5896.0
+            },
+            {
+              "t": "2026-10-23T14:00+09:00",
+              "o": 6720.0,
+              "h": 6750.0,
+              "l": 6640.0,
+              "c": 6660.0,
+              "v": 13396.0
             }
           ],
           "series": [
@@ -40056,16 +40255,41 @@
             {
               "t": "2026-10-23T13:30+09:00",
               "o": 6680.0,
-              "h": 6710.0,
+              "h": 6730.0,
               "l": 6660.0,
-              "c": 6710.0,
-              "v": 4079.0,
-              "m3": 6686.67,
-              "m10": 6774.0,
-              "m20": 6836.5,
-              "m40": 7089.25,
-              "m60": 7233.33,
-              "m120": 7484.71,
+              "c": 6720.0,
+              "v": 5896.0,
+              "m3": 6690.0,
+              "m10": 6775.0,
+              "m20": 6837.0,
+              "m40": 7089.5,
+              "m60": 7233.5,
+              "m120": 7484.79,
+              "complete": true,
+              "phase": "pullback",
+              "recoveryActive": false,
+              "recoveryReached60": false,
+              "recoveryMa10Breakout": false,
+              "recoveryCycle": "2026-10-22T11:00+09:00",
+              "recoveryFailed": false,
+              "recoveryStrengthened": false,
+              "phaseTarget": 40,
+              "referencePullback": false,
+              "referenceQualified": false
+            },
+            {
+              "t": "2026-10-23T14:00+09:00",
+              "o": 6720.0,
+              "h": 6750.0,
+              "l": 6640.0,
+              "c": 6660.0,
+              "v": 13396.0,
+              "m3": 6680.0,
+              "m10": 6745.0,
+              "m20": 6820.5,
+              "m40": 7065.75,
+              "m60": 7218.83,
+              "m120": 7479.79,
               "complete": false,
               "phase": "pullback",
               "recoveryActive": false,
@@ -40088,7 +40312,7 @@
           "timeframe": "day",
           "session": "regular_and_aftermarket",
           "dataStatus": "ok",
-          "fetchedAt": "2026-10-23T13:53:19+09:00",
+          "fetchedAt": "2026-10-23T14:24:39+09:00",
           "sourceAsOf": null,
           "marketStatus": null,
           "barCount": 250,
@@ -42090,8 +42314,8 @@
               "o": 6720.0,
               "h": 7050.0,
               "l": 6600.0,
-              "c": 6710.0,
-              "v": 202271.0
+              "c": 6660.0,
+              "v": 217484.0
             }
           ],
           "series": [
@@ -42867,13 +43091,13 @@
               "o": 6720.0,
               "h": 7050.0,
               "l": 6600.0,
-              "c": 6710.0,
-              "v": 202271.0,
-              "m5": 7332.0,
-              "m10": 6966.0,
-              "m20": 6677.0,
-              "m60": 5916.42,
-              "m120": 6431.38
+              "c": 6660.0,
+              "v": 217484.0,
+              "m5": 7322.0,
+              "m10": 6961.0,
+              "m20": 6674.5,
+              "m60": 5915.58,
+              "m120": 6430.96
             }
           ],
           "referenceRebounds": []
@@ -42881,11 +43105,11 @@
         "quote": {
           "source": "naver_quote",
           "dataStatus": "ok",
-          "price": 6700.0,
+          "price": 6680.0,
           "previousClose": 6920.0,
-          "change": -3.18,
-          "time": "2026-10-23T13:53:58+09:00",
-          "fetchedAt": "2026-10-23T13:53:19+09:00"
+          "change": -3.47,
+          "time": "2026-10-23T14:25:13+09:00",
+          "fetchedAt": "2026-10-23T14:24:39+09:00"
         }
       },
       "registrationDayBars": [
@@ -43762,40 +43986,40 @@
             "o": 6720,
             "h": 7050,
             "l": 6600,
-            "c": 6710,
-            "v": 202271,
-            "m5": 7332.0,
-            "m10": 6966.0,
-            "m20": 6677.0,
-            "m60": 5916.42
+            "c": 6660,
+            "v": 217484,
+            "m5": 7322.0,
+            "m10": 6961.0,
+            "m20": 6674.5,
+            "m60": 5915.58
           }
         ]
       },
       "intraday": {
-        "quotePrice": 6710,
-        "quoteTime": "2026-10-23T13:52+09:00",
+        "quotePrice": 6660,
+        "quoteTime": "2026-10-23T14:23+09:00",
         "quotePreviousClose": 6880,
-        "quoteChangePct": -2.47,
+        "quoteChangePct": -3.2,
         "sessionRecovery": {
           "date": "2026-10-23",
           "matched": false,
           "dataStatus": "pending"
         },
         "dataStatus": "ok",
-        "barCount": 152,
-        "lastBarTime": "2026-10-23T13:00+09:00",
-        "lastPrice": 6660,
+        "barCount": 153,
+        "lastBarTime": "2026-10-23T13:30+09:00",
+        "lastPrice": 6720,
         "baselineMa20AboveMa40": false,
         "baselineInferred": false,
-        "ma3": 6693.33,
-        "ma20": 6942.0,
-        "ma40": 7250.0,
-        "ma60": 7506.92,
+        "ma3": 6690.0,
+        "ma20": 6914.0,
+        "ma40": 7228.0,
+        "ma60": 7477.92,
         "dailyMa10": 6968.0,
-        "fallCount": 21,
+        "fallCount": 22,
         "structuralExcluded": true,
         "riseCount": 0,
-        "reversalIndex": 151,
+        "reversalIndex": 152,
         "reversalUnderMa40": true,
         "priorDeathCross": true,
         "deathCrossIndex": 120,
@@ -43806,7 +44030,7 @@
         "recoveredMa60": false,
         "entryTarget": "MA60",
         "ma3AboveTarget": false,
-        "breachedDailyMa10": false,
+        "breachedDailyMa10": true,
         "signalRule": "ma3_ma60",
         "signalReady": false,
         "series": [
@@ -44541,6 +44765,18 @@
             "m20": 6942.0,
             "m40": 7250.0,
             "m60": 7506.92
+          },
+          {
+            "t": "2026-10-23T13:30+09:00",
+            "o": 6670,
+            "h": 6730,
+            "l": 6660,
+            "c": 6720,
+            "v": 5896,
+            "m3": 6690.0,
+            "m20": 6914.0,
+            "m40": 7228.0,
+            "m60": 7477.92
           }
         ]
       },
@@ -44553,9 +44789,9 @@
         "peakPrice": 8850,
         "peakDate": "2026-10-20",
         "peakReturnPct": 18.32,
-        "finalPrice": 6710,
+        "finalPrice": 6660,
         "finalDate": "2026-10-23",
-        "finalReturnPct": -10.29,
+        "finalReturnPct": -10.96,
         "reached5Pct": true,
         "reached5PctDate": "2026-10-19",
         "reached5PctTradingDays": 1,
@@ -45865,6 +46101,14 @@
             "l": 14900,
             "c": 14920,
             "v": 49505
+          },
+          {
+            "t": "2026-10-23T13:30+09:00",
+            "o": 14950,
+            "h": 15070,
+            "l": 14830,
+            "c": 15070,
+            "v": 42452
           }
         ]
       },
@@ -45876,10 +46120,10 @@
           "timeframe": "minute30",
           "session": "regular_and_aftermarket",
           "dataStatus": "ok",
-          "fetchedAt": "2026-10-23T13:53:19+09:00",
-          "sourceAsOf": "20261023135300",
+          "fetchedAt": "2026-10-23T14:24:39+09:00",
+          "sourceAsOf": "20261023142500",
           "marketStatus": "OPEN",
-          "barCount": 252,
+          "barCount": 253,
           "history": [
             {
               "t": "2026-10-07T09:00+09:00",
@@ -47892,10 +48136,18 @@
             {
               "t": "2026-10-23T13:30+09:00",
               "o": 14920.0,
-              "h": 15080.0,
+              "h": 15090.0,
               "l": 14830.0,
-              "c": 14960.0,
-              "v": 32774.0
+              "c": 15070.0,
+              "v": 42452.0
+            },
+            {
+              "t": "2026-10-23T14:00+09:00",
+              "o": 15070.0,
+              "h": 15110.0,
+              "l": 14950.0,
+              "c": 14970.0,
+              "v": 16279.0
             }
           ],
           "series": [
@@ -54177,16 +54429,41 @@
             {
               "t": "2026-10-23T13:30+09:00",
               "o": 14920.0,
-              "h": 15080.0,
+              "h": 15090.0,
               "l": 14830.0,
-              "c": 14960.0,
-              "v": 32774.0,
-              "m3": 15033.33,
-              "m10": 15122.0,
-              "m20": 15451.0,
-              "m40": 15718.0,
-              "m60": 15790.67,
-              "m120": 16267.17,
+              "c": 15070.0,
+              "v": 42452.0,
+              "m3": 15070.0,
+              "m10": 15133.0,
+              "m20": 15456.5,
+              "m40": 15720.75,
+              "m60": 15792.5,
+              "m120": 16268.08,
+              "complete": true,
+              "phase": "pullback",
+              "recoveryActive": false,
+              "recoveryReached60": false,
+              "recoveryMa10Breakout": false,
+              "recoveryCycle": "2026-10-23T09:00+09:00",
+              "recoveryFailed": false,
+              "recoveryStrengthened": false,
+              "phaseTarget": 40,
+              "referencePullback": false,
+              "referenceQualified": false
+            },
+            {
+              "t": "2026-10-23T14:00+09:00",
+              "o": 15070.0,
+              "h": 15110.0,
+              "l": 14950.0,
+              "c": 14970.0,
+              "v": 16279.0,
+              "m3": 14986.67,
+              "m10": 15140.0,
+              "m20": 15402.5,
+              "m40": 15704.75,
+              "m60": 15773.17,
+              "m120": 16253.67,
               "complete": false,
               "phase": "pullback",
               "recoveryActive": false,
@@ -54209,7 +54486,7 @@
           "timeframe": "day",
           "session": "regular_and_aftermarket",
           "dataStatus": "ok",
-          "fetchedAt": "2026-10-23T13:53:19+09:00",
+          "fetchedAt": "2026-10-23T14:24:39+09:00",
           "sourceAsOf": null,
           "marketStatus": null,
           "barCount": 250,
@@ -56211,8 +56488,8 @@
               "o": 15140.0,
               "h": 16580.0,
               "l": 14410.0,
-              "c": 14960.0,
-              "v": 1263897.0
+              "c": 14970.0,
+              "v": 1289854.0
             }
           ],
           "series": [
@@ -56988,13 +57265,13 @@
               "o": 15140.0,
               "h": 16580.0,
               "l": 14410.0,
-              "c": 14960.0,
-              "v": 1263897.0,
-              "m5": 15862.0,
-              "m10": 15237.0,
-              "m20": 14506.5,
-              "m60": 12343.17,
-              "m120": 15644.0
+              "c": 14970.0,
+              "v": 1289854.0,
+              "m5": 15864.0,
+              "m10": 15238.0,
+              "m20": 14507.0,
+              "m60": 12343.33,
+              "m120": 15644.08
             }
           ],
           "referenceRebounds": []
@@ -57002,11 +57279,11 @@
         "quote": {
           "source": "naver_quote",
           "dataStatus": "ok",
-          "price": 14880.0,
+          "price": 14970.0,
           "previousClose": 15960.0,
-          "change": -6.77,
-          "time": "2026-10-23T13:54:00+09:00",
-          "fetchedAt": "2026-10-23T13:53:19+09:00"
+          "change": -6.2,
+          "time": "2026-10-23T14:25:15+09:00",
+          "fetchedAt": "2026-10-23T14:24:39+09:00"
         }
       },
       "registrationDayBars": [
@@ -57883,40 +58160,40 @@
             "o": 15140,
             "h": 16580,
             "l": 14410,
-            "c": 14960,
-            "v": 1263897,
-            "m5": 15862.0,
-            "m10": 15237.0,
-            "m20": 14506.5,
-            "m60": 12343.17
+            "c": 14970,
+            "v": 1289854,
+            "m5": 15864.0,
+            "m10": 15238.0,
+            "m20": 14507.0,
+            "m60": 12343.33
           }
         ]
       },
       "intraday": {
-        "quotePrice": 14960,
-        "quoteTime": "2026-10-23T13:52+09:00",
+        "quotePrice": 14970,
+        "quoteTime": "2026-10-23T14:23+09:00",
         "quotePreviousClose": 15890,
-        "quoteChangePct": -5.85,
+        "quoteChangePct": -5.79,
         "sessionRecovery": {
           "date": "2026-10-23",
           "matched": false,
           "dataStatus": "pending"
         },
         "dataStatus": "ok",
-        "barCount": 152,
-        "lastBarTime": "2026-10-23T13:00+09:00",
-        "lastPrice": 14920,
+        "barCount": 153,
+        "lastBarTime": "2026-10-23T13:30+09:00",
+        "lastPrice": 15070,
         "baselineMa20AboveMa40": true,
         "baselineInferred": false,
-        "ma3": 15030.0,
-        "ma20": 15640.5,
-        "ma40": 15893.0,
-        "ma60": 16176.83,
+        "ma3": 15070.0,
+        "ma20": 15577.0,
+        "ma40": 15849.5,
+        "ma60": 16142.0,
         "dailyMa10": 15239.0,
-        "fallCount": 12,
+        "fallCount": 13,
         "structuralExcluded": true,
         "riseCount": 0,
-        "reversalIndex": 151,
+        "reversalIndex": 152,
         "reversalUnderMa40": true,
         "priorDeathCross": true,
         "deathCrossIndex": 116,
@@ -58661,6 +58938,18 @@
             "m20": 15640.5,
             "m40": 15893.0,
             "m60": 16176.83
+          },
+          {
+            "t": "2026-10-23T13:30+09:00",
+            "o": 14950,
+            "h": 15070,
+            "l": 14830,
+            "c": 15070,
+            "v": 42452,
+            "m3": 15070.0,
+            "m20": 15577.0,
+            "m40": 15849.5,
+            "m60": 16142.0
           }
         ]
       },
@@ -58673,9 +58962,9 @@
         "peakPrice": 17750,
         "peakDate": "2026-10-19",
         "peakReturnPct": 6.22,
-        "finalPrice": 14960,
+        "finalPrice": 14970,
         "finalDate": "2026-10-23",
-        "finalReturnPct": -10.47,
+        "finalReturnPct": -10.41,
         "reached5Pct": true,
         "reached5PctDate": "2026-10-19",
         "reached5PctTradingDays": 1,
@@ -59977,6 +60266,14 @@
             "l": 7100,
             "c": 7140,
             "v": 1204
+          },
+          {
+            "t": "2026-10-23T13:30+09:00",
+            "o": 7140,
+            "h": 7200,
+            "l": 7130,
+            "c": 7200,
+            "v": 1319
           }
         ]
       },
@@ -59988,10 +60285,10 @@
           "timeframe": "minute30",
           "session": "regular_and_aftermarket",
           "dataStatus": "ok",
-          "fetchedAt": "2026-10-23T13:53:19+09:00",
-          "sourceAsOf": "20261023135400",
+          "fetchedAt": "2026-10-23T14:24:39+09:00",
+          "sourceAsOf": "20261023142500",
           "marketStatus": "OPEN",
-          "barCount": 224,
+          "barCount": 225,
           "history": [
             {
               "t": "2026-10-07T09:00+09:00",
@@ -61780,10 +62077,18 @@
             {
               "t": "2026-10-23T13:30+09:00",
               "o": 7140.0,
-              "h": 7170.0,
+              "h": 7200.0,
               "l": 7130.0,
-              "c": 7150.0,
-              "v": 725.0
+              "c": 7200.0,
+              "v": 1319.0
+            },
+            {
+              "t": "2026-10-23T14:00+09:00",
+              "o": 7200.0,
+              "h": 7270.0,
+              "l": 7130.0,
+              "c": 7270.0,
+              "v": 6216.0
             }
           ],
           "series": [
@@ -67365,16 +67670,41 @@
             {
               "t": "2026-10-23T13:30+09:00",
               "o": 7140.0,
-              "h": 7170.0,
+              "h": 7200.0,
               "l": 7130.0,
-              "c": 7150.0,
-              "v": 725.0,
-              "m3": 7136.67,
-              "m10": 7139.0,
-              "m20": 7291.0,
-              "m40": 7540.75,
-              "m60": 7633.0,
-              "m120": 7737.21,
+              "c": 7200.0,
+              "v": 1319.0,
+              "m3": 7153.33,
+              "m10": 7144.0,
+              "m20": 7293.5,
+              "m40": 7542.0,
+              "m60": 7633.83,
+              "m120": 7737.62,
+              "complete": true,
+              "phase": "pullback",
+              "recoveryActive": false,
+              "recoveryReached60": false,
+              "recoveryMa10Breakout": false,
+              "recoveryCycle": "2026-10-22T13:30+09:00",
+              "recoveryFailed": false,
+              "recoveryStrengthened": false,
+              "phaseTarget": 40,
+              "referencePullback": false,
+              "referenceQualified": false
+            },
+            {
+              "t": "2026-10-23T14:00+09:00",
+              "o": 7200.0,
+              "h": 7270.0,
+              "l": 7130.0,
+              "c": 7270.0,
+              "v": 6216.0,
+              "m3": 7203.33,
+              "m10": 7142.0,
+              "m20": 7285.5,
+              "m40": 7526.5,
+              "m60": 7624.0,
+              "m120": 7739.88,
               "complete": false,
               "phase": "pullback",
               "recoveryActive": false,
@@ -67397,7 +67727,7 @@
           "timeframe": "day",
           "session": "regular_and_aftermarket",
           "dataStatus": "ok",
-          "fetchedAt": "2026-10-23T13:53:19+09:00",
+          "fetchedAt": "2026-10-23T14:24:39+09:00",
           "sourceAsOf": null,
           "marketStatus": null,
           "barCount": 250,
@@ -69399,8 +69729,8 @@
               "o": 7500.0,
               "h": 7500.0,
               "l": 6960.0,
-              "c": 7150.0,
-              "v": 27794.0
+              "c": 7270.0,
+              "v": 34604.0
             }
           ],
           "series": [
@@ -70176,13 +70506,13 @@
               "o": 7500.0,
               "h": 7500.0,
               "l": 6960.0,
-              "c": 7150.0,
-              "v": 27794.0,
-              "m5": 7606.0,
-              "m10": 7405.0,
-              "m20": 7107.5,
-              "m60": 6391.42,
-              "m120": 5787.17
+              "c": 7270.0,
+              "v": 34604.0,
+              "m5": 7630.0,
+              "m10": 7417.0,
+              "m20": 7113.5,
+              "m60": 6393.42,
+              "m120": 5788.17
             }
           ],
           "referenceRebounds": []
@@ -70190,11 +70520,11 @@
         "quote": {
           "source": "naver_quote",
           "dataStatus": "ok",
-          "price": 7170.0,
+          "price": 7280.0,
           "previousClose": 7500.0,
-          "change": -4.4,
-          "time": "2026-10-23T13:54:03+09:00",
-          "fetchedAt": "2026-10-23T13:53:19+09:00"
+          "change": -2.93,
+          "time": "2026-10-23T14:25:17+09:00",
+          "fetchedAt": "2026-10-23T14:24:39+09:00"
         }
       },
       "registrationDayBars": [
@@ -71071,40 +71401,40 @@
             "o": 7500,
             "h": 7500,
             "l": 6960,
-            "c": 7150,
-            "v": 27794,
-            "m5": 7606.0,
-            "m10": 7405.0,
-            "m20": 7107.5,
-            "m60": 6391.42
+            "c": 7270,
+            "v": 34604,
+            "m5": 7630.0,
+            "m10": 7417.0,
+            "m20": 7113.5,
+            "m60": 6393.42
           }
         ]
       },
       "intraday": {
-        "quotePrice": 7150,
-        "quoteTime": "2026-10-23T13:50+09:00",
+        "quotePrice": 7270,
+        "quoteTime": "2026-10-23T14:23+09:00",
         "quotePreviousClose": 7420,
-        "quoteChangePct": -3.64,
+        "quoteChangePct": -2.02,
         "sessionRecovery": {
           "date": "2026-10-23",
           "matched": false,
           "dataStatus": "pending"
         },
         "dataStatus": "ok",
-        "barCount": 151,
-        "lastBarTime": "2026-10-23T13:00+09:00",
-        "lastPrice": 7140,
+        "barCount": 152,
+        "lastBarTime": "2026-10-23T13:30+09:00",
+        "lastPrice": 7200,
         "baselineMa20AboveMa40": true,
         "baselineInferred": false,
-        "ma3": 7100.0,
-        "ma20": 7445.0,
-        "ma40": 7628.25,
-        "ma60": 7672.83,
+        "ma3": 7153.33,
+        "ma20": 7414.5,
+        "ma40": 7614.75,
+        "ma60": 7664.67,
         "dailyMa10": 7400.0,
-        "fallCount": 17,
+        "fallCount": 18,
         "structuralExcluded": true,
         "riseCount": 0,
-        "reversalIndex": 150,
+        "reversalIndex": 151,
         "reversalUnderMa40": true,
         "priorDeathCross": true,
         "deathCrossIndex": 138,
@@ -71849,6 +72179,18 @@
             "m20": 7445.0,
             "m40": 7628.25,
             "m60": 7672.83
+          },
+          {
+            "t": "2026-10-23T13:30+09:00",
+            "o": 7140,
+            "h": 7200,
+            "l": 7130,
+            "c": 7200,
+            "v": 1319,
+            "m3": 7153.33,
+            "m20": 7414.5,
+            "m40": 7614.75,
+            "m60": 7664.67
           }
         ],
         "signalTime": "2026-10-22T10:30+09:00",
@@ -71870,9 +72212,9 @@
         "peakPrice": 8210,
         "peakDate": "2026-10-19",
         "peakReturnPct": -1.2,
-        "finalPrice": 7150,
+        "finalPrice": 7270,
         "finalDate": "2026-10-23",
-        "finalReturnPct": -13.96,
+        "finalReturnPct": -12.52,
         "reached5Pct": false,
         "reached5PctDate": null,
         "reached5PctTradingDays": null,
@@ -73231,8 +73573,8 @@
           "timeframe": "minute30",
           "session": "regular_and_aftermarket",
           "dataStatus": "ok",
-          "fetchedAt": "2026-10-23T13:53:19+09:00",
-          "sourceAsOf": "20261023135400",
+          "fetchedAt": "2026-10-23T14:24:39+09:00",
+          "sourceAsOf": "20261023142500",
           "marketStatus": "OPEN",
           "barCount": 167,
           "history": [
@@ -78759,7 +79101,7 @@
           "timeframe": "day",
           "session": "regular_and_aftermarket",
           "dataStatus": "ok",
-          "fetchedAt": "2026-10-23T13:53:19+09:00",
+          "fetchedAt": "2026-10-23T14:24:39+09:00",
           "sourceAsOf": null,
           "marketStatus": null,
           "barCount": 250,
@@ -81557,8 +81899,8 @@
           "price": 301.0,
           "previousClose": 301.0,
           "change": 0.0,
-          "time": "2026-10-23T13:54:05+09:00",
-          "fetchedAt": "2026-10-23T13:53:19+09:00"
+          "time": "2026-10-23T14:25:19+09:00",
+          "fetchedAt": "2026-10-23T14:24:39+09:00"
         }
       },
       "registrationDayBars": [
@@ -84690,6 +85032,14 @@
             "l": 6000,
             "c": 6090,
             "v": 35906
+          },
+          {
+            "t": "2026-10-23T13:30+09:00",
+            "o": 6070,
+            "h": 6080,
+            "l": 6010,
+            "c": 6040,
+            "v": 27227
           }
         ]
       },
@@ -84701,10 +85051,10 @@
           "timeframe": "minute30",
           "session": "regular_and_aftermarket",
           "dataStatus": "ok",
-          "fetchedAt": "2026-10-23T13:53:19+09:00",
-          "sourceAsOf": "20261023135400",
+          "fetchedAt": "2026-10-23T14:24:39+09:00",
+          "sourceAsOf": "20261023142500",
           "marketStatus": "OPEN",
-          "barCount": 266,
+          "barCount": 267,
           "history": [
             {
               "t": "2026-10-06T09:00+09:00",
@@ -86831,8 +87181,16 @@
               "o": 6090.0,
               "h": 6100.0,
               "l": 6010.0,
-              "c": 6050.0,
-              "v": 21868.0
+              "c": 6040.0,
+              "v": 27227.0
+            },
+            {
+              "t": "2026-10-23T14:00+09:00",
+              "o": 6030.0,
+              "h": 6070.0,
+              "l": 5980.0,
+              "c": 5990.0,
+              "v": 23335.0
             }
           ],
           "series": [
@@ -93466,14 +93824,39 @@
               "o": 6090.0,
               "h": 6100.0,
               "l": 6010.0,
-              "c": 6050.0,
-              "v": 21868.0,
-              "m3": 6046.67,
-              "m10": 6143.0,
-              "m20": 6210.5,
-              "m40": 6415.75,
-              "m60": 6504.5,
-              "m120": 6277.58,
+              "c": 6040.0,
+              "v": 27227.0,
+              "m3": 6043.33,
+              "m10": 6142.0,
+              "m20": 6210.0,
+              "m40": 6415.5,
+              "m60": 6504.33,
+              "m120": 6277.5,
+              "complete": true,
+              "phase": "pullback",
+              "recoveryActive": false,
+              "recoveryReached60": false,
+              "recoveryMa10Breakout": false,
+              "recoveryCycle": "2026-10-23T12:30+09:00",
+              "recoveryFailed": true,
+              "recoveryStrengthened": false,
+              "phaseTarget": 40,
+              "referencePullback": false,
+              "referenceQualified": false
+            },
+            {
+              "t": "2026-10-23T14:00+09:00",
+              "o": 6030.0,
+              "h": 6070.0,
+              "l": 5980.0,
+              "c": 5990.0,
+              "v": 23335.0,
+              "m3": 6040.0,
+              "m10": 6110.0,
+              "m20": 6193.0,
+              "m40": 6401.75,
+              "m60": 6490.17,
+              "m120": 6277.75,
               "complete": false,
               "phase": "pullback",
               "recoveryActive": false,
@@ -93496,7 +93879,7 @@
           "timeframe": "day",
           "session": "regular_and_aftermarket",
           "dataStatus": "ok",
-          "fetchedAt": "2026-10-23T13:53:19+09:00",
+          "fetchedAt": "2026-10-23T14:24:39+09:00",
           "sourceAsOf": null,
           "marketStatus": null,
           "barCount": 250,
@@ -95498,8 +95881,8 @@
               "o": 6630.0,
               "h": 7230.0,
               "l": 5850.0,
-              "c": 6050.0,
-              "v": 2893429.0
+              "c": 5990.0,
+              "v": 2922123.0
             }
           ],
           "series": [
@@ -96275,13 +96658,13 @@
               "o": 6630.0,
               "h": 7230.0,
               "l": 5850.0,
-              "c": 6050.0,
-              "v": 2893429.0,
-              "m5": 6300.0,
-              "m10": 5748.0,
-              "m20": 5245.5,
-              "m60": 4811.5,
-              "m120": 5240.42
+              "c": 5990.0,
+              "v": 2922123.0,
+              "m5": 6288.0,
+              "m10": 5742.0,
+              "m20": 5242.5,
+              "m60": 4810.5,
+              "m120": 5239.92
             }
           ],
           "referenceRebounds": []
@@ -96289,11 +96672,11 @@
         "quote": {
           "source": "naver_quote",
           "dataStatus": "ok",
-          "price": 6080.0,
+          "price": 5990.0,
           "previousClose": 6300.0,
-          "change": -3.49,
-          "time": "2026-10-23T13:54:08+09:00",
-          "fetchedAt": "2026-10-23T13:53:19+09:00"
+          "change": -4.92,
+          "time": "2026-10-23T14:25:22+09:00",
+          "fetchedAt": "2026-10-23T14:24:39+09:00"
         }
       },
       "registrationDayBars": [
@@ -97170,40 +97553,40 @@
             "o": 6630,
             "h": 7230,
             "l": 5850,
-            "c": 6050,
-            "v": 2893429,
-            "m5": 6300.0,
-            "m10": 5748.0,
-            "m20": 5245.5,
-            "m60": 4811.5
+            "c": 6040,
+            "v": 2919420,
+            "m5": 6298.0,
+            "m10": 5747.0,
+            "m20": 5245.0,
+            "m60": 4811.33
           }
         ]
       },
       "intraday": {
-        "quotePrice": 6050,
-        "quoteTime": "2026-10-23T13:52+09:00",
+        "quotePrice": 6040,
+        "quoteTime": "2026-10-23T14:23+09:00",
         "quotePreviousClose": 6230,
-        "quoteChangePct": -2.89,
+        "quoteChangePct": -3.05,
         "sessionRecovery": {
           "date": "2026-10-23",
           "matched": false,
           "dataStatus": "pending"
         },
         "dataStatus": "ok",
-        "barCount": 165,
-        "lastBarTime": "2026-10-23T13:00+09:00",
-        "lastPrice": 6090,
+        "barCount": 166,
+        "lastBarTime": "2026-10-23T13:30+09:00",
+        "lastPrice": 6040,
         "baselineMa20AboveMa40": true,
         "baselineInferred": false,
-        "ma3": 6076.67,
-        "ma20": 6412.5,
-        "ma40": 6516.0,
-        "ma60": 6430.33,
+        "ma3": 6043.33,
+        "ma20": 6380.0,
+        "ma40": 6497.0,
+        "ma60": 6421.33,
         "dailyMa10": 5794.0,
-        "fallCount": 11,
+        "fallCount": 12,
         "structuralExcluded": false,
         "riseCount": 0,
-        "reversalIndex": 164,
+        "reversalIndex": 165,
         "reversalUnderMa40": true,
         "priorDeathCross": true,
         "deathCrossIndex": 156,
@@ -97948,6 +98331,18 @@
             "m20": 6412.5,
             "m40": 6516.0,
             "m60": 6430.33
+          },
+          {
+            "t": "2026-10-23T13:30+09:00",
+            "o": 6070,
+            "h": 6080,
+            "l": 6010,
+            "c": 6040,
+            "v": 27227,
+            "m3": 6043.33,
+            "m20": 6380.0,
+            "m40": 6497.0,
+            "m60": 6421.33
           }
         ]
       },
@@ -97960,9 +98355,9 @@
         "peakPrice": 7230,
         "peakDate": "2026-10-23",
         "peakReturnPct": 17.18,
-        "finalPrice": 6050,
+        "finalPrice": 6040,
         "finalDate": "2026-10-23",
-        "finalReturnPct": -1.94,
+        "finalReturnPct": -2.11,
         "reached5Pct": true,
         "reached5PctDate": "2026-10-16",
         "reached5PctTradingDays": 1,
@@ -99589,6 +99984,14 @@
             "l": 10460,
             "c": 10460,
             "v": 974
+          },
+          {
+            "t": "2026-10-23T13:30+09:00",
+            "o": 10480,
+            "h": 10600,
+            "l": 10480,
+            "c": 10600,
+            "v": 2336
           }
         ]
       },
@@ -99600,10 +100003,10 @@
           "timeframe": "minute30",
           "session": "regular_and_aftermarket",
           "dataStatus": "ok",
-          "fetchedAt": "2026-10-23T13:53:19+09:00",
-          "sourceAsOf": "20261023135400",
+          "fetchedAt": "2026-10-23T14:24:39+09:00",
+          "sourceAsOf": "20261023142500",
           "marketStatus": "OPEN",
-          "barCount": 317,
+          "barCount": 318,
           "history": [
             {
               "t": "2026-10-01T09:00+09:00",
@@ -102136,10 +102539,18 @@
             {
               "t": "2026-10-23T13:30+09:00",
               "o": 10470.0,
-              "h": 10550.0,
+              "h": 10600.0,
               "l": 10470.0,
-              "c": 10530.0,
-              "v": 1214.0
+              "c": 10600.0,
+              "v": 2336.0
+            },
+            {
+              "t": "2026-10-23T14:00+09:00",
+              "o": 10600.0,
+              "h": 10620.0,
+              "l": 10510.0,
+              "c": 10580.0,
+              "v": 711.0
             }
           ],
           "series": [
@@ -110046,16 +110457,41 @@
             {
               "t": "2026-10-23T13:30+09:00",
               "o": 10470.0,
-              "h": 10550.0,
+              "h": 10600.0,
               "l": 10470.0,
-              "c": 10530.0,
-              "v": 1214.0,
-              "m3": 10496.67,
-              "m10": 10407.0,
-              "m20": 10435.5,
-              "m40": 10662.88,
-              "m60": 10753.75,
-              "m120": 11198.38,
+              "c": 10600.0,
+              "v": 2336.0,
+              "m3": 10520.0,
+              "m10": 10414.0,
+              "m20": 10439.0,
+              "m40": 10664.62,
+              "m60": 10754.92,
+              "m120": 11198.96,
+              "complete": true,
+              "phase": "fast",
+              "recoveryActive": true,
+              "recoveryReached60": false,
+              "recoveryMa10Breakout": false,
+              "recoveryCycle": "2026-10-22T14:00+09:00",
+              "recoveryFailed": false,
+              "recoveryStrengthened": false,
+              "phaseTarget": 60,
+              "referencePullback": false,
+              "referenceQualified": false
+            },
+            {
+              "t": "2026-10-23T14:00+09:00",
+              "o": 10600.0,
+              "h": 10620.0,
+              "l": 10510.0,
+              "c": 10580.0,
+              "v": 711.0,
+              "m3": 10546.67,
+              "m10": 10452.0,
+              "m20": 10437.0,
+              "m40": 10653.88,
+              "m60": 10751.58,
+              "m120": 11195.79,
               "complete": false,
               "phase": "fast",
               "recoveryActive": true,
@@ -110078,7 +110514,7 @@
           "timeframe": "day",
           "session": "regular_and_aftermarket",
           "dataStatus": "ok",
-          "fetchedAt": "2026-10-23T13:53:19+09:00",
+          "fetchedAt": "2026-10-23T14:24:39+09:00",
           "sourceAsOf": null,
           "marketStatus": null,
           "barCount": 250,
@@ -112080,8 +112516,8 @@
               "o": 10300.0,
               "h": 10630.0,
               "l": 10050.0,
-              "c": 10530.0,
-              "v": 64586.0
+              "c": 10580.0,
+              "v": 66419.0
             }
           ],
           "series": [
@@ -112857,13 +113293,13 @@
               "o": 10300.0,
               "h": 10630.0,
               "l": 10050.0,
-              "c": 10530.0,
-              "v": 64586.0,
-              "m5": 10934.0,
-              "m10": 12311.0,
-              "m20": 12518.0,
-              "m60": 11517.33,
-              "m120": 15363.33
+              "c": 10580.0,
+              "v": 66419.0,
+              "m5": 10944.0,
+              "m10": 12316.0,
+              "m20": 12520.5,
+              "m60": 11518.17,
+              "m120": 15363.75
             }
           ],
           "referenceRebounds": []
@@ -112871,11 +113307,11 @@
         "quote": {
           "source": "naver_quote",
           "dataStatus": "ok",
-          "price": 10520.0,
+          "price": 10580.0,
           "previousClose": 10500.0,
-          "change": 0.19,
-          "time": "2026-10-23T13:54:11+09:00",
-          "fetchedAt": "2026-10-23T13:53:19+09:00"
+          "change": 0.76,
+          "time": "2026-10-23T14:25:24+09:00",
+          "fetchedAt": "2026-10-23T14:24:39+09:00"
         }
       },
       "registrationDayBars": [
@@ -113752,40 +114188,40 @@
             "o": 10300,
             "h": 10630,
             "l": 10050,
-            "c": 10530,
-            "v": 64586,
-            "m5": 10934.0,
-            "m10": 12311.0,
-            "m20": 12518.0,
-            "m60": 11517.33
+            "c": 10550,
+            "v": 66390,
+            "m5": 10938.0,
+            "m10": 12313.0,
+            "m20": 12519.0,
+            "m60": 11517.67
           }
         ]
       },
       "intraday": {
-        "quotePrice": 10530,
-        "quoteTime": "2026-10-23T13:52+09:00",
+        "quotePrice": 10550,
+        "quoteTime": "2026-10-23T14:23+09:00",
         "quotePreviousClose": 10480,
-        "quoteChangePct": 0.48,
+        "quoteChangePct": 0.67,
         "sessionRecovery": {
           "date": "2026-10-23",
           "matched": false,
           "dataStatus": "pending"
         },
         "dataStatus": "ok",
-        "barCount": 191,
-        "lastBarTime": "2026-10-23T13:00+09:00",
-        "lastPrice": 10460,
+        "barCount": 192,
+        "lastBarTime": "2026-10-23T13:30+09:00",
+        "lastPrice": 10600,
         "baselineMa20AboveMa40": false,
         "baselineInferred": false,
-        "ma3": 10443.33,
-        "ma20": 10611.25,
-        "ma40": 10777.88,
-        "ma60": 11013.75,
+        "ma3": 10520.0,
+        "ma20": 10592.25,
+        "ma40": 10777.38,
+        "ma60": 10996.75,
         "dailyMa10": 12284.0,
-        "fallCount": 15,
+        "fallCount": 16,
         "structuralExcluded": true,
         "riseCount": 0,
-        "reversalIndex": 190,
+        "reversalIndex": 191,
         "reversalUnderMa40": true,
         "priorDeathCross": true,
         "deathCrossIndex": 88,
@@ -114531,6 +114967,18 @@
             "m20": 10611.25,
             "m40": 10777.88,
             "m60": 11013.75
+          },
+          {
+            "t": "2026-10-23T13:30+09:00",
+            "o": 10480,
+            "h": 10600,
+            "l": 10480,
+            "c": 10600,
+            "v": 2336,
+            "m3": 10520.0,
+            "m20": 10592.25,
+            "m40": 10777.38,
+            "m60": 10996.75
           }
         ]
       },
@@ -114543,9 +114991,9 @@
         "peakPrice": 15030,
         "peakDate": "2026-10-14",
         "peakReturnPct": -0.66,
-        "finalPrice": 10530,
+        "finalPrice": 10550,
         "finalDate": "2026-10-23",
-        "finalReturnPct": -30.4,
+        "finalReturnPct": -30.27,
         "reached5Pct": false,
         "reached5PctDate": null,
         "reached5PctTradingDays": null,
@@ -116166,6 +116614,14 @@
             "l": 776,
             "c": 785,
             "v": 2657
+          },
+          {
+            "t": "2026-10-23T13:30+09:00",
+            "o": 790,
+            "h": 806,
+            "l": 770,
+            "c": 797,
+            "v": 22091
           }
         ]
       },
@@ -116177,10 +116633,10 @@
           "timeframe": "minute30",
           "session": "regular_and_aftermarket",
           "dataStatus": "ok",
-          "fetchedAt": "2026-10-23T13:53:19+09:00",
-          "sourceAsOf": "20261023135400",
+          "fetchedAt": "2026-10-23T14:24:39+09:00",
+          "sourceAsOf": "20261023142500",
           "marketStatus": "OPEN",
-          "barCount": 206,
+          "barCount": 207,
           "history": [
             {
               "t": "2026-10-01T09:00+09:00",
@@ -117825,10 +118281,18 @@
             {
               "t": "2026-10-23T13:30+09:00",
               "o": 789.0,
-              "h": 790.0,
+              "h": 808.0,
               "l": 770.0,
-              "c": 779.0,
-              "v": 16879.0
+              "c": 797.0,
+              "v": 22091.0
+            },
+            {
+              "t": "2026-10-23T14:00+09:00",
+              "o": 799.0,
+              "h": 820.0,
+              "l": 793.0,
+              "c": 804.0,
+              "v": 5520.0
             }
           ],
           "series": [
@@ -122960,16 +123424,41 @@
             {
               "t": "2026-10-23T13:30+09:00",
               "o": 789.0,
-              "h": 790.0,
+              "h": 808.0,
               "l": 770.0,
-              "c": 779.0,
-              "v": 16879.0,
-              "m3": 781.0,
-              "m10": 791.6,
-              "m20": 816.05,
-              "m40": 846.62,
-              "m60": 869.45,
-              "m120": 889.69,
+              "c": 797.0,
+              "v": 22091.0,
+              "m3": 787.0,
+              "m10": 793.4,
+              "m20": 816.95,
+              "m40": 847.08,
+              "m60": 869.75,
+              "m120": 889.84,
+              "complete": true,
+              "phase": "pullback",
+              "recoveryActive": false,
+              "recoveryReached60": false,
+              "recoveryMa10Breakout": false,
+              "recoveryCycle": "2026-10-20T13:30+09:00",
+              "recoveryFailed": false,
+              "recoveryStrengthened": false,
+              "phaseTarget": 40,
+              "referencePullback": false,
+              "referenceQualified": false
+            },
+            {
+              "t": "2026-10-23T14:00+09:00",
+              "o": 799.0,
+              "h": 820.0,
+              "l": 793.0,
+              "c": 804.0,
+              "v": 5520.0,
+              "m3": 795.33,
+              "m10": 792.4,
+              "m20": 814.45,
+              "m40": 844.52,
+              "m60": 867.48,
+              "m120": 889.75,
               "complete": false,
               "phase": "pullback",
               "recoveryActive": false,
@@ -122992,7 +123481,7 @@
           "timeframe": "day",
           "session": "regular_and_aftermarket",
           "dataStatus": "ok",
-          "fetchedAt": "2026-10-23T13:53:19+09:00",
+          "fetchedAt": "2026-10-23T14:24:39+09:00",
           "sourceAsOf": null,
           "marketStatus": null,
           "barCount": 250,
@@ -124994,8 +125483,8 @@
               "o": 830.0,
               "h": 849.0,
               "l": 749.0,
-              "c": 779.0,
-              "v": 97340.0
+              "c": 804.0,
+              "v": 108072.0
             }
           ],
           "series": [
@@ -125771,13 +126260,13 @@
               "o": 830.0,
               "h": 849.0,
               "l": 749.0,
-              "c": 779.0,
-              "v": 97340.0,
-              "m5": 850.0,
-              "m10": 874.0,
-              "m20": 853.9,
-              "m60": 1039.52,
-              "m120": 1202.87
+              "c": 804.0,
+              "v": 108072.0,
+              "m5": 855.0,
+              "m10": 876.5,
+              "m20": 855.15,
+              "m60": 1039.93,
+              "m120": 1203.08
             }
           ],
           "referenceRebounds": []
@@ -125785,11 +126274,11 @@
         "quote": {
           "source": "naver_quote",
           "dataStatus": "ok",
-          "price": 783.0,
+          "price": 804.0,
           "previousClose": 817.0,
-          "change": -4.16,
-          "time": "2026-10-23T13:54:13+09:00",
-          "fetchedAt": "2026-10-23T13:53:19+09:00"
+          "change": -1.59,
+          "time": "2026-10-23T14:25:26+09:00",
+          "fetchedAt": "2026-10-23T14:24:39+09:00"
         }
       },
       "registrationDayBars": [
@@ -126666,40 +127155,40 @@
             "o": 830,
             "h": 849,
             "l": 749,
-            "c": 779,
-            "v": 97340,
-            "m5": 850.0,
-            "m10": 874.0,
-            "m20": 853.9,
-            "m60": 1039.52
+            "c": 820,
+            "v": 107889,
+            "m5": 858.2,
+            "m10": 878.1,
+            "m20": 855.95,
+            "m60": 1040.2
           }
         ]
       },
       "intraday": {
-        "quotePrice": 779,
-        "quoteTime": "2026-10-23T13:52+09:00",
+        "quotePrice": 811,
+        "quoteTime": "2026-10-23T14:23+09:00",
         "quotePreviousClose": 817,
-        "quoteChangePct": -4.65,
+        "quoteChangePct": -0.73,
         "sessionRecovery": {
           "date": "2026-10-23",
           "matched": false,
           "dataStatus": "pending"
         },
         "dataStatus": "ok",
-        "barCount": 191,
-        "lastBarTime": "2026-10-23T13:00+09:00",
-        "lastPrice": 785,
+        "barCount": 192,
+        "lastBarTime": "2026-10-23T13:30+09:00",
+        "lastPrice": 797,
         "baselineMa20AboveMa40": false,
         "baselineInferred": false,
-        "ma3": 784.67,
-        "ma20": 822.15,
-        "ma40": 852.67,
-        "ma60": 877.63,
+        "ma3": 787.0,
+        "ma20": 819.0,
+        "ma40": 850.3,
+        "ma60": 874.87,
         "dailyMa10": 874.3,
-        "fallCount": 42,
+        "fallCount": 43,
         "structuralExcluded": true,
         "riseCount": 0,
-        "reversalIndex": 190,
+        "reversalIndex": 191,
         "reversalUnderMa40": true,
         "priorDeathCross": true,
         "deathCrossIndex": 154,
@@ -127445,6 +127934,18 @@
             "m20": 822.15,
             "m40": 852.67,
             "m60": 877.63
+          },
+          {
+            "t": "2026-10-23T13:30+09:00",
+            "o": 790,
+            "h": 806,
+            "l": 770,
+            "c": 797,
+            "v": 22091,
+            "m3": 787.0,
+            "m20": 819.0,
+            "m40": 850.3,
+            "m60": 874.87
           }
         ]
       },
@@ -127457,9 +127958,9 @@
         "peakPrice": 1080,
         "peakDate": "2026-10-14",
         "peakReturnPct": 18.68,
-        "finalPrice": 779,
+        "finalPrice": 820,
         "finalDate": "2026-10-23",
-        "finalReturnPct": -14.4,
+        "finalReturnPct": -9.89,
         "reached5Pct": true,
         "reached5PctDate": "2026-10-14",
         "reached5PctTradingDays": 1,
@@ -129177,6 +129678,14 @@
             "l": 2080,
             "c": 2080,
             "v": 130
+          },
+          {
+            "t": "2026-10-23T13:30+09:00",
+            "o": 2090,
+            "h": 2090,
+            "l": 2090,
+            "c": 2090,
+            "v": 555
           }
         ]
       },
@@ -129188,10 +129697,10 @@
           "timeframe": "minute30",
           "session": "regular_and_aftermarket",
           "dataStatus": "ok",
-          "fetchedAt": "2026-10-23T13:53:19+09:00",
-          "sourceAsOf": "20261023135400",
+          "fetchedAt": "2026-10-23T14:24:39+09:00",
+          "sourceAsOf": "20261023142500",
           "marketStatus": "OPEN",
-          "barCount": 305,
+          "barCount": 306,
           "history": [
             {
               "t": "2026-09-30T09:00+09:00",
@@ -131632,6 +132141,14 @@
               "l": 2085.0,
               "c": 2090.0,
               "v": 555.0
+            },
+            {
+              "t": "2026-10-23T14:00+09:00",
+              "o": 2095.0,
+              "h": 2110.0,
+              "l": 2080.0,
+              "c": 2090.0,
+              "v": 128.0
             }
           ],
           "series": [
@@ -139248,6 +139765,31 @@
               "m40": 2109.62,
               "m60": 2143.83,
               "m120": 2228.25,
+              "complete": true,
+              "phase": "pullback",
+              "recoveryActive": false,
+              "recoveryReached60": false,
+              "recoveryMa10Breakout": false,
+              "recoveryCycle": "2026-10-22T19:30+09:00",
+              "recoveryFailed": true,
+              "recoveryStrengthened": false,
+              "phaseTarget": 40,
+              "referencePullback": false,
+              "referenceQualified": false
+            },
+            {
+              "t": "2026-10-23T14:00+09:00",
+              "o": 2095.0,
+              "h": 2110.0,
+              "l": 2080.0,
+              "c": 2090.0,
+              "v": 128.0,
+              "m3": 2086.67,
+              "m10": 2097.5,
+              "m20": 2096.75,
+              "m40": 2107.88,
+              "m60": 2142.0,
+              "m120": 2226.96,
               "complete": false,
               "phase": "pullback",
               "recoveryActive": false,
@@ -139270,7 +139812,7 @@
           "timeframe": "day",
           "session": "regular_and_aftermarket",
           "dataStatus": "ok",
-          "fetchedAt": "2026-10-23T13:53:19+09:00",
+          "fetchedAt": "2026-10-23T14:24:39+09:00",
           "sourceAsOf": null,
           "marketStatus": null,
           "barCount": 250,
@@ -141273,7 +141815,7 @@
               "h": 2140.0,
               "l": 2065.0,
               "c": 2090.0,
-              "v": 2791.0
+              "v": 2919.0
             }
           ],
           "series": [
@@ -142050,7 +142592,7 @@
               "h": 2140.0,
               "l": 2065.0,
               "c": 2090.0,
-              "v": 2791.0,
+              "v": 2919.0,
               "m5": 2192.0,
               "m10": 2314.0,
               "m20": 2241.25,
@@ -142066,8 +142608,8 @@
           "price": 2090.0,
           "previousClose": 2115.0,
           "change": -1.18,
-          "time": "2026-10-23T13:54:15+09:00",
-          "fetchedAt": "2026-10-23T13:53:19+09:00"
+          "time": "2026-10-23T14:25:28+09:00",
+          "fetchedAt": "2026-10-23T14:24:39+09:00"
         }
       },
       "registrationDayBars": [
@@ -142945,7 +143487,7 @@
             "h": 2140,
             "l": 2065,
             "c": 2090,
-            "v": 2791,
+            "v": 2901,
             "m5": 2192.0,
             "m10": 2314.0,
             "m20": 2241.25,
@@ -142955,7 +143497,7 @@
       },
       "intraday": {
         "quotePrice": 2090,
-        "quoteTime": "2026-10-23T13:52+09:00",
+        "quoteTime": "2026-10-23T14:23+09:00",
         "quotePreviousClose": 2080,
         "quoteChangePct": 0.48,
         "sessionRecovery": {
@@ -142964,20 +143506,20 @@
           "dataStatus": "pending"
         },
         "dataStatus": "ok",
-        "barCount": 203,
-        "lastBarTime": "2026-10-23T13:00+09:00",
-        "lastPrice": 2080,
+        "barCount": 204,
+        "lastBarTime": "2026-10-23T13:30+09:00",
+        "lastPrice": 2090,
         "baselineMa20AboveMa40": true,
         "baselineInferred": false,
-        "ma3": 2083.33,
-        "ma20": 2097.5,
-        "ma40": 2141.5,
-        "ma60": 2189.33,
+        "ma3": 2086.67,
+        "ma20": 2097.25,
+        "ma40": 2138.5,
+        "ma60": 2184.58,
         "dailyMa10": 2314.5,
-        "fallCount": 0,
+        "fallCount": 1,
         "structuralExcluded": false,
-        "riseCount": 2,
-        "reversalIndex": 200,
+        "riseCount": 0,
+        "reversalIndex": 203,
         "reversalUnderMa40": true,
         "priorDeathCross": true,
         "deathCrossIndex": 159,
@@ -143722,6 +144264,18 @@
             "m20": 2097.5,
             "m40": 2141.5,
             "m60": 2189.33
+          },
+          {
+            "t": "2026-10-23T13:30+09:00",
+            "o": 2090,
+            "h": 2090,
+            "l": 2090,
+            "c": 2090,
+            "v": 555,
+            "m3": 2086.67,
+            "m20": 2097.25,
+            "m40": 2138.5,
+            "m60": 2184.58
           }
         ]
       },
@@ -145364,6 +145918,14 @@
             "l": 12350,
             "c": 12570,
             "v": 5371
+          },
+          {
+            "t": "2026-10-23T13:30+09:00",
+            "o": 12570,
+            "h": 12770,
+            "l": 12470,
+            "c": 12600,
+            "v": 13866
           }
         ]
       },
@@ -145375,10 +145937,10 @@
           "timeframe": "minute30",
           "session": "regular_and_aftermarket",
           "dataStatus": "ok",
-          "fetchedAt": "2026-10-23T13:53:19+09:00",
-          "sourceAsOf": "20261023135400",
+          "fetchedAt": "2026-10-23T14:24:39+09:00",
+          "sourceAsOf": "20261023142500",
           "marketStatus": "OPEN",
-          "barCount": 316,
+          "barCount": 317,
           "history": [
             {
               "t": "2026-10-01T09:00+09:00",
@@ -147905,8 +148467,16 @@
               "o": 12570.0,
               "h": 12770.0,
               "l": 12460.0,
-              "c": 12590.0,
-              "v": 13736.0
+              "c": 12600.0,
+              "v": 13866.0
+            },
+            {
+              "t": "2026-10-23T14:00+09:00",
+              "o": 12600.0,
+              "h": 12640.0,
+              "l": 12490.0,
+              "c": 12520.0,
+              "v": 1055.0
             }
           ],
           "series": [
@@ -155790,14 +156360,39 @@
               "o": 12570.0,
               "h": 12770.0,
               "l": 12460.0,
-              "c": 12590.0,
-              "v": 13736.0,
-              "m3": 12520.0,
-              "m10": 12355.0,
-              "m20": 12597.0,
-              "m40": 12714.0,
-              "m60": 12782.33,
-              "m120": 13112.67,
+              "c": 12600.0,
+              "v": 13866.0,
+              "m3": 12523.33,
+              "m10": 12356.0,
+              "m20": 12597.5,
+              "m40": 12714.25,
+              "m60": 12782.5,
+              "m120": 13112.75,
+              "complete": true,
+              "phase": "pullback",
+              "recoveryActive": false,
+              "recoveryReached60": false,
+              "recoveryMa10Breakout": false,
+              "recoveryCycle": "2026-10-22T19:30+09:00",
+              "recoveryFailed": true,
+              "recoveryStrengthened": false,
+              "phaseTarget": 40,
+              "referencePullback": false,
+              "referenceQualified": false
+            },
+            {
+              "t": "2026-10-23T14:00+09:00",
+              "o": 12600.0,
+              "h": 12640.0,
+              "l": 12490.0,
+              "c": 12520.0,
+              "v": 1055.0,
+              "m3": 12563.33,
+              "m10": 12382.0,
+              "m20": 12591.5,
+              "m40": 12699.75,
+              "m60": 12774.5,
+              "m120": 13108.58,
               "complete": false,
               "phase": "pullback",
               "recoveryActive": false,
@@ -155820,7 +156415,7 @@
           "timeframe": "day",
           "session": "regular_and_aftermarket",
           "dataStatus": "ok",
-          "fetchedAt": "2026-10-23T13:53:19+09:00",
+          "fetchedAt": "2026-10-23T14:24:39+09:00",
           "sourceAsOf": null,
           "marketStatus": null,
           "barCount": 250,
@@ -157822,8 +158417,8 @@
               "o": 12290.0,
               "h": 13000.0,
               "l": 11830.0,
-              "c": 12590.0,
-              "v": 66855.0
+              "c": 12520.0,
+              "v": 68040.0
             }
           ],
           "series": [
@@ -158599,13 +159194,13 @@
               "o": 12290.0,
               "h": 13000.0,
               "l": 11830.0,
-              "c": 12590.0,
-              "v": 66855.0,
-              "m5": 13020.0,
-              "m10": 13677.0,
-              "m20": 13846.5,
-              "m60": 12442.17,
-              "m120": 15037.75
+              "c": 12520.0,
+              "v": 68040.0,
+              "m5": 13006.0,
+              "m10": 13670.0,
+              "m20": 13843.0,
+              "m60": 12441.0,
+              "m120": 15037.17
             }
           ],
           "referenceRebounds": []
@@ -158613,11 +159208,11 @@
         "quote": {
           "source": "naver_quote",
           "dataStatus": "ok",
-          "price": 12590.0,
+          "price": 12520.0,
           "previousClose": 12650.0,
-          "change": -0.47,
-          "time": "2026-10-23T13:54:18+09:00",
-          "fetchedAt": "2026-10-23T13:53:19+09:00"
+          "change": -1.03,
+          "time": "2026-10-23T14:25:30+09:00",
+          "fetchedAt": "2026-10-23T14:24:39+09:00"
         }
       },
       "registrationDayBars": [
@@ -159494,40 +160089,40 @@
             "o": 12290,
             "h": 13000,
             "l": 11830,
-            "c": 12590,
-            "v": 66855,
-            "m5": 13020.0,
-            "m10": 13677.0,
-            "m20": 13846.5,
-            "m60": 12442.17
+            "c": 12520,
+            "v": 68040,
+            "m5": 13006.0,
+            "m10": 13670.0,
+            "m20": 13843.0,
+            "m60": 12441.0
           }
         ]
       },
       "intraday": {
-        "quotePrice": 12590,
-        "quoteTime": "2026-10-23T13:52+09:00",
+        "quotePrice": 12520,
+        "quoteTime": "2026-10-23T14:23+09:00",
         "quotePreviousClose": 12890,
-        "quoteChangePct": -2.33,
+        "quoteChangePct": -2.87,
         "sessionRecovery": {
           "date": "2026-10-23",
           "matched": false,
           "dataStatus": "pending"
         },
         "dataStatus": "ok",
-        "barCount": 191,
-        "lastBarTime": "2026-10-23T13:00+09:00",
-        "lastPrice": 12570,
+        "barCount": 192,
+        "lastBarTime": "2026-10-23T13:30+09:00",
+        "lastPrice": 12600,
         "baselineMa20AboveMa40": true,
         "baselineInferred": false,
-        "ma3": 12383.33,
-        "ma20": 12512.5,
-        "ma40": 12719.25,
-        "ma60": 12907.17,
+        "ma3": 12523.33,
+        "ma20": 12509.0,
+        "ma40": 12711.0,
+        "ma60": 12898.17,
         "dailyMa10": 13636.0,
-        "fallCount": 26,
+        "fallCount": 27,
         "structuralExcluded": true,
         "riseCount": 0,
-        "reversalIndex": 190,
+        "reversalIndex": 191,
         "reversalUnderMa40": true,
         "priorDeathCross": true,
         "deathCrossIndex": 146,
@@ -160272,6 +160867,18 @@
             "m20": 12512.5,
             "m40": 12719.25,
             "m60": 12907.17
+          },
+          {
+            "t": "2026-10-23T13:30+09:00",
+            "o": 12570,
+            "h": 12770,
+            "l": 12470,
+            "c": 12600,
+            "v": 13866,
+            "m3": 12523.33,
+            "m20": 12509.0,
+            "m40": 12711.0,
+            "m60": 12898.17
           }
         ]
       },
@@ -160284,9 +160891,9 @@
         "peakPrice": 15600,
         "peakDate": "2026-10-14",
         "peakReturnPct": 2.56,
-        "finalPrice": 12590,
+        "finalPrice": 12520,
         "finalDate": "2026-10-23",
-        "finalReturnPct": -17.23,
+        "finalReturnPct": -17.69,
         "reached5Pct": false,
         "reached5PctDate": null,
         "reached5PctTradingDays": null,
@@ -161913,6 +162520,14 @@
             "l": 4125,
             "c": 4150,
             "v": 8233
+          },
+          {
+            "t": "2026-10-23T13:30+09:00",
+            "o": 4140,
+            "h": 4185,
+            "l": 4140,
+            "c": 4185,
+            "v": 17518
           }
         ]
       },
@@ -161924,10 +162539,10 @@
           "timeframe": "minute30",
           "session": "regular_and_aftermarket",
           "dataStatus": "ok",
-          "fetchedAt": "2026-10-23T13:53:19+09:00",
-          "sourceAsOf": "20261023135400",
+          "fetchedAt": "2026-10-23T14:24:39+09:00",
+          "sourceAsOf": "20261023142500",
           "marketStatus": "OPEN",
-          "barCount": 318,
+          "barCount": 319,
           "history": [
             {
               "t": "2026-10-01T09:00+09:00",
@@ -164468,10 +165083,18 @@
             {
               "t": "2026-10-23T13:30+09:00",
               "o": 4150.0,
-              "h": 4180.0,
+              "h": 4190.0,
               "l": 4140.0,
-              "c": 4160.0,
-              "v": 15572.0
+              "c": 4185.0,
+              "v": 17518.0
+            },
+            {
+              "t": "2026-10-23T14:00+09:00",
+              "o": 4185.0,
+              "h": 4500.0,
+              "l": 4175.0,
+              "c": 4455.0,
+              "v": 317558.0
             }
           ],
           "series": [
@@ -172403,16 +173026,41 @@
             {
               "t": "2026-10-23T13:30+09:00",
               "o": 4150.0,
-              "h": 4180.0,
+              "h": 4190.0,
               "l": 4140.0,
-              "c": 4160.0,
-              "v": 15572.0,
-              "m3": 4156.67,
-              "m10": 4165.0,
-              "m20": 4232.0,
-              "m40": 4297.25,
-              "m60": 4329.92,
-              "m120": 4447.04,
+              "c": 4185.0,
+              "v": 17518.0,
+              "m3": 4165.0,
+              "m10": 4167.5,
+              "m20": 4233.25,
+              "m40": 4297.88,
+              "m60": 4330.33,
+              "m120": 4447.25,
+              "complete": true,
+              "phase": "pullback",
+              "recoveryActive": false,
+              "recoveryReached60": false,
+              "recoveryMa10Breakout": false,
+              "recoveryCycle": "2026-10-23T09:00+09:00",
+              "recoveryFailed": true,
+              "recoveryStrengthened": false,
+              "phaseTarget": 40,
+              "referencePullback": false,
+              "referenceQualified": false
+            },
+            {
+              "t": "2026-10-23T14:00+09:00",
+              "o": 4185.0,
+              "h": 4500.0,
+              "l": 4175.0,
+              "c": 4455.0,
+              "v": 317558.0,
+              "m3": 4263.33,
+              "m10": 4194.5,
+              "m20": 4240.5,
+              "m40": 4298.75,
+              "m60": 4331.83,
+              "m120": 4446.04,
               "complete": false,
               "phase": "pullback",
               "recoveryActive": false,
@@ -172435,7 +173083,7 @@
           "timeframe": "day",
           "session": "regular_and_aftermarket",
           "dataStatus": "ok",
-          "fetchedAt": "2026-10-23T13:53:19+09:00",
+          "fetchedAt": "2026-10-23T14:24:39+09:00",
           "sourceAsOf": null,
           "marketStatus": null,
           "barCount": 250,
@@ -174435,10 +175083,10 @@
             {
               "d": "2026-10-23",
               "o": 4210.0,
-              "h": 4380.0,
+              "h": 4500.0,
               "l": 4120.0,
-              "c": 4160.0,
-              "v": 264535.0
+              "c": 4470.0,
+              "v": 584116.0
             }
           ],
           "series": [
@@ -175212,15 +175860,15 @@
             {
               "d": "2026-10-23",
               "o": 4210.0,
-              "h": 4380.0,
+              "h": 4500.0,
               "l": 4120.0,
-              "c": 4160.0,
-              "v": 264535.0,
-              "m5": 4369.0,
-              "m10": 4458.5,
-              "m20": 4349.25,
-              "m60": 4211.17,
-              "m120": 4798.88
+              "c": 4470.0,
+              "v": 584116.0,
+              "m5": 4431.0,
+              "m10": 4489.5,
+              "m20": 4364.75,
+              "m60": 4216.33,
+              "m120": 4801.46
             }
           ],
           "referenceRebounds": []
@@ -175228,11 +175876,11 @@
         "quote": {
           "source": "naver_quote",
           "dataStatus": "ok",
-          "price": 4160.0,
+          "price": 4575.0,
           "previousClose": 4310.0,
-          "change": -3.48,
-          "time": "2026-10-23T13:54:20+09:00",
-          "fetchedAt": "2026-10-23T13:53:19+09:00"
+          "change": 6.15,
+          "time": "2026-10-23T14:25:32+09:00",
+          "fetchedAt": "2026-10-23T14:24:39+09:00"
         }
       },
       "registrationDayBars": [
@@ -176107,42 +176755,42 @@
           {
             "d": "2026-10-23",
             "o": 4210,
-            "h": 4380,
+            "h": 4420,
             "l": 4120,
-            "c": 4160,
-            "v": 264535,
-            "m5": 4369.0,
-            "m10": 4458.5,
-            "m20": 4349.25,
-            "m60": 4211.17
+            "c": 4330,
+            "v": 455878,
+            "m5": 4403.0,
+            "m10": 4475.5,
+            "m20": 4357.75,
+            "m60": 4214.0
           }
         ]
       },
       "intraday": {
-        "quotePrice": 4160,
-        "quoteTime": "2026-10-23T13:52+09:00",
+        "quotePrice": 4330,
+        "quoteTime": "2026-10-23T14:24+09:00",
         "quotePreviousClose": 4300,
-        "quoteChangePct": -3.26,
+        "quoteChangePct": 0.7,
         "sessionRecovery": {
           "date": "2026-10-23",
           "matched": false,
           "dataStatus": "pending"
         },
         "dataStatus": "ok",
-        "barCount": 191,
-        "lastBarTime": "2026-10-23T13:00+09:00",
-        "lastPrice": 4150,
+        "barCount": 192,
+        "lastBarTime": "2026-10-23T13:30+09:00",
+        "lastPrice": 4185,
         "baselineMa20AboveMa40": false,
         "baselineInferred": false,
-        "ma3": 4156.67,
-        "ma20": 4247.5,
-        "ma40": 4321.62,
-        "ma60": 4396.5,
+        "ma3": 4165.0,
+        "ma20": 4238.75,
+        "ma40": 4316.75,
+        "ma60": 4389.17,
         "dailyMa10": 4461.0,
-        "fallCount": 21,
+        "fallCount": 22,
         "structuralExcluded": true,
         "riseCount": 0,
-        "reversalIndex": 190,
+        "reversalIndex": 191,
         "reversalUnderMa40": true,
         "priorDeathCross": true,
         "deathCrossIndex": 128,
@@ -176888,6 +177536,18 @@
             "m20": 4247.5,
             "m40": 4321.62,
             "m60": 4396.5
+          },
+          {
+            "t": "2026-10-23T13:30+09:00",
+            "o": 4140,
+            "h": 4185,
+            "l": 4140,
+            "c": 4185,
+            "v": 17518,
+            "m3": 4165.0,
+            "m20": 4238.75,
+            "m40": 4316.75,
+            "m60": 4389.17
           }
         ]
       },
@@ -176900,9 +177560,9 @@
         "peakPrice": 5250,
         "peakDate": "2026-10-15",
         "peakReturnPct": 19.59,
-        "finalPrice": 4160,
+        "finalPrice": 4330,
         "finalDate": "2026-10-23",
-        "finalReturnPct": -5.24,
+        "finalReturnPct": -1.37,
         "reached5Pct": true,
         "reached5PctDate": "2026-10-14",
         "reached5PctTradingDays": 2,
@@ -176940,10 +177600,10 @@
           "timeframe": "minute30",
           "session": "regular_and_aftermarket",
           "dataStatus": "ok",
-          "fetchedAt": "2026-10-23T13:53:19+09:00",
-          "sourceAsOf": "20261023135400",
+          "fetchedAt": "2026-10-23T14:24:39+09:00",
+          "sourceAsOf": "20261023142500",
           "marketStatus": "OPEN",
-          "barCount": 129,
+          "barCount": 130,
           "history": [
             {
               "t": "2026-10-07T09:00+09:00",
@@ -177976,6 +178636,14 @@
               "l": 4960.0,
               "c": 4965.0,
               "v": 256.0
+            },
+            {
+              "t": "2026-10-23T14:00+09:00",
+              "o": 4965.0,
+              "h": 4965.0,
+              "l": 4965.0,
+              "c": 4965.0,
+              "v": 19.0
             }
           ],
           "series": [
@@ -181203,6 +181871,31 @@
               "phaseTarget": 40,
               "referencePullback": false,
               "referenceQualified": false
+            },
+            {
+              "t": "2026-10-23T14:00+09:00",
+              "o": 4965.0,
+              "h": 4965.0,
+              "l": 4965.0,
+              "c": 4965.0,
+              "v": 19.0,
+              "m3": 4963.33,
+              "m10": 4964.7,
+              "m20": 5032.35,
+              "m40": 5056.8,
+              "m60": 5111.2,
+              "m120": 5200.02,
+              "complete": false,
+              "phase": "pullback",
+              "recoveryActive": false,
+              "recoveryReached60": false,
+              "recoveryMa10Breakout": false,
+              "recoveryCycle": "2026-10-23T13:00+09:00",
+              "recoveryFailed": false,
+              "recoveryStrengthened": false,
+              "phaseTarget": 40,
+              "referencePullback": false,
+              "referenceQualified": false
             }
           ],
           "referenceRebounds": []
@@ -181214,7 +181907,7 @@
           "timeframe": "day",
           "session": "regular_and_aftermarket",
           "dataStatus": "ok",
-          "fetchedAt": "2026-10-23T13:53:19+09:00",
+          "fetchedAt": "2026-10-23T14:24:39+09:00",
           "sourceAsOf": null,
           "marketStatus": null,
           "barCount": 250,
@@ -183217,7 +183910,7 @@
               "h": 5040.0,
               "l": 4870.0,
               "c": 4965.0,
-              "v": 1510.0
+              "v": 1529.0
             }
           ],
           "series": [
@@ -183994,7 +184687,7 @@
               "h": 5040.0,
               "l": 4870.0,
               "c": 4965.0,
-              "v": 1510.0,
+              "v": 1529.0,
               "m5": 5084.0,
               "m10": 5181.0,
               "m20": 5241.0,
@@ -184893,7 +185586,7 @@
       "excludeReason": "차트 형태 부적합",
       "excludeCategory": "chart_shape",
       "verificationStatus": "collecting",
-      "verificationUpdatedAt": "2026-10-23T13:53:19+09:00",
+      "verificationUpdatedAt": "2026-10-23T14:24:39+09:00",
       "verificationErrors": []
     },
     {
@@ -184918,8 +185611,8 @@
           "timeframe": "minute30",
           "session": "regular_and_aftermarket",
           "dataStatus": "ok",
-          "fetchedAt": "2026-10-23T13:53:19+09:00",
-          "sourceAsOf": "20261023135400",
+          "fetchedAt": "2026-10-23T14:24:39+09:00",
+          "sourceAsOf": "20261023142500",
           "marketStatus": "OPEN",
           "barCount": 222,
           "history": [
@@ -192239,13 +192932,13 @@
               "m40": 3009.88,
               "m60": 3000.42,
               "m120": 3013.38,
-              "complete": false,
+              "complete": true,
               "phase": "pullback",
               "recoveryActive": false,
               "recoveryReached60": false,
               "recoveryMa10Breakout": false,
-              "recoveryCycle": "2026-10-23T11:00+09:00",
-              "recoveryFailed": false,
+              "recoveryCycle": "2026-10-23T13:30+09:00",
+              "recoveryFailed": true,
               "recoveryStrengthened": false,
               "phaseTarget": 40,
               "referencePullback": false,
@@ -192261,7 +192954,7 @@
           "timeframe": "day",
           "session": "regular_and_aftermarket",
           "dataStatus": "ok",
-          "fetchedAt": "2026-10-23T13:53:19+09:00",
+          "fetchedAt": "2026-10-23T14:24:39+09:00",
           "sourceAsOf": null,
           "marketStatus": null,
           "barCount": 250,
@@ -195999,7 +196692,7 @@
       "archivedAt": "2026-10-15",
       "archiveReason": "expanded_ag_disabled",
       "verificationStatus": "collecting",
-      "verificationUpdatedAt": "2026-10-23T13:53:19+09:00",
+      "verificationUpdatedAt": "2026-10-23T14:24:39+09:00",
       "verificationErrors": [],
       "referenceVerificationStatus": "collecting",
       "referenceVerificationErrors": []
@@ -196026,10 +196719,10 @@
           "timeframe": "minute30",
           "session": "regular_and_aftermarket",
           "dataStatus": "ok",
-          "fetchedAt": "2026-10-23T13:53:19+09:00",
-          "sourceAsOf": "20261023135400",
+          "fetchedAt": "2026-10-23T14:24:39+09:00",
+          "sourceAsOf": "20261023142500",
           "marketStatus": "OPEN",
-          "barCount": 318,
+          "barCount": 319,
           "history": [
             {
               "t": "2026-10-01T09:00+09:00",
@@ -198570,10 +199263,18 @@
             {
               "t": "2026-10-23T13:30+09:00",
               "o": 3855.0,
-              "h": 3860.0,
+              "h": 3870.0,
               "l": 3840.0,
-              "c": 3860.0,
-              "v": 8354.0
+              "c": 3870.0,
+              "v": 8802.0
+            },
+            {
+              "t": "2026-10-23T14:00+09:00",
+              "o": 3875.0,
+              "h": 3915.0,
+              "l": 3845.0,
+              "c": 3870.0,
+              "v": 4577.0
             }
           ],
           "series": [
@@ -206505,25 +207206,50 @@
             {
               "t": "2026-10-23T13:30+09:00",
               "o": 3855.0,
-              "h": 3860.0,
+              "h": 3870.0,
               "l": 3840.0,
-              "c": 3860.0,
-              "v": 8354.0,
-              "m3": 3858.33,
-              "m10": 3836.5,
-              "m20": 3855.75,
-              "m40": 3936.38,
-              "m60": 3981.33,
-              "m120": 3991.96,
-              "complete": false,
-              "phase": "pullback",
-              "recoveryActive": false,
+              "c": 3870.0,
+              "v": 8802.0,
+              "m3": 3861.67,
+              "m10": 3837.5,
+              "m20": 3856.25,
+              "m40": 3936.62,
+              "m60": 3981.5,
+              "m120": 3992.04,
+              "complete": true,
+              "phase": "fast",
+              "recoveryActive": true,
               "recoveryReached60": false,
               "recoveryMa10Breakout": false,
               "recoveryCycle": "2026-10-22T12:30+09:00",
               "recoveryFailed": false,
               "recoveryStrengthened": false,
-              "phaseTarget": 40,
+              "phaseTarget": 60,
+              "referencePullback": false,
+              "referenceQualified": false
+            },
+            {
+              "t": "2026-10-23T14:00+09:00",
+              "o": 3875.0,
+              "h": 3915.0,
+              "l": 3845.0,
+              "c": 3870.0,
+              "v": 4577.0,
+              "m3": 3865.0,
+              "m10": 3842.5,
+              "m20": 3855.5,
+              "m40": 3931.5,
+              "m60": 3979.33,
+              "m120": 3992.17,
+              "complete": false,
+              "phase": "fast",
+              "recoveryActive": true,
+              "recoveryReached60": false,
+              "recoveryMa10Breakout": false,
+              "recoveryCycle": "2026-10-22T12:30+09:00",
+              "recoveryFailed": false,
+              "recoveryStrengthened": false,
+              "phaseTarget": 60,
               "referencePullback": false,
               "referenceQualified": false
             }
@@ -206537,7 +207263,7 @@
           "timeframe": "day",
           "session": "regular_and_aftermarket",
           "dataStatus": "ok",
-          "fetchedAt": "2026-10-23T13:53:19+09:00",
+          "fetchedAt": "2026-10-23T14:24:39+09:00",
           "sourceAsOf": null,
           "marketStatus": null,
           "barCount": 250,
@@ -208539,8 +209265,8 @@
               "o": 3900.0,
               "h": 3935.0,
               "l": 3770.0,
-              "c": 3860.0,
-              "v": 139463.0
+              "c": 3870.0,
+              "v": 144488.0
             }
           ],
           "series": [
@@ -209316,13 +210042,13 @@
               "o": 3900.0,
               "h": 3935.0,
               "l": 3770.0,
-              "c": 3860.0,
-              "v": 139463.0,
-              "m5": 3962.0,
-              "m10": 3916.0,
-              "m20": 3750.0,
-              "m60": 3326.83,
-              "m120": 4413.29
+              "c": 3870.0,
+              "v": 144488.0,
+              "m5": 3964.0,
+              "m10": 3917.0,
+              "m20": 3750.5,
+              "m60": 3327.0,
+              "m120": 4413.38
             }
           ],
           "referenceRebounds": []
@@ -210298,7 +211024,7 @@
       "archivedAt": "2026-10-19",
       "archiveReason": "target_completed",
       "verificationStatus": "collecting",
-      "verificationUpdatedAt": "2026-10-23T13:53:19+09:00",
+      "verificationUpdatedAt": "2026-10-23T14:24:39+09:00",
       "verificationErrors": [],
       "referenceVerificationStatus": "collecting",
       "referenceVerificationErrors": []
@@ -210325,10 +211051,10 @@
           "timeframe": "minute30",
           "session": "regular_and_aftermarket",
           "dataStatus": "ok",
-          "fetchedAt": "2026-10-23T13:53:19+09:00",
-          "sourceAsOf": "20261023135400",
+          "fetchedAt": "2026-10-23T14:24:39+09:00",
+          "sourceAsOf": "20261023142500",
           "marketStatus": "OPEN",
-          "barCount": 331,
+          "barCount": 332,
           "history": [
             {
               "t": "2026-09-30T09:00+09:00",
@@ -212975,8 +213701,16 @@
               "o": 1881.0,
               "h": 1920.0,
               "l": 1804.0,
-              "c": 1845.0,
-              "v": 183296.0
+              "c": 1813.0,
+              "v": 211706.0
+            },
+            {
+              "t": "2026-10-23T14:00+09:00",
+              "o": 1814.0,
+              "h": 2360.0,
+              "l": 1800.0,
+              "c": 2360.0,
+              "v": 1747788.0
             }
           ],
           "series": [
@@ -221235,14 +221969,39 @@
               "o": 1881.0,
               "h": 1920.0,
               "l": 1804.0,
-              "c": 1845.0,
-              "v": 183296.0,
-              "m3": 1864.0,
-              "m10": 1830.4,
-              "m20": 1818.75,
-              "m40": 1826.22,
-              "m60": 1802.73,
-              "m120": 1770.95,
+              "c": 1813.0,
+              "v": 211706.0,
+              "m3": 1853.33,
+              "m10": 1827.2,
+              "m20": 1817.15,
+              "m40": 1825.42,
+              "m60": 1802.2,
+              "m120": 1770.68,
+              "complete": true,
+              "phase": "confirmed",
+              "recoveryActive": false,
+              "recoveryReached60": false,
+              "recoveryMa10Breakout": true,
+              "recoveryCycle": "2026-10-23T09:00+09:00",
+              "recoveryFailed": false,
+              "recoveryStrengthened": true,
+              "phaseTarget": 60,
+              "referencePullback": false,
+              "referenceQualified": false
+            },
+            {
+              "t": "2026-10-23T14:00+09:00",
+              "o": 1814.0,
+              "h": 2360.0,
+              "l": 1800.0,
+              "c": 2360.0,
+              "v": 1747788.0,
+              "m3": 2019.0,
+              "m10": 1889.1,
+              "m20": 1845.25,
+              "m40": 1838.55,
+              "m60": 1812.57,
+              "m120": 1776.61,
               "complete": false,
               "phase": "confirmed",
               "recoveryActive": false,
@@ -221250,7 +222009,7 @@
               "recoveryMa10Breakout": false,
               "recoveryCycle": "2026-10-23T09:00+09:00",
               "recoveryFailed": false,
-              "recoveryStrengthened": false,
+              "recoveryStrengthened": true,
               "phaseTarget": 60,
               "referencePullback": false,
               "referenceQualified": false
@@ -221265,7 +222024,7 @@
           "timeframe": "day",
           "session": "regular_and_aftermarket",
           "dataStatus": "ok",
-          "fetchedAt": "2026-10-23T13:53:19+09:00",
+          "fetchedAt": "2026-10-23T14:24:39+09:00",
           "sourceAsOf": null,
           "marketStatus": null,
           "barCount": 250,
@@ -223265,10 +224024,10 @@
             {
               "d": "2026-10-23",
               "o": 1800.0,
-              "h": 1979.0,
+              "h": 2360.0,
               "l": 1653.0,
-              "c": 1845.0,
-              "v": 1512706.0
+              "c": 2360.0,
+              "v": 3288904.0
             }
           ],
           "series": [
@@ -224042,15 +224801,15 @@
             {
               "d": "2026-10-23",
               "o": 1800.0,
-              "h": 1979.0,
+              "h": 2360.0,
               "l": 1653.0,
-              "c": 1845.0,
-              "v": 1512706.0,
-              "m5": 1806.2,
-              "m10": 1747.0,
-              "m20": 1695.2,
-              "m60": 1372.55,
-              "m120": 1607.75
+              "c": 2360.0,
+              "v": 3288904.0,
+              "m5": 1909.2,
+              "m10": 1798.5,
+              "m20": 1720.95,
+              "m60": 1381.13,
+              "m120": 1612.04
             }
           ],
           "referenceRebounds": []
@@ -225005,7 +225764,7 @@
       "excludeReason": "차트 형태 부적합",
       "excludeCategory": "chart_shape",
       "verificationStatus": "collecting",
-      "verificationUpdatedAt": "2026-10-23T13:53:19+09:00",
+      "verificationUpdatedAt": "2026-10-23T14:24:39+09:00",
       "verificationErrors": [],
       "referenceVerificationStatus": "collecting",
       "referenceVerificationErrors": []
@@ -225032,10 +225791,10 @@
           "timeframe": "minute30",
           "session": "regular_and_aftermarket",
           "dataStatus": "ok",
-          "fetchedAt": "2026-10-23T13:53:19+09:00",
-          "sourceAsOf": "20261023135400",
+          "fetchedAt": "2026-10-23T14:24:39+09:00",
+          "sourceAsOf": "20261023142500",
           "marketStatus": "OPEN",
-          "barCount": 362,
+          "barCount": 363,
           "history": [
             {
               "t": "2026-09-29T09:00+09:00",
@@ -227928,10 +228687,18 @@
             {
               "t": "2026-10-23T13:30+09:00",
               "o": 5650.0,
-              "h": 5700.0,
+              "h": 5740.0,
               "l": 5650.0,
-              "c": 5670.0,
-              "v": 8653.0
+              "c": 5730.0,
+              "v": 11161.0
+            },
+            {
+              "t": "2026-10-23T14:00+09:00",
+              "o": 5740.0,
+              "h": 5770.0,
+              "l": 5700.0,
+              "c": 5730.0,
+              "v": 15671.0
             }
           ],
           "series": [
@@ -236963,16 +237730,41 @@
             {
               "t": "2026-10-23T13:30+09:00",
               "o": 5650.0,
-              "h": 5700.0,
+              "h": 5740.0,
               "l": 5650.0,
-              "c": 5670.0,
-              "v": 8653.0,
-              "m3": 5683.33,
-              "m10": 5662.0,
-              "m20": 5744.0,
-              "m40": 5977.5,
-              "m60": 6149.17,
-              "m120": 6358.71,
+              "c": 5730.0,
+              "v": 11161.0,
+              "m3": 5703.33,
+              "m10": 5668.0,
+              "m20": 5747.0,
+              "m40": 5979.0,
+              "m60": 6150.17,
+              "m120": 6359.21,
+              "complete": true,
+              "phase": "pullback",
+              "recoveryActive": false,
+              "recoveryReached60": false,
+              "recoveryMa10Breakout": false,
+              "recoveryCycle": "2026-10-21T12:30+09:00",
+              "recoveryFailed": true,
+              "recoveryStrengthened": false,
+              "phaseTarget": 40,
+              "referencePullback": false,
+              "referenceQualified": false
+            },
+            {
+              "t": "2026-10-23T14:00+09:00",
+              "o": 5740.0,
+              "h": 5770.0,
+              "l": 5700.0,
+              "c": 5730.0,
+              "v": 15671.0,
+              "m3": 5703.33,
+              "m10": 5679.0,
+              "m20": 5741.0,
+              "m40": 5961.5,
+              "m60": 6137.5,
+              "m120": 6357.12,
               "complete": false,
               "phase": "pullback",
               "recoveryActive": false,
@@ -236995,7 +237787,7 @@
           "timeframe": "day",
           "session": "regular_and_aftermarket",
           "dataStatus": "ok",
-          "fetchedAt": "2026-10-23T13:53:19+09:00",
+          "fetchedAt": "2026-10-23T14:24:39+09:00",
           "sourceAsOf": null,
           "marketStatus": null,
           "barCount": 250,
@@ -238997,8 +239789,8 @@
               "o": 5710.0,
               "h": 5960.0,
               "l": 5560.0,
-              "c": 5670.0,
-              "v": 385727.0
+              "c": 5730.0,
+              "v": 403915.0
             }
           ],
           "series": [
@@ -239774,13 +240566,13 @@
               "o": 5710.0,
               "h": 5960.0,
               "l": 5560.0,
-              "c": 5670.0,
-              "v": 385727.0,
-              "m5": 6290.0,
-              "m10": 6413.0,
-              "m20": 6093.0,
-              "m60": 5506.5,
-              "m120": 6092.0
+              "c": 5730.0,
+              "v": 403915.0,
+              "m5": 6302.0,
+              "m10": 6419.0,
+              "m20": 6096.0,
+              "m60": 5507.5,
+              "m120": 6092.5
             }
           ],
           "referenceRebounds": []
@@ -240733,7 +241525,7 @@
       "archivedAt": "2026-10-15",
       "archiveReason": "target_completed",
       "verificationStatus": "collecting",
-      "verificationUpdatedAt": "2026-10-23T13:53:19+09:00",
+      "verificationUpdatedAt": "2026-10-23T14:24:39+09:00",
       "verificationErrors": [],
       "referenceVerificationStatus": "collecting",
       "referenceVerificationErrors": [],
@@ -240762,10 +241554,10 @@
           "timeframe": "minute30",
           "session": "regular_and_aftermarket",
           "dataStatus": "ok",
-          "fetchedAt": "2026-10-23T13:53:19+09:00",
-          "sourceAsOf": "20261023135400",
+          "fetchedAt": "2026-10-23T14:24:39+09:00",
+          "sourceAsOf": "20261023142500",
           "marketStatus": "OPEN",
-          "barCount": 342,
+          "barCount": 343,
           "history": [
             {
               "t": "2026-09-29T09:00+09:00",
@@ -243500,8 +244292,16 @@
               "o": 40450.0,
               "h": 40650.0,
               "l": 40300.0,
-              "c": 40650.0,
-              "v": 3007.0
+              "c": 40600.0,
+              "v": 3445.0
+            },
+            {
+              "t": "2026-10-23T14:00+09:00",
+              "o": 40600.0,
+              "h": 40650.0,
+              "l": 40450.0,
+              "c": 40600.0,
+              "v": 2006.0
             }
           ],
           "series": [
@@ -252035,14 +252835,39 @@
               "o": 40450.0,
               "h": 40650.0,
               "l": 40300.0,
-              "c": 40650.0,
-              "v": 3007.0,
-              "m3": 40516.67,
-              "m10": 40475.0,
-              "m20": 39927.5,
-              "m40": 39856.25,
-              "m60": 39662.5,
-              "m120": 39347.92,
+              "c": 40600.0,
+              "v": 3445.0,
+              "m3": 40500.0,
+              "m10": 40470.0,
+              "m20": 39925.0,
+              "m40": 39855.0,
+              "m60": 39661.67,
+              "m120": 39347.5,
+              "complete": true,
+              "phase": "confirmed",
+              "recoveryActive": false,
+              "recoveryReached60": false,
+              "recoveryMa10Breakout": false,
+              "recoveryCycle": "2026-10-22T19:00+09:00",
+              "recoveryFailed": false,
+              "recoveryStrengthened": true,
+              "phaseTarget": 60,
+              "referencePullback": false,
+              "referenceQualified": false
+            },
+            {
+              "t": "2026-10-23T14:00+09:00",
+              "o": 40600.0,
+              "h": 40650.0,
+              "l": 40450.0,
+              "c": 40600.0,
+              "v": 2006.0,
+              "m3": 40533.33,
+              "m10": 40520.0,
+              "m20": 39977.5,
+              "m40": 39878.75,
+              "m60": 39692.5,
+              "m120": 39376.25,
               "complete": false,
               "phase": "confirmed",
               "recoveryActive": false,
@@ -252065,7 +252890,7 @@
           "timeframe": "day",
           "session": "regular_and_aftermarket",
           "dataStatus": "ok",
-          "fetchedAt": "2026-10-23T13:53:19+09:00",
+          "fetchedAt": "2026-10-23T14:24:39+09:00",
           "sourceAsOf": null,
           "marketStatus": null,
           "barCount": 250,
@@ -254067,8 +254892,8 @@
               "o": 39400.0,
               "h": 40850.0,
               "l": 39250.0,
-              "c": 40650.0,
-              "v": 40351.0
+              "c": 40600.0,
+              "v": 42795.0
             }
           ],
           "series": [
@@ -254844,13 +255669,13 @@
               "o": 39400.0,
               "h": 40850.0,
               "l": 39250.0,
-              "c": 40650.0,
-              "v": 40351.0,
-              "m5": 39520.0,
-              "m10": 39060.0,
-              "m20": 38570.0,
-              "m60": 38435.0,
-              "m120": 41752.5
+              "c": 40600.0,
+              "v": 42795.0,
+              "m5": 39510.0,
+              "m10": 39055.0,
+              "m20": 38567.5,
+              "m60": 38434.17,
+              "m120": 41752.08
             }
           ],
           "referenceRebounds": []
@@ -255803,7 +256628,7 @@
       "archivedAt": "2026-10-15",
       "archiveReason": "expanded_ag_disabled",
       "verificationStatus": "collecting",
-      "verificationUpdatedAt": "2026-10-23T13:53:19+09:00",
+      "verificationUpdatedAt": "2026-10-23T14:24:39+09:00",
       "verificationErrors": [],
       "referenceVerificationStatus": "collecting",
       "referenceVerificationErrors": [],
@@ -255832,10 +256657,10 @@
           "timeframe": "minute30",
           "session": "regular_and_aftermarket",
           "dataStatus": "ok",
-          "fetchedAt": "2026-10-23T13:53:19+09:00",
-          "sourceAsOf": "20261023135400",
+          "fetchedAt": "2026-10-23T14:24:39+09:00",
+          "sourceAsOf": "20261023142500",
           "marketStatus": "OPEN",
-          "barCount": 362,
+          "barCount": 363,
           "history": [
             {
               "t": "2026-09-29T09:00+09:00",
@@ -258728,10 +259553,18 @@
             {
               "t": "2026-10-23T13:30+09:00",
               "o": 1364.0,
-              "h": 1374.0,
+              "h": 1375.0,
               "l": 1364.0,
-              "c": 1374.0,
-              "v": 3665.0
+              "c": 1375.0,
+              "v": 4151.0
+            },
+            {
+              "t": "2026-10-23T14:00+09:00",
+              "o": 1378.0,
+              "h": 1391.0,
+              "l": 1371.0,
+              "c": 1376.0,
+              "v": 4942.0
             }
           ],
           "series": [
@@ -267763,16 +268596,41 @@
             {
               "t": "2026-10-23T13:30+09:00",
               "o": 1364.0,
-              "h": 1374.0,
+              "h": 1375.0,
               "l": 1364.0,
-              "c": 1374.0,
-              "v": 3665.0,
-              "m3": 1372.0,
-              "m10": 1363.7,
-              "m20": 1376.15,
-              "m40": 1403.58,
-              "m60": 1424.08,
-              "m120": 1434.65,
+              "c": 1375.0,
+              "v": 4151.0,
+              "m3": 1372.33,
+              "m10": 1363.8,
+              "m20": 1376.2,
+              "m40": 1403.6,
+              "m60": 1424.1,
+              "m120": 1434.66,
+              "complete": true,
+              "phase": "pullback",
+              "recoveryActive": false,
+              "recoveryReached60": false,
+              "recoveryMa10Breakout": false,
+              "recoveryCycle": "2026-10-21T17:30+09:00",
+              "recoveryFailed": true,
+              "recoveryStrengthened": false,
+              "phaseTarget": 40,
+              "referencePullback": false,
+              "referenceQualified": false
+            },
+            {
+              "t": "2026-10-23T14:00+09:00",
+              "o": 1378.0,
+              "h": 1391.0,
+              "l": 1371.0,
+              "c": 1376.0,
+              "v": 4942.0,
+              "m3": 1371.33,
+              "m10": 1363.1,
+              "m20": 1374.25,
+              "m40": 1400.7,
+              "m60": 1422.37,
+              "m120": 1434.73,
               "complete": false,
               "phase": "pullback",
               "recoveryActive": false,
@@ -267795,7 +268653,7 @@
           "timeframe": "day",
           "session": "regular_and_aftermarket",
           "dataStatus": "ok",
-          "fetchedAt": "2026-10-23T13:53:19+09:00",
+          "fetchedAt": "2026-10-23T14:24:39+09:00",
           "sourceAsOf": null,
           "marketStatus": null,
           "barCount": 250,
@@ -269797,8 +270655,8 @@
               "o": 1381.0,
               "h": 1399.0,
               "l": 1315.0,
-              "c": 1374.0,
-              "v": 117594.0
+              "c": 1376.0,
+              "v": 123022.0
             }
           ],
           "series": [
@@ -270574,13 +271432,13 @@
               "o": 1381.0,
               "h": 1399.0,
               "l": 1315.0,
-              "c": 1374.0,
-              "v": 117594.0,
-              "m5": 1437.0,
-              "m10": 1429.2,
-              "m20": 1382.2,
-              "m60": 1209.77,
-              "m120": 1375.0
+              "c": 1376.0,
+              "v": 123022.0,
+              "m5": 1437.4,
+              "m10": 1429.4,
+              "m20": 1382.3,
+              "m60": 1209.8,
+              "m120": 1375.02
             }
           ],
           "referenceRebounds": []
@@ -271491,7 +272349,7 @@
       "archiveReason": "manual_excluded",
       "excludeReason": "이미상승",
       "verificationStatus": "collecting",
-      "verificationUpdatedAt": "2026-10-23T13:53:19+09:00",
+      "verificationUpdatedAt": "2026-10-23T14:24:39+09:00",
       "verificationErrors": [],
       "referenceVerificationStatus": "collecting",
       "referenceVerificationErrors": [],
@@ -271520,10 +272378,10 @@
           "timeframe": "minute30",
           "session": "regular_and_aftermarket",
           "dataStatus": "ok",
-          "fetchedAt": "2026-10-23T13:53:19+09:00",
-          "sourceAsOf": "20261023135400",
+          "fetchedAt": "2026-10-23T14:24:39+09:00",
+          "sourceAsOf": "20261023142600",
           "marketStatus": "OPEN",
-          "barCount": 362,
+          "barCount": 363,
           "history": [
             {
               "t": "2026-09-29T09:00+09:00",
@@ -274416,10 +275274,18 @@
             {
               "t": "2026-10-23T13:30+09:00",
               "o": 1907.0,
-              "h": 1912.0,
+              "h": 1929.0,
               "l": 1904.0,
-              "c": 1911.0,
-              "v": 7001.0
+              "c": 1928.0,
+              "v": 13819.0
+            },
+            {
+              "t": "2026-10-23T14:00+09:00",
+              "o": 1929.0,
+              "h": 1930.0,
+              "l": 1914.0,
+              "c": 1915.0,
+              "v": 11442.0
             }
           ],
           "series": [
@@ -283451,16 +284317,41 @@
             {
               "t": "2026-10-23T13:30+09:00",
               "o": 1907.0,
-              "h": 1912.0,
+              "h": 1929.0,
               "l": 1904.0,
-              "c": 1911.0,
-              "v": 7001.0,
-              "m3": 1911.0,
-              "m10": 1897.2,
-              "m20": 1903.2,
-              "m40": 1932.72,
-              "m60": 1959.42,
-              "m120": 1986.13,
+              "c": 1928.0,
+              "v": 13819.0,
+              "m3": 1916.67,
+              "m10": 1898.9,
+              "m20": 1904.05,
+              "m40": 1933.15,
+              "m60": 1959.7,
+              "m120": 1986.28,
+              "complete": true,
+              "phase": "fast",
+              "recoveryActive": true,
+              "recoveryReached60": false,
+              "recoveryMa10Breakout": false,
+              "recoveryCycle": "2026-10-22T09:00+09:00",
+              "recoveryFailed": false,
+              "recoveryStrengthened": false,
+              "phaseTarget": 60,
+              "referencePullback": false,
+              "referenceQualified": false
+            },
+            {
+              "t": "2026-10-23T14:00+09:00",
+              "o": 1929.0,
+              "h": 1930.0,
+              "l": 1914.0,
+              "c": 1915.0,
+              "v": 11442.0,
+              "m3": 1916.67,
+              "m10": 1900.9,
+              "m20": 1903.8,
+              "m40": 1931.03,
+              "m60": 1958.2,
+              "m120": 1986.15,
               "complete": false,
               "phase": "fast",
               "recoveryActive": true,
@@ -283483,7 +284374,7 @@
           "timeframe": "day",
           "session": "regular_and_aftermarket",
           "dataStatus": "ok",
-          "fetchedAt": "2026-10-23T13:53:19+09:00",
+          "fetchedAt": "2026-10-23T14:24:39+09:00",
           "sourceAsOf": null,
           "marketStatus": null,
           "barCount": 250,
@@ -285485,8 +286376,8 @@
               "o": 1875.0,
               "h": 1957.0,
               "l": 1870.0,
-              "c": 1911.0,
-              "v": 207834.0
+              "c": 1915.0,
+              "v": 226094.0
             }
           ],
           "series": [
@@ -286262,13 +287153,13 @@
               "o": 1875.0,
               "h": 1957.0,
               "l": 1870.0,
-              "c": 1911.0,
-              "v": 207834.0,
-              "m5": 1990.6,
-              "m10": 2028.0,
-              "m20": 1996.3,
-              "m60": 1689.28,
-              "m120": 1667.27
+              "c": 1915.0,
+              "v": 226094.0,
+              "m5": 1991.4,
+              "m10": 2028.4,
+              "m20": 1996.5,
+              "m60": 1689.35,
+              "m120": 1667.3
             }
           ],
           "referenceRebounds": []
@@ -287179,7 +288070,7 @@
       "archiveReason": "manual_excluded",
       "excludeReason": "이미상슴",
       "verificationStatus": "collecting",
-      "verificationUpdatedAt": "2026-10-23T13:53:19+09:00",
+      "verificationUpdatedAt": "2026-10-23T14:24:39+09:00",
       "verificationErrors": [],
       "referenceVerificationStatus": "collecting",
       "referenceVerificationErrors": [],
@@ -343346,10 +344237,10 @@
           "timeframe": "minute30",
           "session": "regular_and_aftermarket",
           "dataStatus": "ok",
-          "fetchedAt": "2026-10-23T13:53:19+09:00",
-          "sourceAsOf": "20261023135400",
+          "fetchedAt": "2026-10-23T14:24:39+09:00",
+          "sourceAsOf": "20261023142600",
           "marketStatus": "OPEN",
-          "barCount": 308,
+          "barCount": 309,
           "history": [
             {
               "t": "2026-09-30T09:00+09:00",
@@ -345813,7 +346704,15 @@
               "h": 3690.0,
               "l": 3665.0,
               "c": 3690.0,
-              "v": 470.0
+              "v": 490.0
+            },
+            {
+              "t": "2026-10-23T14:00+09:00",
+              "o": 3690.0,
+              "h": 3700.0,
+              "l": 3655.0,
+              "c": 3660.0,
+              "v": 769.0
             }
           ],
           "series": [
@@ -353498,13 +354397,38 @@
               "h": 3690.0,
               "l": 3665.0,
               "c": 3690.0,
-              "v": 470.0,
+              "v": 490.0,
               "m3": 3683.33,
               "m10": 3683.2,
               "m20": 3713.1,
               "m40": 3763.93,
               "m60": 3784.95,
               "m120": 3811.02,
+              "complete": true,
+              "phase": "pullback",
+              "recoveryActive": false,
+              "recoveryReached60": false,
+              "recoveryMa10Breakout": false,
+              "recoveryCycle": "2026-10-22T13:30+09:00",
+              "recoveryFailed": false,
+              "recoveryStrengthened": false,
+              "phaseTarget": 40,
+              "referencePullback": false,
+              "referenceQualified": false
+            },
+            {
+              "t": "2026-10-23T14:00+09:00",
+              "o": 3690.0,
+              "h": 3700.0,
+              "l": 3655.0,
+              "c": 3660.0,
+              "v": 769.0,
+              "m3": 3673.33,
+              "m10": 3679.2,
+              "m20": 3708.85,
+              "m40": 3759.55,
+              "m60": 3781.62,
+              "m120": 3810.39,
               "complete": false,
               "phase": "pullback",
               "recoveryActive": false,
@@ -353527,7 +354451,7 @@
           "timeframe": "day",
           "session": "regular_and_aftermarket",
           "dataStatus": "ok",
-          "fetchedAt": "2026-10-23T13:53:19+09:00",
+          "fetchedAt": "2026-10-23T14:24:39+09:00",
           "sourceAsOf": null,
           "marketStatus": null,
           "barCount": 250,
@@ -355529,8 +356453,8 @@
               "o": 3650.0,
               "h": 3755.0,
               "l": 3630.0,
-              "c": 3690.0,
-              "v": 12284.0
+              "c": 3660.0,
+              "v": 13073.0
             }
           ],
           "series": [
@@ -356306,13 +357230,13 @@
               "o": 3650.0,
               "h": 3755.0,
               "l": 3630.0,
-              "c": 3690.0,
-              "v": 12284.0,
-              "m5": 3803.0,
-              "m10": 3829.0,
-              "m20": 3894.5,
-              "m60": 4066.42,
-              "m120": 4364.12
+              "c": 3660.0,
+              "v": 13073.0,
+              "m5": 3797.0,
+              "m10": 3826.0,
+              "m20": 3893.0,
+              "m60": 4065.92,
+              "m120": 4363.88
             }
           ],
           "referenceRebounds": []
@@ -820161,10 +821085,10 @@
           "timeframe": "minute30",
           "session": "regular_and_aftermarket",
           "dataStatus": "ok",
-          "fetchedAt": "2026-10-23T13:53:19+09:00",
-          "sourceAsOf": "20261023135400",
+          "fetchedAt": "2026-10-23T14:24:39+09:00",
+          "sourceAsOf": "20261023142500",
           "marketStatus": "OPEN",
-          "barCount": 345,
+          "barCount": 346,
           "history": [
             {
               "t": "2026-09-29T09:00+09:00",
@@ -822924,7 +823848,15 @@
               "h": 5730.0,
               "l": 5610.0,
               "c": 5730.0,
-              "v": 425.0
+              "v": 449.0
+            },
+            {
+              "t": "2026-10-23T14:00+09:00",
+              "o": 5730.0,
+              "h": 5730.0,
+              "l": 5620.0,
+              "c": 5720.0,
+              "v": 595.0
             }
           ],
           "series": [
@@ -831534,13 +832466,38 @@
               "h": 5730.0,
               "l": 5610.0,
               "c": 5730.0,
-              "v": 425.0,
+              "v": 449.0,
               "m3": 5663.33,
               "m10": 5607.0,
               "m20": 5665.5,
               "m40": 5752.25,
               "m60": 5819.33,
               "m120": 5892.92,
+              "complete": true,
+              "phase": "pullback",
+              "recoveryActive": false,
+              "recoveryReached60": false,
+              "recoveryMa10Breakout": false,
+              "recoveryCycle": "2026-10-22T10:00+09:00",
+              "recoveryFailed": false,
+              "recoveryStrengthened": false,
+              "phaseTarget": 40,
+              "referencePullback": false,
+              "referenceQualified": false
+            },
+            {
+              "t": "2026-10-23T14:00+09:00",
+              "o": 5730.0,
+              "h": 5730.0,
+              "l": 5620.0,
+              "c": 5720.0,
+              "v": 595.0,
+              "m3": 5690.0,
+              "m10": 5612.0,
+              "m20": 5666.5,
+              "m40": 5747.75,
+              "m60": 5816.67,
+              "m120": 5891.92,
               "complete": false,
               "phase": "pullback",
               "recoveryActive": false,
@@ -831563,7 +832520,7 @@
           "timeframe": "day",
           "session": "regular_and_aftermarket",
           "dataStatus": "ok",
-          "fetchedAt": "2026-10-23T13:53:19+09:00",
+          "fetchedAt": "2026-10-23T14:24:39+09:00",
           "sourceAsOf": null,
           "marketStatus": null,
           "barCount": 250,
@@ -833565,8 +834522,8 @@
               "o": 5730.0,
               "h": 5730.0,
               "l": 5480.0,
-              "c": 5730.0,
-              "v": 18711.0
+              "c": 5720.0,
+              "v": 19330.0
             }
           ],
           "series": [
@@ -834342,13 +835299,13 @@
               "o": 5730.0,
               "h": 5730.0,
               "l": 5480.0,
-              "c": 5730.0,
-              "v": 18711.0,
-              "m5": 5860.0,
-              "m10": 5926.0,
-              "m20": 6284.5,
-              "m60": 6382.33,
-              "m120": 6954.67
+              "c": 5720.0,
+              "v": 19330.0,
+              "m5": 5858.0,
+              "m10": 5925.0,
+              "m20": 6284.0,
+              "m60": 6382.17,
+              "m120": 6954.58
             }
           ],
           "referenceRebounds": []
@@ -834356,11 +835313,11 @@
         "quote": {
           "source": "naver_quote",
           "dataStatus": "ok",
-          "price": 5730.0,
+          "price": 5720.0,
           "previousClose": 5730.0,
-          "change": 0.0,
-          "time": "2026-10-23T13:54:22+09:00",
-          "fetchedAt": "2026-10-23T13:53:19+09:00"
+          "change": -0.17,
+          "time": "2026-10-23T14:25:34+09:00",
+          "fetchedAt": "2026-10-23T14:24:39+09:00"
         }
       }
     },
@@ -834375,10 +835332,10 @@
           "timeframe": "minute30",
           "session": "regular_and_aftermarket",
           "dataStatus": "ok",
-          "fetchedAt": "2026-10-23T13:53:19+09:00",
-          "sourceAsOf": "20261023135400",
+          "fetchedAt": "2026-10-23T14:24:39+09:00",
+          "sourceAsOf": "20261023142500",
           "marketStatus": "OPEN",
-          "barCount": 362,
+          "barCount": 363,
           "history": [
             {
               "t": "2026-09-29T09:00+09:00",
@@ -837272,9 +838229,17 @@
               "t": "2026-10-23T13:30+09:00",
               "o": 1700.0,
               "h": 1745.0,
-              "l": 1686.0,
-              "c": 1691.0,
-              "v": 558250.0
+              "l": 1672.0,
+              "c": 1677.0,
+              "v": 621776.0
+            },
+            {
+              "t": "2026-10-23T14:00+09:00",
+              "o": 1678.0,
+              "h": 1682.0,
+              "l": 1666.0,
+              "c": 1680.0,
+              "v": 171177.0
             }
           ],
           "series": [
@@ -846307,15 +847272,40 @@
               "t": "2026-10-23T13:30+09:00",
               "o": 1700.0,
               "h": 1745.0,
-              "l": 1686.0,
-              "c": 1691.0,
-              "v": 558250.0,
-              "m3": 1684.33,
-              "m10": 1746.0,
-              "m20": 1798.5,
-              "m40": 1742.45,
-              "m60": 1647.18,
-              "m120": 1575.17,
+              "l": 1672.0,
+              "c": 1677.0,
+              "v": 621776.0,
+              "m3": 1679.67,
+              "m10": 1744.6,
+              "m20": 1797.8,
+              "m40": 1742.1,
+              "m60": 1646.95,
+              "m120": 1575.06,
+              "complete": true,
+              "phase": "pullback",
+              "recoveryActive": false,
+              "recoveryReached60": false,
+              "recoveryMa10Breakout": false,
+              "recoveryCycle": "2026-10-22T14:00+09:00",
+              "recoveryFailed": true,
+              "recoveryStrengthened": false,
+              "phaseTarget": 40,
+              "referencePullback": false,
+              "referenceQualified": false
+            },
+            {
+              "t": "2026-10-23T14:00+09:00",
+              "o": 1678.0,
+              "h": 1682.0,
+              "l": 1666.0,
+              "c": 1680.0,
+              "v": 171177.0,
+              "m3": 1685.33,
+              "m10": 1709.6,
+              "m20": 1789.25,
+              "m40": 1748.6,
+              "m60": 1650.45,
+              "m120": 1576.5,
               "complete": false,
               "phase": "pullback",
               "recoveryActive": false,
@@ -846338,7 +847328,7 @@
           "timeframe": "day",
           "session": "regular_and_aftermarket",
           "dataStatus": "ok",
-          "fetchedAt": "2026-10-23T13:53:19+09:00",
+          "fetchedAt": "2026-10-23T14:24:39+09:00",
           "sourceAsOf": null,
           "marketStatus": null,
           "barCount": 250,
@@ -848340,8 +849330,8 @@
               "o": 1922.0,
               "h": 2075.0,
               "l": 1650.0,
-              "c": 1691.0,
-              "v": 19701341.0
+              "c": 1680.0,
+              "v": 19936044.0
             }
           ],
           "series": [
@@ -849117,13 +850107,13 @@
               "o": 1922.0,
               "h": 2075.0,
               "l": 1650.0,
-              "c": 1691.0,
-              "v": 19701341.0,
-              "m5": 1607.6,
-              "m10": 1587.8,
-              "m20": 1705.55,
-              "m60": 1847.7,
-              "m120": 2716.22
+              "c": 1680.0,
+              "v": 19936044.0,
+              "m5": 1605.4,
+              "m10": 1586.7,
+              "m20": 1705.0,
+              "m60": 1847.52,
+              "m120": 2716.13
             }
           ],
           "referenceRebounds": []
@@ -849131,11 +850121,11 @@
         "quote": {
           "source": "naver_quote",
           "dataStatus": "ok",
-          "price": 1690.0,
+          "price": 1678.0,
           "previousClose": 1851.0,
-          "change": -8.7,
-          "time": "2026-10-23T13:54:25+09:00",
-          "fetchedAt": "2026-10-23T13:53:19+09:00"
+          "change": -9.35,
+          "time": "2026-10-23T14:25:36+09:00",
+          "fetchedAt": "2026-10-23T14:24:39+09:00"
         }
       }
     },
@@ -849150,10 +850140,10 @@
           "timeframe": "minute30",
           "session": "regular_and_aftermarket",
           "dataStatus": "ok",
-          "fetchedAt": "2026-10-23T13:53:19+09:00",
-          "sourceAsOf": "20261023135400",
+          "fetchedAt": "2026-10-23T14:24:39+09:00",
+          "sourceAsOf": "20261023142500",
           "marketStatus": "OPEN",
-          "barCount": 234,
+          "barCount": 235,
           "history": [
             {
               "t": "2026-09-29T09:00+09:00",
@@ -851022,10 +852012,18 @@
             {
               "t": "2026-10-23T13:30+09:00",
               "o": 2385.0,
-              "h": 2400.0,
+              "h": 2425.0,
               "l": 2385.0,
               "c": 2400.0,
-              "v": 12419.0
+              "v": 16878.0
+            },
+            {
+              "t": "2026-10-23T14:00+09:00",
+              "o": 2405.0,
+              "h": 2405.0,
+              "l": 2380.0,
+              "c": 2390.0,
+              "v": 9578.0
             }
           ],
           "series": [
@@ -856857,16 +857855,41 @@
             {
               "t": "2026-10-23T13:30+09:00",
               "o": 2385.0,
-              "h": 2400.0,
+              "h": 2425.0,
               "l": 2385.0,
               "c": 2400.0,
-              "v": 12419.0,
+              "v": 16878.0,
               "m3": 2400.0,
               "m10": 2387.0,
               "m20": 2434.5,
               "m40": 2469.62,
               "m60": 2499.5,
               "m120": 2516.33,
+              "complete": true,
+              "phase": "pullback",
+              "recoveryActive": false,
+              "recoveryReached60": false,
+              "recoveryMa10Breakout": false,
+              "recoveryCycle": "2026-10-23T09:00+09:00",
+              "recoveryFailed": true,
+              "recoveryStrengthened": false,
+              "phaseTarget": 40,
+              "referencePullback": false,
+              "referenceQualified": false
+            },
+            {
+              "t": "2026-10-23T14:00+09:00",
+              "o": 2405.0,
+              "h": 2405.0,
+              "l": 2380.0,
+              "c": 2390.0,
+              "v": 9578.0,
+              "m3": 2396.67,
+              "m10": 2389.0,
+              "m20": 2431.5,
+              "m40": 2465.75,
+              "m60": 2497.5,
+              "m120": 2515.25,
               "complete": false,
               "phase": "pullback",
               "recoveryActive": false,
@@ -856889,7 +857912,7 @@
           "timeframe": "day",
           "session": "regular_and_aftermarket",
           "dataStatus": "ok",
-          "fetchedAt": "2026-10-23T13:53:19+09:00",
+          "fetchedAt": "2026-10-23T14:24:39+09:00",
           "sourceAsOf": null,
           "marketStatus": null,
           "barCount": 250,
@@ -858891,8 +859914,8 @@
               "o": 2380.0,
               "h": 2475.0,
               "l": 2337.0,
-              "c": 2400.0,
-              "v": 114147.0
+              "c": 2390.0,
+              "v": 128184.0
             }
           ],
           "series": [
@@ -859668,13 +860691,13 @@
               "o": 2380.0,
               "h": 2475.0,
               "l": 2337.0,
-              "c": 2400.0,
-              "v": 114147.0,
-              "m5": 2547.0,
-              "m10": 2553.5,
-              "m20": 2736.75,
-              "m60": 2828.42,
-              "m120": 2723.62
+              "c": 2390.0,
+              "v": 128184.0,
+              "m5": 2545.0,
+              "m10": 2552.5,
+              "m20": 2736.25,
+              "m60": 2828.25,
+              "m120": 2723.53
             }
           ],
           "referenceRebounds": []
@@ -859682,11 +860705,11 @@
         "quote": {
           "source": "naver_quote",
           "dataStatus": "ok",
-          "price": 2400.0,
+          "price": 2390.0,
           "previousClose": 2495.0,
-          "change": -3.81,
-          "time": "2026-10-23T13:54:27+09:00",
-          "fetchedAt": "2026-10-23T13:53:19+09:00"
+          "change": -4.21,
+          "time": "2026-10-23T14:25:38+09:00",
+          "fetchedAt": "2026-10-23T14:24:39+09:00"
         }
       }
     }
@@ -860217,14 +861240,14 @@
     "basis": "화면 등록시점 가격 기준, 등록 이후부터 종료일까지 +5% (실제 매매수익 아님)"
   },
   "displayChartSummary": {
-    "updatedAt": "2026-10-23T13:53:19+09:00",
+    "updatedAt": "2026-10-23T14:24:39+09:00",
     "candidateCount": 13,
     "holdingCount": 3,
     "errors": 0
   },
   "imageSearch": {
     "version": 1,
-    "updatedAt": "2026-10-23T13:53:19+09:00",
+    "updatedAt": "2026-10-23T14:24:39+09:00",
     "status": "ok",
     "scope": "active_ak_ag",
     "rules": [
@@ -862090,60 +863113,60 @@
   },
   "colorNotificationState": {
     "338840|2026-10-23T11:30:09+09:00": {
-      "last": "2026-10-23T13:00+09:00",
+      "last": "2026-10-23T13:30+09:00",
       "purple": false,
       "compact": false,
-      "spread": 12.46308748308822,
+      "spread": 12.164588455783075,
       "convergenceBreakout": false,
       "recoveryMa10Breakout": false,
       "recoveryRuleVersion": 1,
       "recoveryBaseline": "2026-10-23T11:00+09:00"
     },
     "039860|2026-10-23T11:30:09+09:00": {
-      "last": "2026-10-23T13:00+09:00",
+      "last": "2026-10-23T13:30+09:00",
       "purple": false,
       "compact": false,
-      "spread": 2.8325001590306487,
+      "spread": 2.9730481906853123,
       "convergenceBreakout": false,
       "recoveryMa10Breakout": false,
       "recoveryRuleVersion": 1,
       "recoveryBaseline": "2026-10-23T11:00+09:00"
     },
     "065450|2026-10-22T17:18:10+09:00": {
-      "last": "2026-10-23T13:00+09:00",
+      "last": "2026-10-23T13:30+09:00",
       "purple": false,
       "compact": false,
-      "spread": 17.943819389231773,
+      "spread": 17.90462724349471,
       "convergenceBreakout": false,
       "recoveryMa10Breakout": false,
       "recoveryRuleVersion": 1,
       "recoveryBaseline": "2026-10-23T11:00+09:00"
     },
     "039610|2026-10-16T17:11:06+09:00": {
-      "last": "2026-10-23T13:00+09:00",
+      "last": "2026-10-23T13:30+09:00",
       "purple": false,
       "compact": false,
-      "spread": 8.284366675481403,
+      "spread": 8.12406576980569,
       "convergenceBreakout": false,
       "recoveryMa10Breakout": false,
       "recoveryRuleVersion": 1,
       "recoveryBaseline": "2026-10-23T11:00+09:00"
     },
     "452280|2026-10-16T17:11:06+09:00": {
-      "last": "2026-10-23T13:00+09:00",
+      "last": "2026-10-23T13:30+09:00",
       "purple": false,
       "compact": false,
-      "spread": 5.1984697272122515,
+      "spread": 4.794293297942942,
       "convergenceBreakout": false,
       "recoveryMa10Breakout": false,
       "recoveryRuleVersion": 1,
       "recoveryBaseline": "2026-10-23T11:00+09:00"
     },
     "059100|2026-10-16T17:11:06+09:00": {
-      "last": "2026-10-23T13:00+09:00",
+      "last": "2026-10-23T13:30+09:00",
       "purple": false,
       "compact": false,
-      "spread": 7.6573239436619644,
+      "spread": 6.856522956326994,
       "convergenceBreakout": false,
       "recoveryMa10Breakout": false,
       "recoveryRuleVersion": 1,
@@ -862160,60 +863183,60 @@
       "recoveryBaseline": "2026-10-22T15:30+09:00"
     },
     "030960|2026-10-15T17:12:24+09:00": {
-      "last": "2026-10-23T13:00+09:00",
+      "last": "2026-10-23T13:30+09:00",
       "purple": false,
       "compact": false,
-      "spread": 7.30383581797267,
+      "spread": 7.6282446929093695,
       "convergenceBreakout": false,
       "recoveryMa10Breakout": false,
       "recoveryRuleVersion": 1,
       "recoveryBaseline": "2026-10-23T11:00+09:00"
     },
     "187870|2026-10-13T16:57:49+09:00": {
-      "last": "2026-10-23T13:00+09:00",
+      "last": "2026-10-23T13:30+09:00",
       "purple": false,
       "compact": false,
-      "spread": 3.4007883099403946,
+      "spread": 3.2736700595352497,
       "convergenceBreakout": false,
       "recoveryMa10Breakout": false,
       "recoveryRuleVersion": 1,
       "recoveryBaseline": "2026-10-23T11:00+09:00"
     },
     "060260|2026-10-13T16:57:50+09:00": {
-      "last": "2026-10-23T13:00+09:00",
+      "last": "2026-10-23T13:30+09:00",
       "purple": false,
       "compact": false,
-      "spread": 11.157556679878166,
+      "spread": 10.514612452350702,
       "convergenceBreakout": false,
       "recoveryMa10Breakout": false,
       "recoveryRuleVersion": 1,
       "recoveryBaseline": "2026-10-23T11:00+09:00"
     },
     "274400|2026-10-12T17:06:51+09:00": {
-      "last": "2026-10-23T13:00+09:00",
+      "last": "2026-10-23T13:30+09:00",
       "purple": false,
       "compact": false,
-      "spread": 3.000004800007683,
+      "spread": 2.7392927487336127,
       "convergenceBreakout": false,
       "recoveryMa10Breakout": false,
       "recoveryRuleVersion": 1,
       "recoveryBaseline": "2026-10-23T11:00+09:00"
     },
     "083500|2026-10-12T22:17:26+09:00": {
-      "last": "2026-10-23T13:00+09:00",
+      "last": "2026-10-23T13:30+09:00",
       "purple": false,
       "compact": false,
-      "spread": 3.2274840450831954,
+      "spread": 3.4517643250242758,
       "convergenceBreakout": false,
       "recoveryMa10Breakout": false,
       "recoveryRuleVersion": 1,
       "recoveryBaseline": "2026-10-23T11:00+09:00"
     },
     "128820|2026-10-12T22:17:26+09:00": {
-      "last": "2026-10-23T13:00+09:00",
+      "last": "2026-10-23T13:30+09:00",
       "purple": false,
       "compact": false,
-      "spread": 4.260140930119549,
+      "spread": 3.9695078031212416,
       "convergenceBreakout": false,
       "recoveryMa10Breakout": false,
       "recoveryRuleVersion": 1,
