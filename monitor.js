@@ -1466,6 +1466,13 @@ function openOperationContent(button, content) {
     content.setAttribute("open", "");
   }
 }
+
+document.querySelector("#candidateScanButton").addEventListener("click", event => {
+  window.CandidateScan.open({
+    button: event.currentTarget, openOperationContent, loadData,
+    getPayload: () => state.payload, tokenKey: GITHUB_TOKEN_KEY,
+  });
+});
 document.querySelectorAll("[data-operation-page]").forEach((link) => {
   link.addEventListener("click", (event) => {
     event.preventDefault();

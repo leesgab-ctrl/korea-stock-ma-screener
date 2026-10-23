@@ -45,12 +45,26 @@ class CurrentSearchRegistrationTests(unittest.TestCase):
         self.assertEqual(result["coreMorningNotificationState"], tracking)
 
     def test_registers_current_result_now(self):
-        candidate = self.build(0)["candidates"][0]
+        result = self.build(0)
+        candidate = result["candidates"][0]
         self.assertEqual(candidate["dailySignalDate"], "2026-10-08")
         self.assertTrue(candidate["registeredAt"].startswith("2026-10-08"))
+        self.assertEqual(result["candidateScan"]["newRegistrations"][0]["code"], candidate["code"])
+        self.assertTrue(result["candidateScan"]["currentDayData"])
+        self.assertEqual(result["candidateScan"]["checkedStocks"], 1)
+
+    def test_repeat_scan_reports_zero_new_and_preserves_registration(self):
+        first = self.build(0)
+        repeated = self.build(0, first)
+        self.assertEqual(repeated["candidateScan"]["newRegistrations"], [])
+        self.assertEqual(repeated["candidates"][0]["registeredAt"], first["candidates"][0]["registeredAt"])
+        self.assertEqual(repeated["candidates"][0]["registrationPrice"], first["candidates"][0]["registrationPrice"])
 
     def test_stale_data_cannot_create_new_candidate(self):
-        self.assertEqual(self.build(0, stale=True)["candidates"], [])
+        result = self.build(0, stale=True)
+        self.assertEqual(result["candidates"], [])
+        self.assertFalse(result["candidateScan"]["currentDayData"])
+        self.assertEqual(result["candidateScan"]["newRegistrations"], [])
 
     def test_existing_registration_is_preserved(self):
         old = {"code": "001440", "dailySignalDate": "2026-10-07", "registeredAt": "2026-10-07T17:00:00+09:00", "registrationPrice": 100}

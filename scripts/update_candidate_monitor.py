@@ -472,6 +472,8 @@ def build_daily_candidates(stock_data: Path, previous: dict[str, Any]) -> dict[s
 
     calendar_index = {date: index for index, date in enumerate(calendar)}
     latest_date = calendar[-1]
+    scan_started_at = now_kst().isoformat(timespec="seconds")
+    checked_stocks = 0
     retire_expanded_ag(previous, latest_date)
     candidates = []
     previous_candidates = {
@@ -487,6 +489,7 @@ def build_daily_candidates(stock_data: Path, previous: dict[str, Any]) -> dict[s
             continue
         if stock.get("h"):
             continue
+        checked_stocks += 1
         rows = stock_rows(payload, stock)
         latest_match = None
         # Only today's result can create a new candidate; retain existing cycles.
@@ -615,6 +618,19 @@ def build_daily_candidates(stock_data: Path, previous: dict[str, Any]) -> dict[s
         "source": "네이버 증권 일봉 및 분봉",
         "strategy": STRATEGY,
         "summary": {},
+        "candidateScan": {
+            "startedAt": scan_started_at,
+            "asOf": latest_date,
+            "currentDayData": latest_date == scan_started_at[:10],
+            "checkedStocks": checked_stocks,
+            "runId": os.getenv("GITHUB_RUN_ID", ""),
+            "requestId": os.getenv("CANDIDATE_SCAN_REQUEST_ID", ""),
+            "newRegistrations": [
+                {key: item[key] for key in ("code", "name", "candidateTier", "dailySignalDate", "registeredAt")}
+                for item in candidates
+                if (item["code"], item["dailySignalDate"]) not in previous_registrations
+            ],
+        },
         "candidates": candidates,
         "history": history,
         "paperTrading": previous.get("paperTrading"),
@@ -1784,6 +1800,12 @@ def main() -> None:
     alerts += image_alerts
     color_changed = color_changed or image_changed
     payload.setdefault("summary", {})["imageSearchMatches"] = len(payload.get("imageSearch", {}).get("matches", []))
+    if args.mode == "daily":
+        payload["candidateScan"]["completedAt"] = now_kst().isoformat(timespec="seconds")
+        payload["candidateScan"]["activeCounts"] = {
+            "AG": sum(item.get("candidateTier") == "core" for item in payload.get("candidates", [])),
+            "AK": sum(item.get("candidateTier") == AK_TIER for item in payload.get("candidates", [])),
+        }
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
     write_github_output(args.github_output, alerts, pending)

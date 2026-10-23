@@ -176,6 +176,9 @@ class AkRegistrationTest(unittest.TestCase):
         self.assertEqual(item["candidateTier"], monitor.AK_TIER)
         self.assertEqual(item["tradingDaysRemaining"], 10)
         self.assertEqual(item["registrationPrice"], qualifying_rows()[-1]["close"])
+        self.assertEqual(result["candidateScan"]["newRegistrations"][0]["candidateTier"], monitor.AK_TIER)
+        repeated = self.build(qualifying_rows(), result)
+        self.assertEqual(repeated["candidateScan"]["newRegistrations"], [])
 
     def test_new_nine_percent_ak_uses_same_registration_window(self):
         rows = relaxed_rows()

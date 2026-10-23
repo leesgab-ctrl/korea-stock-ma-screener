@@ -707,6 +707,28 @@ body.inline-chart-mode .detail-content { padding-top: 0; }
 #excludedListDialog.inline-operation-dialog .position-form { padding: 10px 2px; }
 .history-table .history-prices > span { display: block; white-space: nowrap; }
 .history-table td { white-space: nowrap; }
+.candidate-scan { padding: 16px 4px; max-width: 760px; }
+#candidateScanButton { white-space: normal; line-height: 1.4; }
+.candidate-scan .muted { color: var(--muted); font-size: 13px; }
+.candidate-scan h2 { margin: 0 0 16px; font-size: 20px; }
+.candidate-scan h3 { margin: 24px 0 10px; font-size: 16px; }
+.candidate-scan-summary { margin: 0; }
+.candidate-scan-summary > div { display: grid; grid-template-columns: 155px minmax(0, 1fr); gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.candidate-scan dt { color: var(--muted); }
+.candidate-scan dd { margin: 0; overflow-wrap: anywhere; }
+.candidate-scan form { border-block: 1px solid var(--line); padding: 16px 0; margin-top: 16px; }
+.candidate-scan details label { display: grid; gap: 6px; margin-top: 12px; }
+.candidate-scan input { width: 100%; min-width: 0; box-sizing: border-box; padding: 10px; font: inherit; border: 1px solid var(--line); border-radius: 4px; }
+.candidate-scan-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 16px; }
+.candidate-scan [data-scan="status"] { overflow-wrap: anywhere; min-height: 24px; }
+.candidate-scan .error { color: #ba3f3f; }
+.candidate-scan-recent { list-style: none; padding: 0; margin: 0; }
+.candidate-scan-recent li { padding: 10px 0; border-bottom: 1px solid var(--line); overflow-wrap: anywhere; }
+@media (max-width: 540px) {
+  .candidate-scan-summary > div { grid-template-columns: 112px minmax(0, 1fr); gap: 8px; font-size: 13px; }
+  .candidate-scan-actions { align-items: stretch; }
+  .candidate-scan-actions .external-link { white-space: normal; }
+}
 @media (max-width: 540px) {
   .history-page { padding-left: 2px; padding-right: 2px; }
   .history-table th, .history-table td { padding: 9px 1px; }
