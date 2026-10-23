@@ -29,8 +29,9 @@
     if (id) link.href = RUN_BASE + encodeURIComponent(id);
   }
 
-  function refresh(payload = options.getPayload()) {
+  function refresh(payload) {
     if (!panel) return;
+    payload ||= options.getPayload();
     const report = payload?.candidateScan;
     const candidates = payload?.candidates || [];
     field("last").textContent = date(report?.completedAt);

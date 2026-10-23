@@ -300,6 +300,7 @@ async function loadData({ pollOnly = false } = {}) {
     applyPendingExclusions();
     state.positions = positionsResponse.ok ? await positionsResponse.json() : { positions: [] };
     state.positions.positions = [...(state.positions.positions || []), ...(state.payload.paperTrading?.positions || [])];
+    globalThis.CandidateScan?.refresh();
     state.lastLoadedAt = Date.now();
     const candidates = state.payload.candidates || [];
     if (state.selectedCode && !candidates.some((item) => item.code === state.selectedCode)) {

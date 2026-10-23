@@ -76,6 +76,12 @@ const report = {startedAt: '2026-10-23T11:00:00+09:00', completedAt: '2026-10-23
     assert.equal(await s('added').innerText(), '0종목');
     assert.deepEqual(payload.candidates, baseline, 'Refreshing a report must not change registrations');
     assert.equal(await page.locator('#operationContent').isVisible(), true);
+    payload.candidateScan.newRegistrations = [baseline[0]];
+    await page.locator('#refreshButton').click();
+    await page.waitForFunction(() => document.querySelector('[data-scan="added"]').textContent === '1종목');
+    payload.candidateScan.newRegistrations = [];
+    await page.locator('#refreshButton').click();
+    await page.waitForFunction(() => document.querySelector('[data-scan="added"]').textContent === '0종목');
     for (const width of [1280, 390, 320]) {
       await page.setViewportSize({width, height: 1000});
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, `No overflow at ${width}`);
