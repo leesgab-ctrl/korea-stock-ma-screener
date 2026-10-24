@@ -30,8 +30,8 @@ const server = http.createServer((request, response) => {
       await page.waitForFunction(n => document.querySelectorAll('#candidateList > .candidate').length === n, first.candidates.length);
       assert.equal(await page.locator('[data-view=firstRise]').getAttribute('aria-selected'), 'true');
       assert.match(await page.locator('#candidateMeta').textContent(), /10거래일/);
-      assert.match(await page.locator('#candidateList .candidate-tier').first().textContent(), /첫날상승.*첫날 종가/);
-      assert.match(await page.locator('#candidateMeta').textContent(), /종가 \+5%.*장중 신규 선정 없음/);
+      assert.match(await page.locator('#candidateList .candidate-tier').first().textContent(), /첫날상승.*일봉 MA3 > MA10 돌파확정/);
+      assert.match(await page.locator('#candidateMeta').textContent(), /일봉 MA3·MA10 상향돌파.*장중 신규 선정 없음/);
       assert.equal(await page.evaluate(() => sharedMonitorCandidates().filter(item => item.candidateTier === 'first_rise').every(confirmedFirstRise)), true);
       const frame = page.frameLocator('.inline-stock-chart').first();
       await frame.locator('#maChart').waitFor({state: 'visible'});
@@ -51,6 +51,8 @@ const server = http.createServer((request, response) => {
       await page.locator('#criteriaButton').click();
       assert.equal(await page.locator('#firstRiseCriteria li').count(), 8);
       assert.match(await page.locator('#firstRiseCriteria').textContent(), /4%.*미래 마감 거래량/s);
+      assert.match(await page.locator('#firstRiseCriteria').textContent(), /직전 거래일 MA3 ≤ MA10.*선정 당일 MA3 > MA10/s);
+      assert.match(await page.locator('#firstRiseCriteria').textContent(), /종가 \+5% 기준은 사용하지 않습니다/);
       await page.locator('#firstRiseCriteria').scrollIntoViewIfNeeded();
       await page.screenshot({path: path.join(root, `outputs/first-rise-criteria-${width}.png`)});
       await page.locator('#criteriaDialogClose').click();

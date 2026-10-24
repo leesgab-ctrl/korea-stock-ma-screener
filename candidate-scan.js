@@ -167,7 +167,7 @@
       panel.innerHTML = `<h2>대상종목 검색·추가</h2>
         <dl class="candidate-scan-summary">
           <div><dt>자동 검색 예약</dt><dd>AG·AK 평일 08:30 · 16:40 / AH 09:00~20:50 10분 간격 / 첫날상승 신규 확정 20:30·20:40·20:50 (실행 지연 가능)</dd></div>
-          <div><dt>첫날상승 확정 기준</dt><dd>당일 종가 +5% 이상 · 장중 신규 선정·등록·문자 없음</dd></div>
+          <div><dt>첫날상승 확정 기준</dt><dd>종가 기준 일봉 MA3가 MA10 상향돌파 · 장중 신규 선정·등록·문자 없음</dd></div>
           <div><dt>마지막 검색 완료</dt><dd data-scan="last"></dd></div>
           <div><dt>일봉 기준일</dt><dd data-scan="basis"></dd></div>
           <div><dt>검색 대상</dt><dd data-scan="checked"></dd></div>

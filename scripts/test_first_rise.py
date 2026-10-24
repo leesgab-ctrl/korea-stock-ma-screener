@@ -64,15 +64,32 @@ class FirstRiseRulesTests(unittest.TestCase):
         self.assertEqual(remaining_days("2026-10-19", [f"2026-10-{i}" for i in range(19, 30)]), 0)
 
     def test_close_confirmation_requires_final_day_price_and_after_2030(self):
-        daily = [{"d": "2026-10-22", "c": 100}, {"d": "2026-10-23", "c": 105}]
+        daily = [{"d": f"2026-10-{day:02d}", "c": 100} for day in range(13, 23)] + [{"d": "2026-10-23", "c": 101}]
         self.assertIsNone(closing_confirmation(daily, "2026-10-23", dt.datetime.fromisoformat("2026-10-23T20:29:59+09:00")))
         current = dt.datetime.fromisoformat("2026-10-23T20:30:00+09:00")
         self.assertTrue(closing_confirmation(daily, "2026-10-23", current)["qualified"])
-        daily[-1]["c"] = 104.999
+        self.assertLess(closing_confirmation(daily, "2026-10-23", current)["changePct"], 5)
+        daily[-1]["c"] = 100
         self.assertFalse(closing_confirmation(daily, "2026-10-23", current)["qualified"])
         self.assertIsNone(closing_confirmation(daily[:-1], "2026-10-23", current))
         daily[-1]["c"] = float("nan")
         self.assertIsNone(closing_confirmation(daily, "2026-10-23", current))
+
+    def test_daily_cross_is_fresh_not_an_already_above_state(self):
+        current = dt.datetime.fromisoformat("2026-10-23T20:30+09:00")
+        rows = [{"d": f"2026-10-{13+i:02d}", "c": price} for i, price in enumerate([100]*8+[110, 110, 130])]
+        result = closing_confirmation(rows, "2026-10-23", current)
+        self.assertGreater(result["changePct"], 5)
+        self.assertGreater(result["ma3"], result["ma10"])
+        self.assertFalse(result["qualified"])
+        self.assertIsNone(closing_confirmation(rows[-10:], "2026-10-23", current))
+
+    def test_cross_does_not_require_a_minimum_daily_gain(self):
+        prices = [104]*7+[90, 110, 110, 109]
+        rows = [{"d": f"2026-10-{13+i:02d}", "c": price} for i, price in enumerate(prices)]
+        result = closing_confirmation(rows, "2026-10-23", dt.datetime.fromisoformat("2026-10-23T20:30+09:00"))
+        self.assertTrue(result["qualified"])
+        self.assertLess(result["changePct"], 0)
 
     def test_reference_examples_with_offline_native_data(self):
         root = Path(__file__).resolve().parents[1]/"outputs"
@@ -93,7 +110,7 @@ class FirstRiseRulesTests(unittest.TestCase):
 class FirstRiseMonitorTests(unittest.TestCase):
     def setup_data(self):
         daily, rows, current = sample()
-        daily.append({"d": "2026-10-23", "c": daily[-1]["c"]*1.06, "v": 1000})
+        daily.append({"d": "2026-10-23", "c": daily[-1]["c"]*1.10, "v": 1000})
         current = current.replace(hour=20, minute=30)
         market = {"dates": [r["d"] for r in daily], "stocks": [{"c": "123456", "n": "Example",
                    "m": "KOSDAQ", "s": 0, "p": [r["c"] for r in daily], "v": [r["v"] for r in daily]}]}
@@ -196,7 +213,7 @@ class FirstRiseMonitorTests(unittest.TestCase):
         self.assertEqual(p["candidates"], [])
         self.assertTrue(p["errors"])
 
-    def test_same_day_quote_reference_is_used_without_replacing_daily_close(self):
+    def test_quote_reference_only_changes_display_gain_not_daily_cross(self):
         market, current, refresh = self.setup_data()
         def official_reference(*args):
             charts = refresh(*args)
@@ -204,7 +221,8 @@ class FirstRiseMonitorTests(unittest.TestCase):
             charts["quote"].update(dataStatus="ok", previousClose=close/1.049)
             return charts
         p = update({}, market, current, volumes={"123456": {"day": "2026-10-23", "volume": 1000}}, refresh_fn=official_reference)
-        self.assertEqual(p["candidates"], [])
+        self.assertEqual(len(p["candidates"]), 1)
+        self.assertAlmostEqual(p["candidates"][0]["closeConfirmation"]["changePct"], 4.9)
 
     def test_old_candidates_revalidated_and_failures_archived_not_erased(self):
         market, current, refresh = self.setup_data()
@@ -224,7 +242,7 @@ class FirstRiseMonitorTests(unittest.TestCase):
             return charts
         p = update(p, market, current, refresh_fn=low_close, charts_only=True)
         self.assertEqual(p["candidates"], [])
-        self.assertEqual(p["history"][-1]["archiveReason"], "first_day_close_below_5pct")
+        self.assertEqual(p["history"][-1]["archiveReason"], "first_day_daily_ma3_cross10_not_met")
         self.assertEqual(p["history"][-1]["registeredAt"], registered)
 
     def test_unverified_legacy_candidate_is_quarantined_on_data_error(self):
@@ -234,6 +252,22 @@ class FirstRiseMonitorTests(unittest.TestCase):
                    refresh_fn=Mock(side_effect=OSError("offline")), charts_only=True)
         self.assertEqual(p["candidates"], [])
         self.assertEqual(p["pendingCloseValidation"], [old])
+
+    def test_previous_five_percent_exclusion_is_rechecked_once_without_alert(self):
+        market, current, refresh = self.setup_data()
+        p = update({}, market, current, volumes={"123456": {"day": "2026-10-23", "volume": 1000}}, refresh_fn=refresh)
+        old = p["candidates"].pop()
+        old["closeConfirmation"]["ruleVersion"] = "first-rise-close5-v2"
+        old.update(archiveReason="first_day_close_below_5pct", archivedAt=current.isoformat())
+        p["history"].append(old)
+        sender = Mock()
+        p = update(p, market, current, refresh_fn=refresh, charts_only=True, sender=sender)
+        self.assertEqual(len(p["candidates"]), 1)
+        self.assertEqual(p["candidates"][0]["registeredAt"], old["registeredAt"])
+        self.assertEqual(p["history"][0]["reviewedUnderVersion"], VERSION)
+        p = update(p, market, current, refresh_fn=refresh, charts_only=True, sender=sender)
+        self.assertEqual(len(p["history"]), 1)
+        sender.assert_not_called()
 
     def test_first_rise_can_be_manually_excluded_without_entering_ag(self):
         from manage_candidate_exclusions import manage

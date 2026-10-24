@@ -126,7 +126,7 @@ function currentCandidates() {
     : ["ak", "ag"].includes(state.view) ? state.payload?.candidates || [] : sharedMonitorCandidates();
 }
 function confirmedFirstRise(item) {
-  return item.closeConfirmation?.ruleVersion === "first-rise-close5-v2" && item.closeConfirmation.qualified === true;
+  return item.closeConfirmation?.ruleVersion === "first-rise-daily-ma3-cross10-v3" && item.closeConfirmation.qualified === true;
 }
 function sharedMonitorCandidates() {
   const blocked = new Set((state.payload?.manualExclusions || []).map(item => item.code));
@@ -926,7 +926,8 @@ function renderCandidates(candidates) {
     || a.name.localeCompare(b.name, "ko")
   );
   state.expandedCharts = visible.length > 0 && visible.length < 20;
-  elements.candidateMeta.textContent = `${visible.length}종목 · ${familyView ? state.view === "firstRise" ? "종가 +5% 이상 마감확정 · 장중 신규 선정 없음 · 10거래일 관리" : state.view === "ah" ? "최근 등록순 · 최근 5거래일 신규 편입 · MA120·180 근사 포함" : "최근 등록순 · 등록일 포함 10거래일 관리" : state.view === "new" ? "오늘·직전 거래일 등록" : state.view === "target" ? "등록 이후 MA20 < MA40" : "등록 이후 MA20 > MA40"}`;
+  elements.candidateMeta.textContent = `${visible.length}종목 · 일봉 MA3·MA10 상향돌파 마감확정 · 장중 신규 선정 없음 · 10거래일 관리`;
+  if (state.view !== "firstRise") elements.candidateMeta.textContent = `${visible.length}종목 · ${familyView ? state.view === "ah" ? "최근 등록순 · 최근 5거래일 신규 편입 · MA120·180 근사 포함" : "최근 등록순 · 등록일 포함 10거래일 관리" : state.view === "new" ? "오늘·직전 거래일 등록" : state.view === "target" ? "등록 이후 MA20 < MA40" : "등록 이후 MA20 > MA40"}`;
   elements.candidateList.innerHTML = "";
   if (!visible.length) {
     elements.candidateList.innerHTML = '<div class="empty-list">현재 조건에 해당하는 후보가 없습니다.</div>';
@@ -1030,8 +1031,8 @@ function renderCandidates(candidates) {
     }
     if (item.candidateTier === "first_rise" && item.firstRiseSignal) {
       const signal = item.firstRiseSignal;
-      node.querySelector(".candidate-tier").textContent += ` · 첫날 종가 +${item.closeConfirmation.changePct.toFixed(2)}%`;
-      node.querySelector(".candidate-tier").title = `기준일 ${item.dailySignalDate} · 마감 검증 ${formatDateTime(item.closeConfirmation.confirmedAt)}\n장중 형태 확인봉 ${formatDateTime(signal.completedAt)} (장중 등록·알림 아님) · 직전 6봉 밀집 최대 ${signal.clusterMaxPct.toFixed(2)}% · 30분봉 거래량 ${signal.barVolumeMultiple.toFixed(2)}배`;
+      node.querySelector(".candidate-tier").textContent += " · 일봉 MA3 > MA10 돌파확정";
+      node.querySelector(".candidate-tier").title = `기준일 ${item.dailySignalDate} · 마감 검증 ${formatDateTime(item.closeConfirmation.confirmedAt)}\n일봉 MA3 ${item.closeConfirmation.ma3.toFixed(2)} > MA10 ${item.closeConfirmation.ma10.toFixed(2)} · 직전 MA3 ${item.closeConfirmation.previousMa3.toFixed(2)} ≤ MA10 ${item.closeConfirmation.previousMa10.toFixed(2)}\n장중 형태 확인봉 ${formatDateTime(signal.completedAt)} (장중 등록·알림 아님) · 직전 6봉 밀집 최대 ${signal.clusterMaxPct.toFixed(2)}% · 30분봉 거래량 ${signal.barVolumeMultiple.toFixed(2)}배`;
     }
     elements.candidateList.append(node);
     if (state.expandedCharts) appendInlineChart(elements.candidateList, item, item.code);

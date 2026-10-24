@@ -101,6 +101,13 @@ def update(payload, market, current, *, volumes=None, no_notify=False, charts_on
     allow_new = (not charts_only and current.weekday() < 5 and day == today and after_close(day, current))
     blocked = set(excluded)
     existing = {x["code"]: x for x in payload.get("candidates", []) + payload.get("pendingCloseValidation", [])}
+    history = payload.setdefault("history", [])
+    for record in sorted(history, key=lambda entry: entry.get("dailySignalDate", ""), reverse=True):
+        if (record.get("archiveReason") == "first_day_close_below_5pct"
+                and record.get("reviewedUnderVersion") != VERSION and record["code"] not in blocked
+                and remaining_days(record["dailySignalDate"], calendar) > 0):
+            existing.setdefault(record["code"], {key: value for key, value in record.items()
+                                                if key not in ("archivedAt", "archiveReason")})
     stocks = {s["c"]: s for s in market["stocks"]}
     selected = set(existing) - blocked
     scanned = 0
@@ -131,7 +138,6 @@ def update(payload, market, current, *, volumes=None, no_notify=False, charts_on
             except Exception as error:
                 errors.append({"code": code, "message": str(error)[:180]})
     registry = payload.setdefault("registry", {})
-    history = payload.setdefault("history", [])
     candidates, additions, pending, sent = [], [], [], 0
     topic = os.environ.get("NTFY_TOPIC", "").strip()
     for code in sorted(selected | set(existing)):
@@ -152,9 +158,14 @@ def update(payload, market, current, *, volumes=None, no_notify=False, charts_on
                 pending.append(item)
                 errors.append({"code": code, "message": "First-day closing price validation pending"})
                 continue
+            for record in history:
+                if (record.get("archiveReason") == "first_day_close_below_5pct" and record["code"] == code
+                        and record.get("registeredAt") == item.get("registeredAt")
+                        and record["dailySignalDate"] == item["dailySignalDate"]):
+                    record.update(reviewedUnderVersion=VERSION, reviewedAt=stamp, revisedQualification=validation["qualified"])
             if not validation["qualified"]:
                 history.append({**item, "closeConfirmation": validation, "archivedAt": stamp,
-                                "archiveReason": "first_day_close_below_5pct", "registrationNoticePending": False})
+                                "archiveReason": "first_day_daily_ma3_cross10_not_met", "registrationNoticePending": False})
                 continue
             item["closeConfirmation"] = validation
             item["registrationNoticePending"] = False

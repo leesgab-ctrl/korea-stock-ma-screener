@@ -3,7 +3,7 @@ import datetime as dt
 import math
 
 KST = dt.timezone(dt.timedelta(hours=9))
-VERSION = "first-rise-close5-v2"
+VERSION = "first-rise-daily-ma3-cross10-v3"
 CONFIRM_TIME = dt.time(20, 30)
 WINDOW_DAYS = 10
 PERIODS = (5, 10, 20, 40, 60)
@@ -18,8 +18,14 @@ def closing_confirmation(daily, day, current, quote=None):
     if not after_close(day, current):
         return None
     rows = sorted({r["d"]: r for r in daily if r["d"] <= day}.values(), key=lambda r: r["d"])
-    if len(rows) < 2 or rows[-1]["d"] != day:
+    if len(rows) < 11 or rows[-1]["d"] != day:
         return None
+    if any(not isinstance(r.get("c"), (int, float)) or not math.isfinite(r["c"]) or r["c"] <= 0 for r in rows[-11:]):
+        return None
+    ma3 = sum(r["c"] for r in rows[-3:]) / 3
+    ma10 = sum(r["c"] for r in rows[-10:]) / 10
+    prior3 = sum(r["c"] for r in rows[-4:-1]) / 3
+    prior10 = sum(r["c"] for r in rows[-11:-1]) / 10
     close, previous = rows[-1].get("c"), rows[-2].get("c")
     reference_source = "native_daily_history"
     if quote and quote.get("dataStatus") == "ok" and quote.get("time", "")[:10] == day:
@@ -28,7 +34,8 @@ def closing_confirmation(daily, day, current, quote=None):
     if any(not isinstance(v, (int, float)) or not math.isfinite(v) or v <= 0 for v in (close, previous)):
         return None
     change = 100 * (close / previous - 1)
-    return {"ruleVersion": VERSION, "day": day, "qualified": change >= 5 - 1e-9,
+    return {"ruleVersion": VERSION, "day": day, "qualified": prior3 <= prior10 and ma3 > ma10,
+            "ma3": ma3, "ma10": ma10, "previousMa3": prior3, "previousMa10": prior10,
             "close": close, "previousClose": previous, "previousCloseSource": reference_source, "changePct": round(change, 6),
             "confirmedAt": current.astimezone(KST).isoformat(timespec="seconds")}
 
@@ -110,8 +117,9 @@ def registration_message(item):
     return (f"[장마감 첫날상승 확정 · 관찰대상] {item['name']}({item['code']})\n"
             f"- 기준일 {close['day']} · 확정·등록시각 {item['registeredAt']}\n"
             f"- 당일 종가 {close['close']:,.0f}원 · 전일대비 {close['changePct']:+.2f}%\n"
+            f"- 일봉 MA3 {close['ma3']:,.2f} > MA10 {close['ma10']:,.2f} · 직전 거래일 MA3 ≤ MA10 확인\n"
             f"- 장중 형태 확인봉 완성 {signal['completedAt']} (장중 알림 아님)\n"
             f"- 직전 6봉 MA5~60 최대 간격 {signal['clusterMaxPct']:.2f}%\n"
             f"- 30분봉 거래량 {signal['barVolumeMultiple']:.2f}배 / 당일 누적 거래량 {signal['dailyVolumeMultiple']:.2f}배\n"
-            "종가 +5% 이상 상승 마감을 확인한 관찰대상입니다. 매수 신호가 아니며 다음 거래일부터 조정·재상승 이미지조건을 감시합니다.\n"
+            "종가 기준 일봉 MA3의 MA10 상향 돌파를 확인한 관찰대상입니다. 매수 신호가 아니며 다음 거래일부터 조정·재상승 이미지조건을 감시합니다.\n"
             f"https://leesgab-ctrl.github.io/korea-stock-ma-screener/monitor.html?view=firstRise&stock={item['code']}")
