@@ -84,7 +84,7 @@ async function renderPriceAnalysis(grouped = false) {
     const today = new Intl.DateTimeFormat('en-CA', {timeZone: 'Asia/Seoul'}).format(new Date());
     const currentDate = data.dates.filter(date => date < today).at(-1);
     const currentByColor = new Map();
-    for (const item of state.payload.candidates || []) {
+    for (const item of sharedMonitorCandidates()) {
       const type = {reference: '상승', target: '조정'}[chartGroup(item)];
       if (!type || !currentDate || currentDate < item.registeredAt?.slice(0, 10)) continue;
       const id = item.id || item.code + '|' + item.registeredAt;

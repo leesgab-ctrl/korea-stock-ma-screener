@@ -119,7 +119,21 @@ function matchesFamilyView(item, view) {
     : view === "ah" ? item.candidateTier === "ah" : false;
 }
 function currentCandidates() {
-  return (state.view === "ah" ? state.ahPayload?.candidates : state.payload?.candidates) || [];
+  return state.view === "ah" ? state.ahPayload?.candidates || []
+    : ["ak", "ag"].includes(state.view) ? state.payload?.candidates || [] : sharedMonitorCandidates();
+}
+function sharedMonitorCandidates() {
+  const blocked = new Set((state.payload?.manualExclusions || []).map(item => item.code));
+  const items = new Map();
+  for (const item of [...(state.payload?.candidates || []), ...(state.payload?.analysisCandidates || []), ...(state.ahPayload?.candidates || [])]) {
+    if (blocked.has(item.code)) continue;
+    const family = item.candidateTier === "ah" ? "A-H" : item.candidateTier === "expanded_ak" ? "A-K" : "A-G";
+    const existing = items.get(item.code);
+    if (existing) {
+      if (!existing.screeningFamilies.includes(family)) existing.screeningFamilies.push(family);
+    } else items.set(item.code, {...item, screeningFamilies: [family]});
+  }
+  return [...items.values()];
 }
 function compareRegistrationNewest(a, b) {
   const aDate = a.candidateTier === "ah" ? a.dailySignalDate : a.registeredAt || a.dailySignalDate || "";
@@ -179,7 +193,7 @@ function renderImageSearch() {
   status.textContent = search?.status === "error" ? "이미지 조건 목록 조회 실패 · 알림 대기"
     : search?.errors?.length ? `알림 확인 필요 ${search.errors.length}건` : "";
   status.hidden = !status.textContent;
-  const candidates = state.payload?.candidates || [];
+  const candidates = sharedMonitorCandidates();
   const matches = recentImagePatternMatches(search, candidates, confirmedIds);
   const notices = new Map();
   for (const event of matches) {
@@ -205,6 +219,7 @@ function renderImageSearch() {
     }));
 }
 function screeningFamily(item) {
+  if (item.screeningFamilies?.length) return item.screeningFamilies.join(" · ");
   return item.candidateTier === "ah" ? "A-H" : item.candidateTier === "expanded_ak" ? "A-K" : "A-G";
 }
 function newRegistrationLabel(item) {
@@ -272,7 +287,8 @@ async function loadData({ pollOnly = false } = {}) {
     state.ahPayload = ahResponse?.ok ? await ahResponse.json() : { candidates: [] };
     if (historyChartMode) {
       const referenceStart = new URLSearchParams(window.location.search).get('referenceStart');
-      const archived = [...(state.payload.history || []), ...(referenceStart ? state.payload.candidates || [] : [])].find(item => item.code === requestedCode);
+      const archived = [...(state.payload.history || []), ...(state.payload.analysisHistory || []),
+        ...(state.ahPayload?.candidates || []), ...(referenceStart ? state.payload.candidates || [] : [])].find(item => item.code === requestedCode);
       state.payload.candidates = archived ? [archived] : [];
       state.selectedCode = archived?.code || null;
       document.body.classList.add("history-chart-mode");
@@ -314,7 +330,7 @@ async function loadData({ pollOnly = false } = {}) {
     state.positions.positions = [...(state.positions.positions || []), ...(state.payload.paperTrading?.positions || [])];
     globalThis.CandidateScan?.refresh();
     state.lastLoadedAt = Date.now();
-    const candidates = currentCandidates();
+    const candidates = sharedMonitorCandidates();
     if (state.selectedCode && !candidates.some((item) => item.code === state.selectedCode)) {
       state.selectedCode = null;
     }
@@ -363,11 +379,11 @@ function render() {
   inlineChartItems.clear();
   restoreDetailPanel();
   const { summary = {}, validationSummary = {}, candidates = [], asOf } = state.payload || {};
-  const activeCandidates = candidates;
+  const activeCandidates = sharedMonitorCandidates();
   if (state.deepLinkPending) {
-    const requested = candidates.find((item) => item.code === state.selectedCode);
+    const requested = activeCandidates.find((item) => item.code === state.selectedCode);
     if (requested) {
-      state.view = screeningFamily(requested) === "A-K" ? "ak" : "ag";
+      state.view = requested.candidateTier === "ah" ? "ah" : requested.candidateTier === "expanded_ak" ? "ak" : "ag";
     }
   }
   if (!inlineChartMode && !historyChartMode) {
@@ -375,7 +391,7 @@ function render() {
     url.searchParams.set("view", state.view);
     if (url.href !== window.location.href) window.history.replaceState(null, "", url);
   }
-  elements.activeCount.textContent = summary.active ?? activeCandidates.length;
+  elements.activeCount.textContent = summary.commonActive ?? summary.active ?? activeCandidates.length;
   elements.setupCount.textContent = (summary.setup ?? 0) + (summary.waiting60 ?? 0);
   elements.signalCount.textContent = summary.signals ?? 0;
   elements.signaledCount.textContent = summary.signalHistory ?? 0;
@@ -389,7 +405,7 @@ function render() {
   elements.targetRate.textContent = `${formatter.format(validationSummary.reached5PctRate || 0)}%`;
   elements.asOf.textContent = asOf || "-";
   renderMonitorStatus();
-  renderViewCounts([...activeCandidates, ...(state.ahPayload?.candidates || [])], openPositions);
+  renderViewCounts(activeCandidates, openPositions);
   const candidateView = ["ak", "ag", "ah", "new", "target", "reference"].includes(state.view);
   document.querySelector(".workspace").classList.toggle("hidden", !candidateView);
   document.querySelector(".toolbar").classList.toggle("hidden", !candidateView);
@@ -502,7 +518,8 @@ function renderViewCounts(candidates, positions) {
   const dates = watchQuoteDates(candidates);
   document.querySelectorAll(".view-tab").forEach((button) => {
     const view = button.dataset.view;
-    const count = ["ak", "ag", "ah"].includes(view) ? candidates.filter(item => matchesFamilyView(item, view)).length
+    const count = view === "ah" ? state.ahPayload?.candidates?.length || 0
+      : ["ak", "ag"].includes(view) ? candidates.filter(item => matchesFamilyView(item, view)).length
       : view === "capture" ? window.RisingPatterns?.count || 0 : view === "positions" ? positions.length : candidates.filter((item) => view === "core" ? isCoreCandidate(item, dates)
       : view === "new" ? Boolean(newRegistrationLabel(item)) : chartGroup(item) === view).length;
     button.replaceChildren();
@@ -574,7 +591,11 @@ function renderOperations(candidates) {
     select.append(option);
   }
   if (candidates.some((item) => item.code === prior)) select.value = prior;
-  document.querySelector("#operationExclude").disabled = !candidates.length;
+  const updateExcludeButton = () => {
+    document.querySelector("#operationExclude").disabled = !(state.payload?.candidates || []).some(item => item.code === select.value);
+  };
+  select.onchange = updateExcludeButton;
+  updateExcludeButton();
 }
 
 function displayQuote(item) {
@@ -1183,7 +1204,7 @@ function drawMaTrend(canvas, item, date) {
 }
 
 function renderWatchQuotes(coreOnly = false) {
-  const candidates = state.payload?.candidates || [];
+  const candidates = sharedMonitorCandidates();
   const tradingDates = watchQuoteDates(candidates);
   if (coreOnly) {
     const core = buildWatchQuotes(candidates.filter(item => isCoreCandidate(item, tradingDates)), tradingDates, {
@@ -1275,7 +1296,7 @@ function buildWatchQuotes(items, tradingDates, {title, showTrend = false, showFa
     name.textContent = item.name;
     const group = document.createElement("span");
     group.className = "watch-quote-group";
-    group.textContent = showFamily ? screeningFamily(item).replace("-", "")
+    group.textContent = showFamily ? screeningFamily(item).replaceAll("-", "")
       : { reference: "상승", target: "조정", insufficient: "대기", unclassified: "대기" }[chartGroup(item)] || "대기";
     if (showFamily) group.title = screeningFamily(item);
     const swatches = document.createElement("span");

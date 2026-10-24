@@ -34,6 +34,7 @@ const context = vm.createContext({ state, elements, Date: class extends Date { s
   document: { querySelector: () => ({ classList: { contains: () => true } }) },
   formatDateTime: value => value,
   currentCandidates: () => (state.view === 'ah' ? state.ahPayload : state.payload)?.candidates || [],
+  sharedMonitorCandidates: () => [...(state.payload?.candidates || []), ...(state.ahPayload?.candidates || [])],
   render: () => { renders++; }, renderManualExclusions: () => { exclusionRenders++; },
 });
 const section = (start, end) => source.slice(source.indexOf(start), source.indexOf(end));

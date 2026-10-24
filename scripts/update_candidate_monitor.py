@@ -639,6 +639,9 @@ def build_daily_candidates(stock_data: Path, previous: dict[str, Any]) -> dict[s
         "notificationHistory": previous.get("notificationHistory", []),
         "coreMorningNotificationState": previous.get("coreMorningNotificationState", {}),
         "imageSearchNotificationState": previous.get("imageSearchNotificationState", {}),
+        "colorNotificationState": previous.get("colorNotificationState", {}),
+        "analysisCandidates": previous.get("analysisCandidates", []),
+        "analysisHistory": previous.get("analysisHistory", []),
     }
 
 
@@ -1786,6 +1789,27 @@ def main() -> None:
         })
         alerts, pending = 0, 0
     color_changed = False
+    from common_monitor import load_ah_candidates, merge_candidates
+    try:
+        ah_candidates = load_ah_candidates(ROOT / "data/ah-monitor.json", current)
+    except (OSError, ValueError, TypeError, KeyError):
+        ah_candidates = []
+        payload.setdefault("summary", {})["ahCommonDataError"] = True
+    primary_candidates = payload.get("candidates", [])
+    blocked_codes = {entry["code"] for entry in payload.get("manualExclusions", [])}
+    common_candidates = merge_candidates(primary_candidates, ah_candidates, blocked_codes)
+    payload.setdefault("summary", {})["commonActive"] = len(common_candidates)
+    primary_codes = {item["code"] for item in primary_candidates}
+    additional = [item for item in common_candidates if item["code"] not in primary_codes]
+    active_additional_keys = {f"{item['code']}|{item['registeredAt']}" for item in additional}
+    analysis_history = {f"{item['code']}|{item['registeredAt']}": item for item in payload.get("analysisHistory", [])}
+    for item in payload.get("analysisCandidates", []):
+        if f"{item['code']}|{item['registeredAt']}" not in active_additional_keys:
+            analysis_history.setdefault(f"{item['code']}|{item['registeredAt']}",
+                                        {**item, "archivedAt": current.isoformat(timespec="seconds")})
+    payload["analysisCandidates"] = additional
+    payload["analysisHistory"] = list(analysis_history.values())
+    payload["candidates"] = common_candidates
     if args.mode == "charts":
         from color_notifications import initialize_recovery_baselines
         initialize_recovery_baselines(payload)
@@ -1800,6 +1824,7 @@ def main() -> None:
     image_alerts, image_changed = process_image_search(
         payload, current, os.getenv("NTFY_TOPIC", "").strip(), args.no_notify or args.mode in ("charts", "daily"),
     )
+    payload["candidates"] = primary_candidates
     alerts += image_alerts
     color_changed = color_changed or image_changed or restored_deliveries
     payload.setdefault("summary", {})["imageSearchMatches"] = len(payload.get("imageSearch", {}).get("matches", []))

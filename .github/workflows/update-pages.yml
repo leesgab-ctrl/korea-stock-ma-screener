@@ -38,18 +38,20 @@ jobs:
         run: |
           curl --fail --retry 3 --silent --show-error -o /tmp/candidate-monitor.json https://leesgab-ctrl.github.io/korea-stock-ma-screener/data/candidate-monitor.json
           mv /tmp/candidate-monitor.json data/candidate-monitor.json
-      - name: Refresh A-G and A-K candidates
-        env:
-          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
-          CANDIDATE_SCAN_REQUEST_ID: ${{ inputs.request_id }}
-        run: python scripts/update_candidate_monitor.py --mode daily --no-notify
-      - name: Refresh AH candidates and review alerts
+      - name: Refresh AH before common monitoring
         continue-on-error: true
         env:
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
         run: |
           python -m unittest discover -s scripts -p test_ah_monitor.py
           python scripts/update_ah_monitor.py
+      - name: Refresh A-G and A-K candidates
+        env:
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          CANDIDATE_SCAN_REQUEST_ID: ${{ inputs.request_id }}
+        run: |
+          python -m unittest discover -s scripts -p test_common_monitor.py
+          python scripts/update_candidate_monitor.py --mode daily --no-notify
       - name: Save candidate membership
         run: |
           git config user.name "github-actions[bot]"

@@ -41,24 +41,7 @@ jobs:
       - name: Install notification chart renderer
         if: inputs.charts_only != true
         run: pip install playwright && python -m playwright install --with-deps chromium
-      - name: Check active candidates
-        id: monitor
-        env:
-          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
-          CHARTS_ONLY: ${{ inputs.charts_only || false }}
-          IMAGES_ONLY: ${{ github.event.schedule == '*/10 7-11 * * 1-5' }}
-        run: |
-          MODE=intraday
-          if [ "$CHARTS_ONLY" = "true" ]; then MODE=charts; fi
-          if [ "$CHARTS_ONLY" != "true" ] && [ "$IMAGES_ONLY" = "true" ]; then MODE=images; fi
-          python scripts/update_candidate_monitor.py --mode "$MODE" --github-output "$GITHUB_OUTPUT"
-      - name: Check purchased stocks
-        if: inputs.charts_only != true && github.event.schedule != '*/10 7-11 * * 1-5'
-        id: positions
-        env:
-          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
-        run: python scripts/manage_positions.py --action monitor --github-output "$GITHUB_OUTPUT"
-      - name: Check AH candidates and review alerts
+      - name: Refresh AH before common monitoring
         continue-on-error: true
         env:
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
@@ -70,6 +53,24 @@ jobs:
           else
             python scripts/update_ah_monitor.py
           fi
+      - name: Check active candidates
+        id: monitor
+        env:
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          CHARTS_ONLY: ${{ inputs.charts_only || false }}
+          IMAGES_ONLY: ${{ github.event.schedule == '*/10 7-11 * * 1-5' }}
+        run: |
+          python -m unittest discover -s scripts -p test_common_monitor.py
+          MODE=intraday
+          if [ "$CHARTS_ONLY" = "true" ]; then MODE=charts; fi
+          if [ "$CHARTS_ONLY" != "true" ] && [ "$IMAGES_ONLY" = "true" ]; then MODE=images; fi
+          python scripts/update_candidate_monitor.py --mode "$MODE" --github-output "$GITHUB_OUTPUT"
+      - name: Check purchased stocks
+        if: inputs.charts_only != true && github.event.schedule != '*/10 7-11 * * 1-5'
+        id: positions
+        env:
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+        run: python scripts/manage_positions.py --action monitor --github-output "$GITHUB_OUTPUT"
       - name: Save newly notified signals
         if: steps.monitor.outputs.notification_history_changed == 'true' || (inputs.charts_only != true && (steps.monitor.outputs.alerts != '0' || (steps.positions.outputs.alerts != '' && steps.positions.outputs.alerts != '0') || steps.monitor.outputs.color_state_changed == 'true' || steps.monitor.outputs.archive_tracking_changed == 'true'))
         run: |

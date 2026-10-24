@@ -58,6 +58,33 @@ const server = http.createServer((request, response) => {
       assert.equal(await page.locator('#ahCriteria tr').count(), 6);
       await page.locator('#ahCriteria').scrollIntoViewIfNeeded();
       await page.screenshot({path: path.join(root, `outputs/ah-criteria-${width}.png`)});
+      await page.locator('#criteriaDialogClose').click();
+      await page.locator('[data-view=imageSearch]').click();
+      const risingAh = ah.candidates.find(item => item.displayCharts?.quote?.change > 0
+        && !legacy.candidates.some(existing => existing.code === item.code));
+      if (risingAh) {
+        const row = page.locator(`#imageSearchRising .watch-quote-row[data-code="${risingAh.code}"]`);
+        assert.equal(await row.count(), 1);
+        assert.match(await row.locator('.watch-quote-group').first().textContent(), /AH/);
+      }
+      const overlap = ah.candidates.find(item => legacy.candidates.some(existing => existing.code === item.code));
+      const onlyAh = ah.candidates.find(item => !legacy.candidates.some(existing => existing.code === item.code));
+      if (overlap && onlyAh) {
+        await page.evaluate(codes => {
+          window.RisingPatterns = {confirmed: [{id: 'qa-image'}], open() {}, setRuleLinks() {}};
+          state.payload.imageSearch = {status: 'ok', matches: codes.map(code => ({code, sourceImageIds: ['qa-image'],
+            completedAt: new Date(Date.now()-60000).toISOString(), ruleName: 'QA condition', price: 100,
+            changePct: 1, signalType: 'ma3Ma120', stage: 'primary'}))};
+          renderImageSearch();
+        }, [onlyAh.code, overlap.code]);
+        assert.equal(await page.locator(`#imageSearchMatches .watch-quote-row[data-code="${onlyAh.code}"]`).count(), 1);
+        const duplicate = page.locator(`#imageSearchMatches .watch-quote-row[data-code="${overlap.code}"]`);
+        assert.equal(await duplicate.count(), 1);
+        assert.match(await duplicate.locator('.watch-quote-group').first().textContent(), /AG.*AH|AK.*AH/);
+      }
+      await page.goto(base + '/monitor.html?stock=365330');
+      await page.waitForFunction(() => document.querySelector('[data-view=ah]').getAttribute('aria-selected') === 'true');
+      assert.match(page.url(), /view=ah/);
       assert.deepEqual(errors, []);
       console.log(JSON.stringify({width, ah: ah.candidates.length, ag: agCount, pixels, errors}));
       await page.close();

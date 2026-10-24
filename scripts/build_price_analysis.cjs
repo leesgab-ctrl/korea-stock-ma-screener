@@ -27,7 +27,9 @@ if (reclassify) {
 }
 const now = new Date();
 const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul' }).format(now);
-const items = [...(payload.history || []), ...(payload.candidates || [])];
+const activeItems = [...(payload.candidates || []), ...(payload.analysisCandidates || [])];
+const items = [...new Map([...(payload.history || []), ...(payload.analysisHistory || []), ...activeItems]
+  .map(item => [item.id || item.code + '|' + item.registeredAt, item])).values()];
 const merge = (chart, key) => [...new Map([...(chart?.history || []), ...(chart?.series || [])].map(row => [row[key], row])).values()]
   .filter(row => row.complete !== false).sort((a, b) => a[key].localeCompare(b[key]));
 const dates = [...new Set([...(market.dates || []), ...items.flatMap(item => merge(item.displayCharts?.daily, 'd').map(row => row.d))])]
@@ -88,7 +90,7 @@ for (const item of items) {
   if (index < 0) continue;
   const first = rows[index];
   const previousEntry = references.get(id);
-  const active = (payload.candidates || []).some(candidate => (candidate.id || candidate.code + '|' + candidate.registeredAt) === id);
+  const active = activeItems.some(candidate => (candidate.id || candidate.code + '|' + candidate.registeredAt) === id);
   const recent = rows.slice(-4);
   const liveReference = active && recent.length === 4 && recent.every(row => row.m20 > row.m40)
     && recent.slice(1).every((row, i) => row.m40 > recent[i].m40);
