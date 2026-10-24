@@ -46,4 +46,33 @@ assert.equal(context.recentImagePatternMatches({status: 'ok'}, shared, new Set()
 assert.equal(context.recentImagePatternMatches({status: 'ok'}, shared, new Set(), new Date('2026-10-23T14:00:00+09:00')).length, 0);
 assert.equal(context.recentImagePatternMatches({status: 'ok'}, [], new Set(), new Date('2026-10-23T16:00:00+09:00')).length, 0);
 assert.match(context.imagePatternLabel(ahEvent), /AH.*근사/);
+const replays = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'data/image-search-replays.json'), 'utf8'));
+assert.equal(replays.version, 1);
+assert.equal(replays.matches.length, 5);
+assert.equal(new Set(replays.matches.map(event => `${event.code}|${event.id}`)).size, 5);
+for (const event of replays.matches) {
+  assert.equal(event.replayed, true);
+  assert.equal(event.displayOnly, true);
+  assert.ok(Math.abs((event.price / event.previousClose - 1) * 100 - event.changePct) < 0.000001);
+  assert.equal(Date.parse(event.completedAt) - Date.parse(event.time), 30 * 60 * 1000);
+}
+state.ahPayload = {candidates: []};
+state.payload = {asOf: '2026-10-23'};
+state.imageReplayPayload = replays;
+const replayCandidates = [{code: '365330'}, {code: '225190'}];
+const confirmed = new Set(replays.matches.flatMap(event => event.sourceImageIds));
+const replayResults = context.recentImagePatternMatches({status: 'ok'}, replayCandidates, confirmed, new Date('2026-10-24T22:00:00+09:00'));
+assert.equal(replayResults.length, 5);
+assert.deepEqual([...new Set(Array.from(replayResults, event => event.code))].sort(), ['225190', '365330']);
+assert.equal(context.recentImagePatternMatches({status: 'ok'}, replayCandidates, new Set(), new Date('2026-10-24T22:00:00+09:00')).length, 5);
+assert.equal(context.recentImagePatternMatches({status: 'ok'}, replayCandidates.slice(1), confirmed, new Date('2026-10-24T22:00:00+09:00')).length, 2);
+const actual = {...replays.matches[0], replayed: false, displayOnly: false};
+const actualResults = context.recentImagePatternMatches({status: 'ok', matches: [actual]}, replayCandidates, confirmed, new Date('2026-10-23T22:00:00+09:00'));
+assert.equal(actualResults.length, 5);
+assert.equal(actualResults.find(event => event.id === actual.id).replayed, false);
+state.payload.asOf = '2026-10-26';
+assert.equal(context.recentImagePatternMatches({status: 'ok'}, replayCandidates, confirmed, new Date('2026-10-26T09:00:00+09:00')).length, 0);
+state.payload.asOf = '2026-10-23';
+const newQuote = [{code: '365330', displayCharts: {quote: {time: '2026-10-26T09:00+09:00'}}}, {code: '225190'}];
+assert.equal(context.recentImagePatternMatches({status: 'ok'}, newQuote, confirmed, new Date('2026-10-26T09:01:00+09:00')).length, 0);
 console.log('Family menus passed: isolated AK/AG, registration descending, legacy AG, missing charts, retired expanded exclusion and keyword filter.');

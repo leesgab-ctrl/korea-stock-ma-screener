@@ -19,6 +19,8 @@ let server = {
 };
 let positions = { positions: [{ id: 'holding', status: 'open' }] };
 let ah = {candidates: []};
+let replays = {version: 1, matches: []};
+let replayFails = false;
 const state = { pendingExclusions: new Map([['000001', { action: 'exclude', at: now }]]),
   payload: null, positions: null, selectedCode: '000002', exclusionMessage: '' };
 const elements = { refreshButton: { disabled: false }, runStatus: {}, updatedAt: {}, pushState: {}, candidateList: {} };
@@ -29,7 +31,8 @@ const context = vm.createContext({ state, elements, Date: class extends Date { s
   clearTimeout: id => timers.delete(id),
   fetch: async url => {
     if (fetchFails) throw new Error('Network unavailable');
-    return { ok: true, json: async () => structuredClone(url.startsWith('data/positions') ? positions : url.startsWith('data/ah-monitor') ? ah : server) };
+    if (replayFails && url.startsWith('data/image-search-replays')) return {ok: false};
+    return { ok: true, json: async () => structuredClone(url.startsWith('data/positions') ? positions : url.startsWith('data/ah-monitor') ? ah : url.startsWith('data/image-search-replays') ? replays : server) };
   },
   document: { querySelector: () => ({ classList: { contains: () => true } }) },
   formatDateTime: value => value,
@@ -100,5 +103,14 @@ async function poll() {
   assert.equal(renders, previousRenders + 1, 'Changed AH data must update the display');
   await context.loadData({pollOnly: true});
   assert.equal(renders, previousRenders + 1, 'Identical AH data must keep chart frames');
+  replays.matches.push({code: '000003', replayed: true});
+  await context.loadData({pollOnly: true});
+  assert.equal(renders, previousRenders + 2, 'Changed replay data must refresh the list');
+  await context.loadData({pollOnly: true});
+  assert.equal(renders, previousRenders + 2, 'Identical replay data must keep chart frames');
+  replayFails = true;
+  await context.loadData({pollOnly: true});
+  assert.equal(state.loadFailed, false, 'Replay failure must not break live monitoring');
+  assert.equal(state.imageReplayPayload.matches.length, 0);
   console.log('Monitor polling tests passed: unchanged polls, quotes, holdings, manual refresh, confirmation and timeout.');
 })().catch(error => { console.error(error); process.exitCode = 1; });

@@ -60,6 +60,18 @@ const server = http.createServer((request, response) => {
       await page.screenshot({path: path.join(root, `outputs/ah-criteria-${width}.png`)});
       await page.locator('#criteriaDialogClose').click();
       await page.locator('[data-view=imageSearch]').click();
+      await page.waitForFunction(() => state.imageReplayPayload?.matches?.length === 5);
+      await page.waitForFunction(() => ['365330', '225190'].every(code =>
+        document.querySelector(`#imageSearchMatches .watch-quote-row[data-code="${code}"]`)));
+      for (const [code, count] of [['365330', 3], ['225190', 2]]) {
+        const replay = page.locator(`#imageSearchMatches .watch-quote-row[data-code="${code}"]`);
+        assert.equal(await replay.count(), 1);
+        assert.equal(await replay.locator('.image-pattern-entry').count(), count);
+        assert.match(await replay.textContent(), /10\.23\./);
+        assert.match(await replay.textContent(), /소급검증\(미발송\)/);
+      }
+      assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1));
+      await page.screenshot({path: path.join(root, `outputs/ah-replays-${width}.png`)});
       const risingAh = ah.candidates.find(item => item.displayCharts?.quote?.change > 0
         && !legacy.candidates.some(existing => existing.code === item.code));
       if (risingAh) {

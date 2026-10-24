@@ -24,6 +24,7 @@ const state = {
   exclusionMessage: "",
   payload: null,
   ahPayload: null,
+  imageReplayPayload: null,
   lastLoadedAt: 0,
   positions: null,
   view: initialView || (requestedCode ? "reference" : "imageSearch"),
@@ -171,15 +172,29 @@ function recentImagePatternMatches(search, candidates, confirmedIds, now = new D
   const today = imagePatternDay(now);
   const activeCodes = new Set(candidates.map(item => item.code));
   const ahMatches = (state.ahPayload?.candidates || []).flatMap(item => item.reviewMatches || []);
-  return [...(search?.status === "ok" ? search.matches || [] : []), ...ahMatches].filter(event => {
+  const latestSession = [state.payload?.asOf, ...candidates.flatMap(item => [
+    item.displayCharts?.quote?.time?.slice(0, 10),
+    ...(item.displayCharts?.intraday?.series || []).filter(row => row.complete !== false).map(row => row.t.slice(0, 10)),
+  ])].filter(day => day && day <= today).sort().at(-1);
+  const replays = (state.imageReplayPayload?.matches || []).filter(event => event.replayed === true && event.displayOnly === true);
+  const matches = [...(search?.status === "ok" ? search.matches || [] : []), ...ahMatches, ...replays].filter(event => {
     const stamp = Date.parse(event.completedAt);
     const ahRule = event.source === "ah" && event.signalType === "ahMa120Ma180";
+    const replayRule = replays.includes(event);
     if (!activeCodes.has(event.code) || !Number.isFinite(stamp)
-        || (!ahRule && !event.sourceImageIds?.some(id => confirmedIds.has(id)))) return false;
+        || (!ahRule && !replayRule && !event.sourceImageIds?.some(id => confirmedIds.has(id)))) return false;
     const day = new Intl.DateTimeFormat("en-CA", {
       timeZone: "Asia/Seoul", year: "numeric", month: "2-digit", day: "2-digit",
     }).format(new Date(stamp));
-    return day === today && stamp <= now.getTime();
+    return stamp <= now.getTime() && (event.replayed === true
+      ? event.displayOnly === true && event.replayAsOf === day && day === latestSession : day === today);
+  });
+  const seen = new Set();
+  return matches.filter(event => {
+    const key = `${event.code}|${event.id || `${event.ruleId}|${event.completedAt}|${event.stage}`}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
   });
 }
 
@@ -191,7 +206,7 @@ function imagePatternDay(now = new Date()) {
 
 function renderImageSearch() {
   const confirmed = window.RisingPatterns?.confirmed || [];
-  const imagesById = new Map(confirmed.map(item => [item.id, item]));
+  const imagesById = new Map([...(state.imageReplayPayload?.images || []), ...confirmed].map(item => [item.id, item]));
   const confirmedIds = new Set(confirmed.map(item => item.id));
   const search = state.payload?.imageSearch;
   const status = document.querySelector("#imageSearchStatus");
@@ -275,21 +290,24 @@ async function loadData({ pollOnly = false } = {}) {
     return;
   }
   if (elements.refreshButton.disabled) return;
-  const previousContent = pollOnly ? JSON.stringify([state.payload, state.positions, state.ahPayload]) : null;
+  const previousContent = pollOnly ? JSON.stringify([state.payload, state.positions, state.ahPayload, state.imageReplayPayload]) : null;
   clearTimeout(exclusionPollTimer);
   elements.refreshButton.disabled = true;
   try {
     const stamp = Date.now();
-    const [response, positionsResponse, ahResponse] = await Promise.all([
+    const [response, positionsResponse, ahResponse, replayResponse] = await Promise.all([
       fetch(`data/candidate-monitor.json?t=${stamp}`, { cache: "no-store" }),
       fetch(`data/positions.json?t=${stamp}`, { cache: "no-store" }),
       fetch(`data/ah-monitor.json?t=${stamp}`, { cache: "no-store" }).catch(() => null),
+      fetch(`data/image-search-replays.json?t=${stamp}`, { cache: "no-store" }).catch(() => null),
     ]);
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     state.payload = await response.json();
     state.positions = positionsResponse.ok ? await positionsResponse.json() : { positions: [] };
     state.ahLoadFailed = !ahResponse?.ok;
     state.ahPayload = ahResponse?.ok ? await ahResponse.json() : { candidates: [] };
+    const replays = replayResponse?.ok ? await replayResponse.json().catch(() => null) : null;
+    state.imageReplayPayload = replays?.version === 1 && Array.isArray(replays.matches) ? replays : { matches: [] };
     if (historyChartMode) {
       const referenceStart = new URLSearchParams(window.location.search).get('referenceStart');
       const archived = [...(state.payload.history || []), ...(state.payload.analysisHistory || []),
@@ -340,7 +358,7 @@ async function loadData({ pollOnly = false } = {}) {
       state.selectedCode = null;
     }
     // Pending requests poll every 10 seconds; unchanged charts must keep their frames and viewport.
-    if (!pollOnly || state.loadFailed || previousContent !== JSON.stringify([state.payload, state.positions, state.ahPayload])) {
+    if (!pollOnly || state.loadFailed || previousContent !== JSON.stringify([state.payload, state.positions, state.ahPayload, state.imageReplayPayload])) {
       render();
       renderManualExclusions();
     } else {
@@ -1245,7 +1263,8 @@ function buildWatchQuotes(items, tradingDates, {title, showTrend = false, showFa
   heading.textContent = title;
   content.append(heading);
   meta.className = "watch-quote-time";
-  meta.textContent = `${entries.length}종목 · ${signalNotices ? "오늘 포착순 · 가격 칸은 최신 수집가" : "전일 종가 대비 등락률 순 · 최신 수집 가격 기준"}`;
+  const hasReplays = signalNotices && [...signalNotices.values()].some(notice => notice.entries.some(entry => entry.event.replayed));
+  meta.textContent = `${entries.length}종목 · ${signalNotices ? `${hasReplays ? "포착순 · 소급 검증 포함" : "오늘 포착순"} · 가격 칸은 최신 수집가` : "전일 종가 대비 등락률 순 · 최신 수집 가격 기준"}`;
   content.append(meta);
   const today = tradingDates.at(-1);
   const priorDate = tradingDates.at(-2);
@@ -1394,7 +1413,8 @@ function buildWatchQuotes(items, tradingDates, {title, showTrend = false, showFa
           button.addEventListener("click", event => {
             event.preventDefault();
             event.stopPropagation();
-            window.RisingPatterns?.preview(image.id);
+            if (image.replaySnapshot) window.open(image.imageUrl, "_blank", "noopener,noreferrer");
+            else window.RisingPatterns?.preview(image.id);
           });
           button.addEventListener("keydown", event => event.stopPropagation());
           line.append(button);
@@ -1405,12 +1425,13 @@ function buildWatchQuotes(items, tradingDates, {title, showTrend = false, showFa
         name.textContent = `[${entry.label}]`;
         const time = document.createElement("span");
         time.className = "image-pattern-time";
-        time.textContent = ` ${entry.time} · `;
+        time.textContent = ` ${entry.time}${entry.event.replayed ? " · 소급검증(미발송)" : ""} · `;
         const change = document.createElement("span");
         change.className = "image-pattern-change";
         change.dataset.direction = entry.direction;
         change.textContent = entry.change;
         line.title = `${entry.event.ruleName} · 포착 종가 ${formatter.format(entry.event.price)}원 · 전일 대비 ${entry.change}${entry.event.dataStatus !== "ok" ? " · 최신 자료 확인 필요" : ""}`;
+        if (entry.event.replayed) line.title += " · 소급 검증용 표시 · 실제 문자 발송 기록 아님";
         if (entry.event.pyramid) line.title += ` · 선행 MA20 하루 상승 +${entry.event.pyramid.riseDayPercent.toFixed(2)}% · 고점 후 하락 -${entry.event.pyramid.fallPercent.toFixed(2)}%`;
         line.append(name, time, change);
         if (entry.strength) {

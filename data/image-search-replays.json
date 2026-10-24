@@ -1,0 +1,67 @@
+{
+  "version": 1,
+  "images": [
+    {
+      "id": "4c67c6aa-9987-420e-aee1-db90370a63f4", "title": "120ma아래로 3ma하락후 상승",
+      "imageUrl": "https://raw.githubusercontent.com/leesgab-ctrl/korea-stock-ma-screener/codex/study-images/data/study-images/2fc05c3d-6529-4579-b561-f8930612dd13.png",
+      "replaySnapshot": true
+    },
+    {
+      "id": "7167e60c-b018-4cf6-9ccf-c3d40be2a815", "title": "상승하락상승", "stock": "아이콤포넌트",
+      "imageUrl": "https://raw.githubusercontent.com/leesgab-ctrl/korea-stock-ma-screener/codex/study-images/data/study-images/9deb6c38-d531-4cd0-bfab-b7131fa87ed6.jpg",
+      "replaySnapshot": true
+    }
+  ],
+  "matches": [
+    {
+      "code": "365330", "name": "에스와이스틸텍",
+      "id": "ma3-ma60-near-rebound|2026-10-23T10:30+09:00|watch",
+      "ruleId": "ma3-ma60-near-rebound", "ruleVersion": 6,
+      "ruleName": "피라미드형3MA반등", "signalType": "ma3Ma60Near", "stage": "watch",
+      "sourceImageIds": ["7167e60c-b018-4cf6-9ccf-c3d40be2a815"],
+      "time": "2026-10-23T10:30+09:00", "completedAt": "2026-10-23T11:00+09:00",
+      "price": 1493, "previousClose": 1524, "changePct": -2.034121, "dataStatus": "ok",
+      "replayed": true, "replayAsOf": "2026-10-23", "displayOnly": true
+    },
+    {
+      "code": "365330", "name": "에스와이스틸텍",
+      "id": "ma3-ma120-recovery|2026-10-23T13:30+09:00|primary",
+      "ruleId": "ma3-ma120-recovery", "ruleVersion": 2,
+      "ruleName": "MA120 이탈후 재돌파", "signalType": "ma3Ma120", "stage": "primary",
+      "sourceImageIds": ["4c67c6aa-9987-420e-aee1-db90370a63f4"],
+      "time": "2026-10-23T13:30+09:00", "completedAt": "2026-10-23T14:00+09:00",
+      "price": 1503, "previousClose": 1524, "changePct": -1.377953, "dataStatus": "ok",
+      "replayed": true, "replayAsOf": "2026-10-23", "displayOnly": true
+    },
+    {
+      "code": "365330", "name": "에스와이스틸텍",
+      "id": "ma3-ma120-recovery|2026-10-23T13:30+09:00|confirmation",
+      "ruleId": "ma3-ma120-recovery", "ruleVersion": 2,
+      "ruleName": "MA120 이탈후 재돌파", "signalType": "ma3Ma120", "stage": "confirmation",
+      "sourceImageIds": ["4c67c6aa-9987-420e-aee1-db90370a63f4"],
+      "time": "2026-10-23T14:00+09:00", "completedAt": "2026-10-23T14:30+09:00",
+      "price": 1492, "previousClose": 1524, "changePct": -2.099738, "dataStatus": "ok",
+      "replayed": true, "replayAsOf": "2026-10-23", "displayOnly": true
+    },
+    {
+      "code": "225190", "name": "LK삼양",
+      "id": "ma3-ma120-recovery|2026-10-23T11:30+09:00|primary",
+      "ruleId": "ma3-ma120-recovery", "ruleVersion": 2,
+      "ruleName": "MA120 이탈후 재돌파", "signalType": "ma3Ma120", "stage": "primary",
+      "sourceImageIds": ["4c67c6aa-9987-420e-aee1-db90370a63f4"],
+      "time": "2026-10-23T11:30+09:00", "completedAt": "2026-10-23T12:00+09:00",
+      "price": 4710, "previousClose": 4160, "changePct": 13.221154, "dataStatus": "ok",
+      "replayed": true, "replayAsOf": "2026-10-23", "displayOnly": true
+    },
+    {
+      "code": "225190", "name": "LK삼양",
+      "id": "ma3-ma120-recovery|2026-10-23T11:30+09:00|confirmation",
+      "ruleId": "ma3-ma120-recovery", "ruleVersion": 2,
+      "ruleName": "MA120 이탈후 재돌파", "signalType": "ma3Ma120", "stage": "confirmation",
+      "sourceImageIds": ["4c67c6aa-9987-420e-aee1-db90370a63f4"],
+      "time": "2026-10-23T12:00+09:00", "completedAt": "2026-10-23T12:30+09:00",
+      "price": 4590, "previousClose": 4160, "changePct": 10.336538, "dataStatus": "ok",
+      "replayed": true, "replayAsOf": "2026-10-23", "displayOnly": true
+    }
+  ]
+}
