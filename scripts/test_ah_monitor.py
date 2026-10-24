@@ -4,7 +4,7 @@ import unittest
 from unittest.mock import patch
 
 from ah_rules import (KST, daily_series, daily_checks, daily_match, hybrid_rows,
-                      review_alerts, remaining_days, message, final_admission)
+                      review_alerts, review_matches, remaining_days, message, final_admission)
 from update_ah_monitor import update, seed_signal_day
 from ah_rules import ADMISSION_VERSION
 
@@ -94,12 +94,50 @@ class AhRulesTests(unittest.TestCase):
         self.assertEqual(remaining_days("2026-10-23", calendar), 5)
         self.assertEqual(remaining_days("2026-10-19", calendar+["2026-10-26"]), 0)
 
+    def test_late_same_day_enrollment_is_not_limited_to_ninety_minutes(self):
+        rows = self.signals()
+        candidate = {"code": "123456", "registeredAt": "2026-10-22T21:00:00+09:00"}
+        now = dt.datetime.fromisoformat(candidate["registeredAt"])
+        alerts = review_alerts(candidate, rows, ["2026-10-22"], now, True)
+        self.assertEqual([alert["kind"] for alert in alerts], ["enrollment"])
+        self.assertEqual(alerts[0]["cross"]["t"], rows[1]["t"])
+        self.assertEqual(review_alerts(candidate, rows, ["2026-10-22"], now, False), [])
+
+    def test_review_history_keeps_real_cross_time_and_approximation(self):
+        rows = self.signals()
+        candidate = {"code": "123456", "name": "Example", "registeredAt": "2026-10-23T09:10:00+09:00",
+                     "dailySignalDate": "2026-10-23"}
+        daily = [{"d": "2026-10-21", "c": 80}]
+        now = dt.datetime.fromisoformat(candidate["registeredAt"])
+        events = review_matches(candidate, rows, ["2026-10-22", "2026-10-23"], now, daily)
+        self.assertEqual(len(events), 1)
+        self.assertEqual(events[0]["completedAt"], "2026-10-22T14:30:00+09:00")
+        self.assertEqual(events[0]["changePct"], 25)
+        self.assertTrue(events[0]["approximate"])
+        self.assertTrue(events[0]["beforeRegistration"])
+        rows[-1]["m10"] = 99
+        self.assertEqual(len(review_matches(candidate, rows, ["2026-10-22", "2026-10-23"], now, daily)), 1)
+        self.assertEqual(review_alerts(candidate, rows, ["2026-10-22", "2026-10-23"], now, True), [])
+        rows[1]["complete"] = False
+        self.assertEqual(review_matches(candidate, rows, ["2026-10-22", "2026-10-23"], now, daily), [])
+
+    def test_review_history_excludes_future_and_old_pre_enrollment_cross(self):
+        rows = self.signals()
+        candidate = {"code": "123456", "name": "Example", "registeredAt": "2026-10-26T09:10:00+09:00",
+                     "dailySignalDate": "2026-10-26"}
+        now = dt.datetime.fromisoformat(candidate["registeredAt"])
+        self.assertEqual(review_matches(candidate, rows, ["2026-10-22", "2026-10-23", "2026-10-26"], now, []), [])
+        candidate["registeredAt"] = "2026-10-22T13:00:00+09:00"
+        self.assertEqual(review_matches(candidate, rows, ["2026-10-22"], dt.datetime.fromisoformat(candidate["registeredAt"]), []), [])
+
     def test_notification_percentage_and_approximation_label(self):
         row = self.signals()[-1]
-        text = message({"code": "123456", "name": "Example"}, {"kind": "enrollment", "bar": row, "cross": row}, 80)
+        text = message({"code": "123456", "name": "Example", "registeredAt": "2026-10-23T18:00+09:00"},
+                       {"kind": "enrollment", "bar": row, "cross": row}, 80)
         self.assertIn("+25.00%", text)
         self.assertIn("근사", text)
         self.assertIn("view=ah", text)
+        self.assertIn("18:00", text)
 
     def test_final_admission_recent_cross_and_ma20_not_ma10(self):
         rows = self.signals()

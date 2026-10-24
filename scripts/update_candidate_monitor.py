@@ -639,6 +639,7 @@ def build_daily_candidates(stock_data: Path, previous: dict[str, Any]) -> dict[s
         "notificationHistory": previous.get("notificationHistory", []),
         "coreMorningNotificationState": previous.get("coreMorningNotificationState", {}),
         "imageSearchNotificationState": previous.get("imageSearchNotificationState", {}),
+        "ahImageEnrollmentState": previous.get("ahImageEnrollmentState", {}),
         "colorNotificationState": previous.get("colorNotificationState", {}),
         "analysisCandidates": previous.get("analysisCandidates", []),
         "analysisHistory": previous.get("analysisHistory", []),

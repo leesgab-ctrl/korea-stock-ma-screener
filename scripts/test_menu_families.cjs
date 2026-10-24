@@ -38,4 +38,12 @@ assert.deepEqual(Array.from(shared.find(item => item.code === '000003').screenin
 assert.equal(candidates[2].screeningFamilies, undefined);
 state.payload.manualExclusions = [{code: '000006'}];
 assert.equal(context.sharedMonitorCandidates().length, 1);
+const ahEvent = {code: '000003', signalType: 'ahMa120Ma180', source: 'ah', completedAt: '2026-10-23T14:30:00+09:00', approximate: true};
+state.ahPayload.candidates[0].reviewMatches = [ahEvent];
+assert.equal(context.recentImagePatternMatches({status: 'ok', matches: []}, shared, new Set(), new Date('2026-10-23T16:00:00+09:00')).length, 1);
+assert.equal(context.recentImagePatternMatches({status: 'error'}, shared, new Set(), new Date('2026-10-23T16:00:00+09:00')).length, 1);
+assert.equal(context.recentImagePatternMatches({status: 'ok'}, shared, new Set(), new Date('2026-10-24T09:00:00+09:00')).length, 0);
+assert.equal(context.recentImagePatternMatches({status: 'ok'}, shared, new Set(), new Date('2026-10-23T14:00:00+09:00')).length, 0);
+assert.equal(context.recentImagePatternMatches({status: 'ok'}, [], new Set(), new Date('2026-10-23T16:00:00+09:00')).length, 0);
+assert.match(context.imagePatternLabel(ahEvent), /AH.*근사/);
 console.log('Family menus passed: isolated AK/AG, registration descending, legacy AG, missing charts, retired expanded exclusion and keyword filter.');

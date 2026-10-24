@@ -9,7 +9,7 @@ import sys
 import urllib.request
 
 from ah_rules import (KST, MODEL, VERSION, daily_match, potential_match, hybrid_rows,
-                      remaining_days, review_alerts, completed_at, message, final_admission, ADMISSION_VERSION)
+                      remaining_days, review_alerts, review_matches, completed_at, message, final_admission, ADMISSION_VERSION)
 from notification_history import record_delivery
 from update_candidate_monitor import fetch_display_chart, fetch_display_quote, stock_rows
 
@@ -222,6 +222,7 @@ def update(payload, market, current, *, no_notify=False, bootstrap=False, charts
         latest = next((row for row in reversed(native) if row["complete"]), None)
         item["intraday"] = {"lastPrice": quote.get("price") or (native[-1]["c"] if native else None),
                              "lastPriceTime": quote.get("time") or (native[-1]["t"] if native else None)}
+        item["reviewMatches"] = review_matches(item, native, calendar, current, daily)
         if not charts_only:
             alerts = review_alerts(item, native, calendar, current, item.get("enrollmentPending", False))
             failed = False

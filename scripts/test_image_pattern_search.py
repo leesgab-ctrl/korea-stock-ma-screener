@@ -77,6 +77,60 @@ class ImagePatternSearchTests(unittest.TestCase):
         self.assertEqual(len(self.payload["imageSearch"]["matches"]), 2)
         self.sender.assert_not_called()
 
+    def late_ah(self):
+        item = self.payload["candidates"][0]
+        item.update(candidateTier="ah", registeredAt=at("18:00").isoformat(), initialImport=False)
+        return item
+
+    def test_ah_registration_summarizes_same_day_earlier_signals_once(self):
+        self.late_ah()
+        self.assertEqual(self.run_at("18:00")[0], 1)
+        event = self.sender.call_args.args[4]
+        self.assertEqual(len(event["enrollmentSignals"]), 2)
+        self.assertEqual(event["enrollmentAt"], at("18:00").isoformat())
+        self.assertEqual(event["completedAt"], "2026-10-15T12:00+09:00")
+        self.assertTrue(self.payload["ahImageEnrollmentState"])
+        self.assertEqual(self.run_at("18:10")[0], 0)
+        self.assertEqual(self.sender.call_count, 1)
+        self.assertTrue(all(event["beforeRegistration"] for event in self.payload["imageSearch"]["matches"]))
+
+    def test_ah_registration_no_notify_and_failure_remain_retryable(self):
+        self.late_ah()
+        self.assertEqual(search.process(self.payload, at("18:00"), "test", True,
+                         board=self.board, rules=self.rules, sender=self.sender)[0], 0)
+        self.assertEqual(self.payload["ahImageEnrollmentState"], {})
+        self.sender.side_effect = OSError("offline")
+        self.assertEqual(self.run_at("18:10")[0], 0)
+        self.assertEqual(self.payload["ahImageEnrollmentState"], {})
+        self.sender.side_effect = None
+        self.assertEqual(self.run_at("18:20")[0], 1)
+        self.assertEqual(self.run_at("18:30")[0], 0)
+
+    def test_ah_image_catch_up_does_not_replay_previous_day(self):
+        item = self.late_ah()
+        for row in item["displayCharts"]["intraday"]["series"]:
+            row["t"] = row["t"].replace("2026-10-15", "2026-10-14")
+        for image in self.board["records"]:
+            image["conditionConfirmedAt"] = "2026-10-14T08:00+09:00"
+        self.assertEqual(self.run_at("18:00")[0], 0)
+        self.sender.assert_not_called()
+
+    def test_ah_initial_import_old_day_unconfirmed_and_stale_never_catch_up(self):
+        for case in ("initial", "old", "unconfirmed", "stale"):
+            self.payload, self.rules, self.board = fixture()
+            item = self.late_ah()
+            if case == "initial":
+                item["initialImport"] = True
+            elif case == "old":
+                item["registeredAt"] = "2026-10-14T18:00+09:00"
+            elif case == "unconfirmed":
+                for image in self.board["records"]:
+                    image["conditionConfirmed"] = False
+            else:
+                item["displayCharts"]["intraday"]["dataStatus"] = "stale"
+            self.assertEqual(self.run_at("18:00")[0], 0, case)
+        self.sender.assert_not_called()
+
     def test_no_notify_does_not_mark_pending_event_sent(self):
         self.run_at("11:00")
         self.assertEqual(search.process(self.payload, at("11:30"), "test", True, board=self.board, rules=self.rules, sender=self.sender)[0], 0)
@@ -170,6 +224,24 @@ class ImagePatternSearchTests(unittest.TestCase):
         self.assertIn("1차 포착", message)
         self.assertIn("11:30", message)
 
+    def test_enrollment_message_has_both_times_percentage_and_historical_notice(self):
+        candidate = self.late_ah()
+        candidate["displayCharts"]["quote"] = {"time": at("18:00").isoformat(), "price": 109, "previousClose": 100}
+        self.run_at("18:00")
+        event = self.sender.call_args.args[4]
+        response = Mock()
+        response.read.return_value = b'{"attachment":{"url":"test"}}'
+        response.__enter__ = Mock(return_value=response)
+        response.__exit__ = Mock(return_value=False)
+        row = candidate["displayCharts"]["intraday"]["series"][-1]
+        with patch.object(colors, "chart_image", return_value=b"mock-image"), patch.object(colors.urllib.request, "urlopen", return_value=response) as opened:
+            search.send_alert("test-topic", candidate, self.payload, row, event, at("18:00"))
+        message = urllib.parse.parse_qs(urllib.parse.urlsplit(opened.call_args.args[0].full_url).query)["message"][0]
+        self.assertIn("18:00", message)
+        self.assertIn("12:00", message)
+        self.assertIn("+9.00%", message)
+        self.assertIn("새 돌파가 발생했다는 뜻은 아닙니다", message)
+
     def test_intraday_pipeline_persists_notification_state(self):
         def process(payload, *args):
             payload["imageSearchNotificationState"] = {"test": {"baseline": "saved", "sent": {"event": "sent"}}}
@@ -213,8 +285,11 @@ class ImagePatternSearchTests(unittest.TestCase):
             stock = Path(folder) / "stocks.json"
             stock.write_text(json.dumps({"dates": ["2026-10-15"], "stocks": [{"c": "000000", "v": [1], "h": True}]}), encoding="utf-8")
             state = {"saved": {"baseline": "before", "sent": {"event": "sent"}}}
-            result = monitor.build_daily_candidates(stock, {"candidates": [], "imageSearchNotificationState": state})
+            enrollment = {"000001|registration": "sent"}
+            result = monitor.build_daily_candidates(stock, {"candidates": [], "imageSearchNotificationState": state,
+                                                           "ahImageEnrollmentState": enrollment})
             self.assertEqual(result["imageSearchNotificationState"], state)
+            self.assertEqual(result["ahImageEnrollmentState"], enrollment)
 
 
 if __name__ == "__main__":

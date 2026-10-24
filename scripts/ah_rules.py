@@ -164,6 +164,33 @@ def review_alerts(candidate, rows, calendar, now, enrollment_pending=False):
     return []
 
 
+def review_matches(candidate, rows, calendar, now, daily):
+    """Display the existing review rule without replaying historical notifications."""
+    complete = sorted((row for row in rows if row.get("complete") is True
+                       and completed_at(row) <= now), key=lambda row: row["t"])
+    registered = dt.datetime.fromisoformat(candidate["registeredAt"])
+    signal_day = candidate.get("dailySignalDate", registered.date().isoformat())
+    result = []
+    for row in crossover_events(complete):
+        cross_day = row["t"][:10]
+        if completed_at(row) < registered:
+            if signal_day not in calendar or cross_day not in calendar:
+                continue
+            if not 0 <= calendar.index(signal_day) - calendar.index(cross_day) <= 1:
+                continue
+        prior = sorted((bar for bar in daily if bar["d"] < cross_day), key=lambda bar: bar["d"])
+        previous_close = prior[-1]["c"] if prior else None
+        approximate = row.get("estimated120Bars", 0) > 0 or row.get("estimated180Bars", 0) > 0
+        result.append({"code": candidate["code"], "name": candidate["name"],
+                       "ruleId": VERSION, "signalType": "ahMa120Ma180", "stage": "primary",
+                       "ruleName": "AH MA120이 MA180 돌파", "source": "ah", "sourceImageIds": [],
+                       "barTime": row["t"], "completedAt": completed_at(row).isoformat(),
+                       "beforeRegistration": completed_at(row) < registered,
+                       "price": row["c"], "changePct": (row["c"] / previous_close - 1) * 100
+                       if previous_close else None, "approximate": approximate, "dataStatus": "ok"})
+    return result
+
+
 def remaining_days(signal_day, calendar):
     return max(0, WINDOW_DAYS - sum(day >= signal_day for day in calendar) + 1)
 
@@ -176,7 +203,8 @@ def message(candidate, alert, previous_close):
     return (f"[{title}] {candidate['name']}({candidate['code']})\n"
             f"MA120이 MA180 상향돌파 · MA10 > MA120\n"
             f"돌파봉 {alert['cross']['t']}\n"
-            f"기준봉 {row['t']} · 종가 {row['c']:,.0f}원 · 전일대비 {rate}\n"
+            + (f"편입시각 {candidate['registeredAt']} · 편입 전 포착 안내\n" if alert["kind"] == "enrollment" else "")
+            + f"기준봉 {row['t']} · 종가 {row['c']:,.0f}원 · 전일대비 {rate}\n"
             + ("최근 돌파 후 조건 유지 · 신규 편입 시 1회 안내\n" if alert["kind"] == "enrollment" else "")
             + ("장기선 일부는 일봉 보완 근사입니다.\n" if approx else "")
             + f"https://leesgab-ctrl.github.io/korea-stock-ma-screener/monitor.html?view=ah&stock={candidate['code']}")

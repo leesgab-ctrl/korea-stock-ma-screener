@@ -81,6 +81,20 @@ const server = http.createServer((request, response) => {
         const duplicate = page.locator(`#imageSearchMatches .watch-quote-row[data-code="${overlap.code}"]`);
         assert.equal(await duplicate.count(), 1);
         assert.match(await duplicate.locator('.watch-quote-group').first().textContent(), /AG.*AH|AK.*AH/);
+        await page.evaluate(code => {
+          const item = state.ahPayload.candidates.find(item => item.code === code);
+          item.reviewMatches = [{code, signalType: 'ahMa120Ma180', source: 'ah', sourceImageIds: [],
+            stage: 'primary', completedAt: new Date(Date.now()-60000).toISOString(), price: 100,
+            changePct: 1, approximate: true, dataStatus: 'ok', ruleName: 'AH review'}];
+          state.payload.imageSearch.matches = [];
+          renderImageSearch();
+        }, onlyAh.code);
+        const ahReview = page.locator(`#imageSearchMatches .watch-quote-row[data-code="${onlyAh.code}"]`);
+        assert.equal(await ahReview.count(), 1);
+        assert.match(await ahReview.textContent(), /AH MA120이 MA180 돌파.*근사/);
+        assert.equal(await ahReview.locator('.image-pattern-thumbnail').count(), 0);
+        assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1));
+        await page.screenshot({path: path.join(root, `outputs/ah-review-${width}.png`)});
       }
       await page.goto(base + '/monitor.html?stock=365330');
       await page.waitForFunction(() => document.querySelector('[data-view=ah]').getAttribute('aria-selected') === 'true');

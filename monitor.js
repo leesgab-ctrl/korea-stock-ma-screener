@@ -142,6 +142,7 @@ function compareRegistrationNewest(a, b) {
     || a.name.localeCompare(b.name, "ko");
 }
 function imagePatternLabel(event) {
+  if (event.signalType === "ahMa120Ma180") return `AH MA120이 MA180 돌파${event.approximate ? " · 근사" : ""}`;
   if (event.signalType === "ma3Ma60Near" && event.stage === "watch") return "피라미드형 1차 검토필요";
   if (event.signalType === "ma3Ma60Near") return event.stage === "primary" ? "피라미드형3MA반등" : "MA60 부근 MA3 돌파 확인";
   if (event.signalType === "ma20Pyramid") return event.stage === "primary" ? "피라미드후 MA3 반등" : "피라미드후 MA3가 MA60 돌파";
@@ -166,11 +167,15 @@ function imagePatternSummary(event) {
 }
 
 function recentImagePatternMatches(search, candidates, confirmedIds, now = new Date()) {
-  if (search?.status !== "ok" || !candidates.length) return [];
+  if (!candidates.length) return [];
   const today = imagePatternDay(now);
-  return (search.matches || []).filter(event => {
+  const activeCodes = new Set(candidates.map(item => item.code));
+  const ahMatches = (state.ahPayload?.candidates || []).flatMap(item => item.reviewMatches || []);
+  return [...(search?.status === "ok" ? search.matches || [] : []), ...ahMatches].filter(event => {
     const stamp = Date.parse(event.completedAt);
-    if (!Number.isFinite(stamp) || !event.sourceImageIds?.some(id => confirmedIds.has(id))) return false;
+    const ahRule = event.source === "ah" && event.signalType === "ahMa120Ma180";
+    if (!activeCodes.has(event.code) || !Number.isFinite(stamp)
+        || (!ahRule && !event.sourceImageIds?.some(id => confirmedIds.has(id)))) return false;
     const day = new Intl.DateTimeFormat("en-CA", {
       timeZone: "Asia/Seoul", year: "numeric", month: "2-digit", day: "2-digit",
     }).format(new Date(stamp));
@@ -197,7 +202,7 @@ function renderImageSearch() {
   const matches = recentImagePatternMatches(search, candidates, confirmedIds);
   const notices = new Map();
   for (const event of matches) {
-    const images = event.sourceImageIds.map(id => imagesById.get(id)).filter(Boolean).map(image => ({
+    const images = (event.sourceImageIds || []).map(id => imagesById.get(id)).filter(Boolean).map(image => ({
       ...image, thumbnailUrl: image.stageThumbnailUrls?.[event.stage] || image.thumbnailUrl
     }));
     const entry = {...imagePatternSummary(event), event, images};

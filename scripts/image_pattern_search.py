@@ -419,7 +419,8 @@ def detect(rows, rule):
 
 def send_alert(topic, candidate, payload, row, event, current):
     from color_notifications import send
-    kind = "imageMa60NearWatch" if event.get("signalType") == "ma3Ma60Near" and event.get("stage") == "watch" else \
+    kind = "imageEnrollment" if event.get("enrollmentSignals") else \
+        "imageMa60NearWatch" if event.get("signalType") == "ma3Ma60Near" and event.get("stage") == "watch" else \
         "imageMa60NearRebound" if event.get("signalType") == "ma3Ma60Near" else \
         "imagePyramidRecovery" if event.get("signalType") == "ma20Pyramid" else \
         "imageMa120Recovery" if event.get("signalType") == "ma3Ma120" else \
@@ -431,9 +432,10 @@ def send_alert(topic, candidate, payload, row, event, current):
 def process(payload, current, topic="", no_notify=True, board=None, rules=None, sender=send_alert):
     current = current.astimezone(KST)
     rules = rules if rules is not None else json.loads(RULES_PATH.read_text(encoding="utf-8"))["rules"]
-    before = json.dumps(payload.get("imageSearchNotificationState", {}), sort_keys=True)
+    before = json.dumps([payload.get("imageSearchNotificationState", {}), payload.get("ahImageEnrollmentState", {})], sort_keys=True)
     previous_events = {(event.get("code"), event.get("id")): event for event in payload.get("imageSearch", {}).get("events", [])}
     tracking = payload.setdefault("imageSearchNotificationState", {})
+    enrollment_state = payload.setdefault("ahImageEnrollmentState", {})
     snapshot = {"version": 1, "updatedAt": current.isoformat(timespec="seconds"), "status": "ok", "scope": "active_ak_ag_ah",
                 "rules": [], "matches": [], "events": [], "errors": [], "candidateCount": 0}
     try:
@@ -445,11 +447,12 @@ def process(payload, current, topic="", no_notify=True, board=None, rules=None, 
     except (OSError, ValueError, TypeError) as exc:
         snapshot.update(status="error", errors=[f"이미지 조건 목록 조회 실패: {type(exc).__name__}"])
         payload["imageSearch"] = snapshot
-        return 0, before != json.dumps(tracking, sort_keys=True)
+        return 0, before != json.dumps([tracking, enrollment_state], sort_keys=True)
     candidates = [item for item in payload.get("candidates", []) if item.get("candidateTier", "core") in ("core", "expanded_ak", "ah")]
     snapshot["candidateCount"] = len(candidates)
     count = 0
     jobs = {}
+    enrollment_jobs = {}
     delivered = {key: value for saved in tracking.values() for key, value in saved.get("sent", {}).items()}
     active_keys = set()
     for rule in rules:
@@ -479,10 +482,14 @@ def process(payload, current, topic="", no_notify=True, board=None, rules=None, 
             rows = completed_rows(chart, current)
             if not rows:
                 continue
-            events = [event for event in detect(rows, rule) if timestamp(event["time"]) >= registration]
+            is_ah = candidate.get("candidateTier") == "ah"
+            events = [event for event in detect(rows, rule) if timestamp(event["time"]) >= registration
+                      or (is_ah and timestamp(event["completedAt"]).date() == registration.date())]
             for event in events:
                 event.update(code=candidate["code"], name=candidate.get("name", candidate["code"]),
                              ruleName=rule["name"], sourceImageIds=[item["id"] for item in images])
+                if is_ah and timestamp(event["completedAt"]) <= registration:
+                    event["beforeRegistration"] = True
                 quote = candidate.get("displayCharts", {}).get("quote", {})
                 change = day_change_percent(event["price"], event["time"], quote)
                 if change is None:
@@ -504,7 +511,18 @@ def process(payload, current, topic="", no_notify=True, board=None, rules=None, 
             if no_notify or not topic or current.weekday() >= 5:
                 continue
             by_time = {row["t"]: row for row in rows}
+            enrollment_key = f"{candidate['code']}|{registered}"
+            if (is_ah and not candidate.get("initialImport") and registration.date() == current.date()
+                    and enrollment_key not in enrollment_state):
+                missed = [event for event in events if event.get("beforeRegistration")
+                          and enabled_at <= timestamp(event["completedAt"]) <= current
+                          and dt.time(9) <= timestamp(event["time"]).time() <= dt.time(20)]
+                if missed:
+                    event = missed[-1]
+                    enrollment_jobs.setdefault(enrollment_key, []).append((candidate, by_time[event["time"]], event, saved))
             for event in events:
+                if event.get("beforeRegistration"):
+                    continue
                 completion = timestamp(event["completedAt"])
                 start = timestamp(event["time"])
                 age = current - completion
@@ -516,13 +534,19 @@ def process(payload, current, topic="", no_notify=True, board=None, rules=None, 
                         or not dt.timedelta(0) <= age <= dt.timedelta(minutes=90):
                     continue
                 jobs.setdefault(delivery, []).append((candidate, by_time[event["time"]], event, saved))
+    for key, entries in enrollment_jobs.items():
+        jobs[f"ah-enrollment|{key}"] = entries
     blocked = set()
     for delivery, entries in sorted(jobs.items(), key=lambda item: item[1][0][2]["completedAt"]):
-        candidate, row, event, _ = entries[0]
+        candidate, row, event, _ = max(entries, key=lambda entry: entry[2]["completedAt"]) if delivery.startswith("ah-enrollment|") else entries[0]
         if candidate["code"] in blocked:
             continue
         if delivery not in delivered:
             combined = {**event, "ruleName": " / ".join(dict.fromkeys(entry[2]["ruleName"] for entry in entries))}
+            if delivery.startswith("ah-enrollment|"):
+                combined.update(enrollmentAt=candidate["registeredAt"], enrollmentSignals=[
+                    {key: entry[2].get(key) for key in ("ruleName", "completedAt", "stage", "changePct")}
+                    for entry in entries])
             try:
                 sender(topic, candidate, payload, row, combined, current)
             except Exception as exc:
@@ -531,6 +555,8 @@ def process(payload, current, topic="", no_notify=True, board=None, rules=None, 
                 continue
             delivered[delivery] = current.isoformat(timespec="seconds")
             count += 1
+            if delivery.startswith("ah-enrollment|"):
+                enrollment_state[f"{candidate['code']}|{candidate['registeredAt']}"] = delivered[delivery]
         for _, _, _, saved in entries:
             saved["sent"][delivery] = delivered[delivery]
     for key in list(tracking):
@@ -539,4 +565,4 @@ def process(payload, current, topic="", no_notify=True, board=None, rules=None, 
     snapshot["matches"].sort(key=lambda event: event["completedAt"], reverse=True)
     snapshot["events"].sort(key=lambda event: event["completedAt"], reverse=True)
     payload["imageSearch"] = snapshot
-    return count, before != json.dumps(tracking, sort_keys=True)
+    return count, before != json.dumps([tracking, enrollment_state], sort_keys=True)
