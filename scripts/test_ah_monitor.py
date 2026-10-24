@@ -102,6 +102,13 @@ class AhRulesTests(unittest.TestCase):
         self.assertEqual([alert["kind"] for alert in alerts], ["enrollment"])
         self.assertEqual(alerts[0]["cross"]["t"], rows[1]["t"])
         self.assertEqual(review_alerts(candidate, rows, ["2026-10-22"], now, False), [])
+        rows[-1]["m10"] = 99
+        historical = review_alerts(candidate, rows, ["2026-10-22"], now, True)
+        self.assertEqual(historical[0]["kind"], "enrollment_history")
+        text = message({**candidate, "name": "Example"}, historical[0], 80)
+        self.assertIn("선행 포착 안내", text)
+        self.assertIn("현재까지 조건을 계속 유지한 신호는 아닙니다", text)
+        self.assertEqual(historical[0]["key"], alerts[0]["key"])
 
     def test_review_history_keeps_real_cross_time_and_approximation(self):
         rows = self.signals()

@@ -161,6 +161,9 @@ def review_alerts(candidate, rows, calendar, now, enrollment_pending=False):
         if maintained and all(above(bar) for bar in maintained):
             return [{"kind": "enrollment", "bar": complete[-1], "cross": row,
                      "key": f"{VERSION}:{candidate['code']}:enrollment:{candidate['registeredAt']}"}]
+        if cross_day == day:
+            return [{"kind": "enrollment_history", "bar": complete[-1], "cross": row,
+                     "key": f"{VERSION}:{candidate['code']}:enrollment:{candidate['registeredAt']}"}]
     return []
 
 
@@ -197,14 +200,19 @@ def remaining_days(signal_day, calendar):
 
 def message(candidate, alert, previous_close):
     row = alert["bar"]
-    approx = row["estimated120Bars"] > 0 or row["estimated180Bars"] > 0
-    title = "AH 매수검토" + ("·편입" if alert["kind"] == "enrollment" else "") + ("·근사" if approx else "")
+    approx = any(bar.get("estimated120Bars", 0) > 0 or bar.get("estimated180Bars", 0) > 0
+                 for bar in (row, alert["cross"]))
+    enrollment = alert["kind"].startswith("enrollment")
+    historical = alert["kind"] == "enrollment_history"
+    title = ("AH 당일 선행 포착 안내" if historical else "AH 매수검토") + ("·편입" if enrollment else "") + ("·근사" if approx else "")
     rate = f"{(row['c'] / previous_close - 1) * 100:+.2f}%" if previous_close else "자료 없음"
     return (f"[{title}] {candidate['name']}({candidate['code']})\n"
-            f"MA120이 MA180 상향돌파 · MA10 > MA120\n"
-            f"돌파봉 {alert['cross']['t']}\n"
-            + (f"편입시각 {candidate['registeredAt']} · 편입 전 포착 안내\n" if alert["kind"] == "enrollment" else "")
+            + ("편입 전 당일 MA120이 MA180 상향돌파 · 돌파 당시 MA10 > MA120\n" if historical else
+               "MA120이 MA180 상향돌파 · MA10 > MA120\n")
+            + f"돌파봉 {alert['cross']['t']}\n"
+            + (f"편입시각 {candidate['registeredAt']} · 편입 전 포착 안내\n" if enrollment else "")
             + f"기준봉 {row['t']} · 종가 {row['c']:,.0f}원 · 전일대비 {rate}\n"
             + ("최근 돌파 후 조건 유지 · 신규 편입 시 1회 안내\n" if alert["kind"] == "enrollment" else "")
+            + ("현재까지 조건을 계속 유지한 신호는 아닙니다. 당일 먼저 발생했던 신호를 알려드립니다.\n" if historical else "")
             + ("장기선 일부는 일봉 보완 근사입니다.\n" if approx else "")
             + f"https://leesgab-ctrl.github.io/korea-stock-ma-screener/monitor.html?view=ah&stock={candidate['code']}")
