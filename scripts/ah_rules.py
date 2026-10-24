@@ -1,8 +1,11 @@
 """Independent AH daily selection and completed-bar review rules."""
 import datetime as dt
+import math
 
 KST = dt.timezone(dt.timedelta(hours=9))
 VERSION = "ah-ma4-60__ma120-180-v1"
+ADMISSION_VERSION = "ah-final-recent-cross-ma20-v2"
+CROSS_LOOKBACK_TRADING_DAYS = 2
 WINDOW_DAYS = 5
 MODEL = {"kind": "quarter_open_three_quarter_close", "barsPerDay": 22}
 
@@ -77,6 +80,7 @@ def hybrid_rows(native, daily, cutoff):
         complete_at = dt.datetime.fromisoformat(row["t"]) + dt.timedelta(minutes=30)
         result.append({**row, **values, "complete": complete_at <= cutoff,
                        "estimated10Bars": max(0, 10 - index - 1),
+                       "estimated20Bars": max(0, 20 - index - 1),
                        "estimated120Bars": max(0, 120 - index - 1),
                        "estimated180Bars": max(0, 180 - index - 1)})
     return result
@@ -90,6 +94,36 @@ def above(row):
     return (all(row.get(key) is not None for key in ("m10", "m120", "m180"))
             and row.get("estimated10Bars", 1) == 0
             and row["m10"] > row["m120"] > row["m180"])
+
+
+def final_admission(rows, calendar, day, now):
+    """Admission is separate from the existing MA10 review-notification rule."""
+    complete = sorted((row for row in rows if row.get("complete") is True
+                       and completed_at(row) <= now and row["t"][:10] <= day), key=lambda row: row["t"])
+    if day not in calendar or len(complete) < 2:
+        return None
+    def valid(row, keys):
+        return all(isinstance(row.get(key), (int, float)) and not isinstance(row[key], bool)
+                   and math.isfinite(row[key]) and row[key] > 0 for key in keys)
+    latest = complete[-1]
+    if (not valid(latest, ("m20", "m120", "m180")) or latest.get("estimated20Bars", 1) != 0
+            or not (latest["m20"] > latest["m120"] > latest["m180"])):
+        return None
+    for index in range(len(complete) - 1, 0, -1):
+        previous, row = complete[index - 1:index + 1]
+        if not all(valid(bar, ("m120", "m180")) for bar in (previous, row)):
+            continue
+        if previous["m120"] <= previous["m180"] and row["m120"] > row["m180"]:
+            cross_day = row["t"][:10]
+            if cross_day not in calendar or not 0 <= calendar.index(day) - calendar.index(cross_day) <= CROSS_LOOKBACK_TRADING_DAYS:
+                continue
+            if not all(valid(bar, ("m120", "m180")) and bar["m120"] > bar["m180"] for bar in complete[index:]):
+                continue
+            return {"version": ADMISSION_VERSION, "crossBarTime": row["t"], "checkedBarTime": latest["t"],
+                    "ma20": latest["m20"], "ma120": latest["m120"], "ma180": latest["m180"],
+                    "approximate": latest.get("estimated120Bars", 0) > 0 or latest.get("estimated180Bars", 0) > 0
+                    or row.get("estimated120Bars", 0) > 0 or row.get("estimated180Bars", 0) > 0}
+    return None
 
 
 def crossover_events(rows):

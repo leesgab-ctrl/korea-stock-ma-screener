@@ -9,7 +9,7 @@ import sys
 import urllib.request
 
 from ah_rules import (KST, MODEL, VERSION, daily_match, potential_match, hybrid_rows,
-                      remaining_days, review_alerts, completed_at, message)
+                      remaining_days, review_alerts, completed_at, message, final_admission, ADMISSION_VERSION)
 from notification_history import record_delivery
 from update_candidate_monitor import fetch_display_chart, fetch_display_quote, stock_rows
 
@@ -178,21 +178,42 @@ def update(payload, market, current, *, no_notify=False, bootstrap=False, charts
         qualified = daily_match(daily, scan_day, quote["price"]) if fresh_quote else False
         if not live_session:
             qualified = daily_match(daily, scan_day)
+        admission = final_admission(native, calendar, scan_day, current)
+        final_qualified = qualified and admission is not None
+        needs_revalidation = item and item.get("finalAdmission", {}).get("version") != ADMISSION_VERSION
+        if needs_revalidation and not charts_only:
+            if charts["intraday"].get("dataStatus") not in (None, "ok") or not native:
+                errors.append({"code": code, "message": "Admission revalidation deferred: chart unavailable"})
+                candidates.append(item)
+                continue
+            if admission is None:
+                exclusions = payload.setdefault("admissionExclusions", [])
+                key = f"{code}|{item['registeredAt']}|{ADMISSION_VERSION}"
+                if not any(entry["id"] == key for entry in exclusions):
+                    exclusions.append({"id": key, "code": code, "name": item["name"],
+                                       "registeredAt": item["registeredAt"], "dailySignalDate": item["dailySignalDate"],
+                                       "excludedAt": stamp, "ruleVersion": ADMISSION_VERSION,
+                                       "reason": "recent_0_1_2_day_cross_and_current_ma20_above_ma120_not_met"})
+                registry[code] = {**record, "lastMatched": False, "lastDailyMatched": qualified,
+                                  "lastCheckedDate": scan_day, "lastSignalDate": item["dailySignalDate"]}
+                continue
+            item["finalAdmission"] = {**admission, "revalidatedAt": stamp}
         signal_day = seed_signal_day(daily, native, recent) if bootstrap else scan_day if qualified else None
         if charts_only:
             signal_day = None
         # Do not reset a live registration or re-enroll a continuously matching expired stock.
-        eligible = signal_day and not item and (bootstrap or not record.get("lastMatched", False))
+        eligible = signal_day and admission is not None and not item and (bootstrap or not record.get("lastMatched", False))
         if eligible:
             stock = stocks[code]
             item = {"code": code, "name": stock["n"], "market": stock.get("m", ""),
                     "candidateTier": "ah", "dailySignalDate": signal_day, "registeredAt": stamp,
                     "initialImport": bootstrap,
+                    "finalAdmission": admission,
                     "registrationPrice": quote.get("price"), "status": "watching",
                     "alertCursor": stamp if bootstrap else (current - dt.timedelta(microseconds=1)).isoformat(), "enrollmentPending": not bootstrap,
                     "enrollmentHandled": bootstrap}
         if not charts_only and (not live_session or fresh_quote):
-            registry[code] = {**record, "lastMatched": qualified, "lastCheckedDate": scan_day,
+            registry[code] = {**record, "lastMatched": final_qualified, "lastDailyMatched": qualified, "lastCheckedDate": scan_day,
                               "lastSignalDate": item["dailySignalDate"] if item else record.get("lastSignalDate")}
         if not item or remaining_days(item["dailySignalDate"], calendar) == 0:
             continue
@@ -237,7 +258,7 @@ def update(payload, market, current, *, no_notify=False, bootstrap=False, charts
         for code, record in registry.items():
             if code not in potential and code not in existing:
                 record.update(lastMatched=False, lastCheckedDate=scan_day)
-    payload.update(version=VERSION, model=MODEL, asOf=calendar[-1], generatedAt=stamp,
+    payload.update(version=VERSION, admissionVersion=ADMISSION_VERSION, model=MODEL, asOf=calendar[-1], generatedAt=stamp,
                    initializedAt=payload.get("initializedAt", stamp), candidates=candidates,
                    windowTradingDays=5, initialHistoryAlertsSuppressed=True,
                    summary={"active": len(candidates), "scanned": len(stocks), "potential": len(potential),

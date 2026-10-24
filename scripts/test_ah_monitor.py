@@ -4,8 +4,9 @@ import unittest
 from unittest.mock import patch
 
 from ah_rules import (KST, daily_series, daily_checks, daily_match, hybrid_rows,
-                      review_alerts, remaining_days, message)
+                      review_alerts, remaining_days, message, final_admission)
 from update_ah_monitor import update, seed_signal_day
+from ah_rules import ADMISSION_VERSION
 
 
 class AhRulesTests(unittest.TestCase):
@@ -60,7 +61,7 @@ class AhRulesTests(unittest.TestCase):
 
     def signals(self):
         return [dict(t=f"2026-10-22T{hour}:00+09:00", c=100, complete=True,
-                     m10=102, m120=value, m180=100, estimated10Bars=0,
+                     m10=102, m20=103, m120=value, m180=100, estimated10Bars=0, estimated20Bars=0,
                      estimated120Bars=0, estimated180Bars=20)
                 for hour, value in (("13", 99), ("14", 101), ("15", 101))]
 
@@ -100,6 +101,38 @@ class AhRulesTests(unittest.TestCase):
         self.assertIn("근사", text)
         self.assertIn("view=ah", text)
 
+    def test_final_admission_recent_cross_and_ma20_not_ma10(self):
+        rows = self.signals()
+        for row in rows:
+            row["m10"] = 90
+        now = dt.datetime(2026, 10, 23, 10, tzinfo=KST)
+        result = final_admission(rows, ["2026-10-22", "2026-10-23"], "2026-10-23", now)
+        self.assertIsNotNone(result)
+        self.assertEqual(result["crossBarTime"], rows[1]["t"])
+        rows[-1]["m20"] = rows[-1]["m120"]
+        self.assertIsNone(final_admission(rows, ["2026-10-22", "2026-10-23"], "2026-10-23", now))
+
+    def test_final_admission_uses_trading_days_and_rejects_old_cross(self):
+        rows = self.signals()
+        for row in rows:
+            row["t"] = row["t"].replace("2026-10-22", "2026-10-23")
+        now = dt.datetime(2026, 10, 26, 10, tzinfo=KST)
+        calendar = ["2026-10-22", "2026-10-23", "2026-10-26"]
+        self.assertIsNotNone(final_admission(rows, calendar, "2026-10-26", now))
+        self.assertIsNotNone(final_admission(rows, calendar+["2026-10-27"], "2026-10-27", now+dt.timedelta(days=1)))
+        self.assertIsNone(final_admission(rows, calendar+["2026-10-27", "2026-10-28"], "2026-10-28", now+dt.timedelta(days=2)))
+
+    def test_final_admission_excludes_incomplete_and_unknown_ma20(self):
+        rows = self.signals()
+        now = dt.datetime(2026, 10, 22, 14, 20, tzinfo=KST)
+        self.assertIsNone(final_admission(rows, ["2026-10-22"], "2026-10-22", now))
+        now += dt.timedelta(hours=2)
+        rows[-1]["estimated20Bars"] = 1
+        self.assertIsNone(final_admission(rows, ["2026-10-22"], "2026-10-22", now))
+        rows[-1]["estimated20Bars"] = 0
+        rows[-1]["m20"] = float("nan")
+        self.assertIsNone(final_admission(rows, ["2026-10-22"], "2026-10-22", now))
+
 
 class AhDriverTests(unittest.TestCase):
     def fixture(self):
@@ -132,6 +165,57 @@ class AhDriverTests(unittest.TestCase):
     def test_initial_seed_does_not_relabel_old_continuous_match(self, *_):
         daily = [{"d": day, "c": 100} for day in ("2026-10-16", "2026-10-19", "2026-10-20")]
         self.assertIsNone(seed_signal_day(daily, [], ["2026-10-19", "2026-10-20"]))
+
+    @patch("update_ah_monitor.daily_match", return_value=True)
+    @patch("update_ah_monitor.potential_match", return_value=True)
+    def test_daily_match_without_final_admission_never_registers(self, *_):
+        now, market, charts = self.fixture()
+        charts["intraday"]["series"][-1]["m20"] = 90
+        payload = {"initializedAt": now.isoformat(), "candidates": []}
+        result = update(payload, market, now, no_notify=True, refresh_fn=lambda *_: copy.deepcopy(charts))
+        self.assertEqual(result["candidates"], [])
+        self.assertTrue(result["registry"]["123456"]["lastDailyMatched"])
+        self.assertFalse(result["registry"]["123456"]["lastMatched"])
+        charts["intraday"]["series"][-1]["m20"] = 103
+        result = update(result, market, now+dt.timedelta(minutes=10), no_notify=True, refresh_fn=lambda *_: copy.deepcopy(charts))
+        self.assertEqual(len(result["candidates"]), 1)
+        self.assertIn("finalAdmission", result["candidates"][0])
+
+    @patch("update_ah_monitor.daily_match", return_value=False)
+    @patch("update_ah_monitor.potential_match", return_value=False)
+    def test_existing_candidates_revalidated_without_reset_or_alert(self, *_):
+        now, market, charts = self.fixture()
+        old = {"code": "123456", "name": "Example", "dailySignalDate": "2026-10-22",
+               "registeredAt": "2026-10-22T16:00:00+09:00", "registrationPrice": 99,
+               "enrollmentHandled": True, "enrollmentPending": False}
+        sender = unittest.mock.Mock()
+        for passes in (True, False):
+            snapshot = copy.deepcopy(charts)
+            snapshot["intraday"]["series"][-1]["m20"] = 103 if passes else 90
+            payload = {"initializedAt": now.isoformat(), "candidates": [copy.deepcopy(old)]}
+            result = update(payload, market, now, no_notify=True, refresh_fn=lambda *_: copy.deepcopy(snapshot), sender=sender)
+            self.assertEqual(len(result["candidates"]), 1 if passes else 0)
+            if passes:
+                kept = result["candidates"][0]
+                self.assertEqual(kept["registeredAt"], old["registeredAt"])
+                self.assertEqual(kept["registrationPrice"], 99)
+                self.assertEqual(kept["finalAdmission"]["version"], ADMISSION_VERSION)
+            else:
+                self.assertEqual(result["admissionExclusions"][0]["code"], old["code"])
+            self.assertFalse(sender.called)
+
+    @patch("update_ah_monitor.daily_match", return_value=False)
+    @patch("update_ah_monitor.potential_match", return_value=False)
+    def test_existing_candidate_not_removed_on_chart_error(self, *_):
+        now, market, charts = self.fixture()
+        old = {"code": "123456", "name": "Example", "dailySignalDate": "2026-10-22",
+               "registeredAt": "2026-10-22T16:00:00+09:00"}
+        charts["intraday"].update(series=[], dataStatus="stale")
+        result = update({"initializedAt": now.isoformat(), "candidates": [old]}, market, now,
+                        no_notify=True, refresh_fn=lambda *_: copy.deepcopy(charts))
+        self.assertEqual(result["candidates"], [old])
+        self.assertFalse(result.get("admissionExclusions"))
+        self.assertEqual(result["summary"]["dataErrors"], 1)
 
     @patch("update_ah_monitor.daily_match", return_value=True)
     @patch("update_ah_monitor.potential_match", return_value=True)
