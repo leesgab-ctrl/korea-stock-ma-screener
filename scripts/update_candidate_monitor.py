@@ -1789,6 +1789,8 @@ def main() -> None:
         })
         alerts, pending = 0, 0
     color_changed = False
+    prior_common_members = sorted((item["code"], item["registeredAt"]) for item in previous.get("analysisCandidates", []))
+    prior_image_scope = previous.get("imageSearch", {}).get("scope")
     from common_monitor import load_ah_candidates, merge_candidates
     try:
         ah_candidates = load_ah_candidates(ROOT / "data/ah-monitor.json", current)
@@ -1842,6 +1844,9 @@ def main() -> None:
             handle.write(f"color_state_changed={str(color_changed).lower()}\n")
             handle.write(f"archive_tracking_changed={str(archive_tracking_changed).lower()}\n")
             handle.write(f"notification_history_changed={str(restored_deliveries).lower()}\n")
+            common_changed = prior_common_members != sorted((item["code"], item["registeredAt"]) for item in additional) \
+                or prior_image_scope != payload.get("imageSearch", {}).get("scope")
+            handle.write(f"common_state_changed={str(common_changed).lower()}\n")
     print(
         json.dumps(
             {"mode": args.mode, "active": len(payload["candidates"]), "alerts": alerts, "pending": pending},
