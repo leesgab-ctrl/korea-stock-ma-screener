@@ -7,7 +7,7 @@ import tempfile
 import unittest
 from unittest.mock import Mock, patch
 
-from first_rise_rules import KST, daily_context, detect, remaining_days
+from first_rise_rules import KST, VERSION, daily_context, detect, remaining_days, closing_confirmation
 from update_first_rise_monitor import update
 from common_monitor import load_first_rise_candidates, merge_candidates
 from image_pattern_search import process
@@ -63,6 +63,17 @@ class FirstRiseRulesTests(unittest.TestCase):
         self.assertEqual(remaining_days("2026-10-19", ["2026-10-19", "2026-10-20"]), 9)
         self.assertEqual(remaining_days("2026-10-19", [f"2026-10-{i}" for i in range(19, 30)]), 0)
 
+    def test_close_confirmation_requires_final_day_price_and_after_2030(self):
+        daily = [{"d": "2026-10-22", "c": 100}, {"d": "2026-10-23", "c": 105}]
+        self.assertIsNone(closing_confirmation(daily, "2026-10-23", dt.datetime.fromisoformat("2026-10-23T20:29:59+09:00")))
+        current = dt.datetime.fromisoformat("2026-10-23T20:30:00+09:00")
+        self.assertTrue(closing_confirmation(daily, "2026-10-23", current)["qualified"])
+        daily[-1]["c"] = 104.999
+        self.assertFalse(closing_confirmation(daily, "2026-10-23", current)["qualified"])
+        self.assertIsNone(closing_confirmation(daily[:-1], "2026-10-23", current))
+        daily[-1]["c"] = float("nan")
+        self.assertIsNone(closing_confirmation(daily, "2026-10-23", current))
+
     def test_reference_examples_with_offline_native_data(self):
         root = Path(__file__).resolve().parents[1]/"outputs"
         for code, day, time in [("138360", "2026-10-20", "14:00"), ("300120", "2026-10-21", "13:30")]:
@@ -72,18 +83,22 @@ class FirstRiseRulesTests(unittest.TestCase):
                 self.skipTest("Offline research caches are not deployed")
             rows = json.loads(minute.read_text(encoding="utf8"))["history"]
             daily = json.loads(daily_path.read_text(encoding="utf8"))["history"]
-            events = detect(rows, daily, day, dt.datetime.fromisoformat(day+"T20:00+09:00"))
+            current = dt.datetime.fromisoformat(day+"T20:30+09:00")
+            events = detect(rows, daily, day, current)
             self.assertEqual(events[0]["completedAt"][11:16], time)
             self.assertGreaterEqual(events[0]["dailyVolumeMultiple"], 3)
+            self.assertTrue(closing_confirmation(daily, day, current)["qualified"])
 
 
 class FirstRiseMonitorTests(unittest.TestCase):
     def setup_data(self):
         daily, rows, current = sample()
-        market = {"dates": [r["d"] for r in daily]+["2026-10-23"], "stocks": [{"c": "123456", "n": "Example",
-                   "m": "KOSDAQ", "s": 0, "p": [r["c"] for r in daily]+[110], "v": [r["v"] for r in daily]+[1000]}]}
-        charts = {"daily": {"history": daily}, "intraday": {"history": rows, "source": "naver_native", "dataStatus": "ok"},
-                  "quote": {"price": 110, "time": current.isoformat()}}
+        daily.append({"d": "2026-10-23", "c": daily[-1]["c"]*1.06, "v": 1000})
+        current = current.replace(hour=20, minute=30)
+        market = {"dates": [r["d"] for r in daily], "stocks": [{"c": "123456", "n": "Example",
+                   "m": "KOSDAQ", "s": 0, "p": [r["c"] for r in daily], "v": [r["v"] for r in daily]}]}
+        charts = {"daily": {"history": daily, "dataStatus": "ok", "marketStatus": "CLOSE"}, "intraday": {"history": rows, "source": "naver_native", "dataStatus": "ok"},
+                  "quote": {"price": daily[-1]["c"], "time": current.isoformat()}}
         refresh = Mock(side_effect=lambda *args: copy.deepcopy(charts))
         return market, current, refresh
 
@@ -128,6 +143,8 @@ class FirstRiseMonitorTests(unittest.TestCase):
         candidate = payload["candidates"][0]
         candidate["candidateTier"] = "first_rise"
         candidate["tradingDaysRemaining"] = 10
+        candidate["dailySignalDate"] = "2026-10-14"
+        candidate["closeConfirmation"] = {"qualified": True, "ruleVersion": VERSION}
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory)/"first.json"
             path.write_text(json.dumps({"candidates": [candidate]}), encoding="utf8")
@@ -139,17 +156,84 @@ class FirstRiseMonitorTests(unittest.TestCase):
         ag = {"code": candidate["code"], "candidateTier": "core"}
         self.assertEqual(merge_candidates([ag], [candidate]), [ag])
 
-    def test_same_day_enrollment_catchup_is_once_and_initial_import_is_silent(self):
+    def test_first_day_image_catchup_is_not_sent_after_close(self):
         payload, rules, board = fixture()
         candidate = payload["candidates"][0]
-        candidate.update(candidateTier="first_rise", registeredAt=at("18:00").isoformat(), initialImport=False)
+        candidate.update(candidateTier="first_rise", dailySignalDate="2026-10-15", registeredAt=at("20:30").isoformat(), initialImport=False)
         sender = Mock()
-        self.assertEqual(process(payload, at("18:00"), "test", False, board, rules, sender)[0], 1)
-        self.assertTrue(sender.call_args.args[4]["enrollmentSignals"])
-        self.assertEqual(process(payload, at("18:10"), "test", False, board, rules, sender)[0], 0)
-        payload, rules, board = fixture()
-        payload["candidates"][0].update(candidateTier="first_rise", registeredAt=at("18:00").isoformat(), initialImport=True)
-        self.assertEqual(process(payload, at("18:00"), "test", False, board, rules, sender)[0], 0)
+        self.assertEqual(process(payload, at("20:30"), "test", False, board, rules, sender)[0], 0)
+        sender.assert_not_called()
+
+    def test_intraday_never_scans_registers_or_sends_even_with_future_daily_data(self):
+        market, current, refresh = self.setup_data()
+        sender = Mock()
+        with patch.dict(os.environ, NTFY_TOPIC="test"):
+            p = update({"initializedAt": "old"}, market, current.replace(hour=13),
+                       volumes={"123456": {"day": "2026-10-23", "volume": 1000000}}, refresh_fn=refresh, sender=sender)
+        self.assertEqual(p["candidates"], [])
+        self.assertEqual(p["candidateScan"]["checkedStocks"], 0)
+        refresh.assert_not_called()
+        sender.assert_not_called()
+
+    def test_intraday_spike_and_high_quote_do_not_replace_closing_price(self):
+        market, current, refresh = self.setup_data()
+        def low_close(*args):
+            charts = refresh(*args)
+            daily = charts["daily"]["history"]
+            daily[-1]["c"] = daily[-2]["c"]*1.04
+            charts["quote"]["price"] = 150
+            return charts
+        p = update({}, market, current, volumes={"123456": {"day": "2026-10-23", "volume": 1000}}, refresh_fn=low_close)
+        self.assertEqual(p["candidates"], [])
+
+    def test_delayed_open_market_snapshot_after_2030_is_not_confirmed(self):
+        market, current, refresh = self.setup_data()
+        def open_market(*args):
+            charts = refresh(*args)
+            charts["daily"]["marketStatus"] = "OPEN"
+            return charts
+        p = update({}, market, current, volumes={"123456": {"day": "2026-10-23", "volume": 1000}}, refresh_fn=open_market)
+        self.assertEqual(p["candidates"], [])
+        self.assertTrue(p["errors"])
+
+    def test_same_day_quote_reference_is_used_without_replacing_daily_close(self):
+        market, current, refresh = self.setup_data()
+        def official_reference(*args):
+            charts = refresh(*args)
+            close = charts["daily"]["history"][-1]["c"]
+            charts["quote"].update(dataStatus="ok", previousClose=close/1.049)
+            return charts
+        p = update({}, market, current, volumes={"123456": {"day": "2026-10-23", "volume": 1000}}, refresh_fn=official_reference)
+        self.assertEqual(p["candidates"], [])
+
+    def test_old_candidates_revalidated_and_failures_archived_not_erased(self):
+        market, current, refresh = self.setup_data()
+        p = update({}, market, current, volumes={"123456": {"day": "2026-10-23", "volume": 1000}}, refresh_fn=refresh)
+        item = p["candidates"][0]
+        registered = item["registeredAt"]
+        price = item["registrationPrice"]
+        del item["closeConfirmation"]
+        p = update(p, market, current, refresh_fn=refresh, charts_only=True)
+        self.assertEqual(p["candidates"][0]["registeredAt"], registered)
+        self.assertEqual(p["candidates"][0]["registrationPrice"], price)
+        del p["candidates"][0]["closeConfirmation"]
+        def low_close(*args):
+            charts = refresh(*args)
+            daily = charts["daily"]["history"]
+            daily[-1]["c"] = daily[-2]["c"]*1.04
+            return charts
+        p = update(p, market, current, refresh_fn=low_close, charts_only=True)
+        self.assertEqual(p["candidates"], [])
+        self.assertEqual(p["history"][-1]["archiveReason"], "first_day_close_below_5pct")
+        self.assertEqual(p["history"][-1]["registeredAt"], registered)
+
+    def test_unverified_legacy_candidate_is_quarantined_on_data_error(self):
+        market, current, refresh = self.setup_data()
+        old = {"code": "123456", "candidateTier": "first_rise", "dailySignalDate": "2026-10-23", "registeredAt": "old"}
+        p = update({"initializedAt": "old", "candidates": [old]}, market, current,
+                   refresh_fn=Mock(side_effect=OSError("offline")), charts_only=True)
+        self.assertEqual(p["candidates"], [])
+        self.assertEqual(p["pendingCloseValidation"], [old])
 
     def test_first_rise_can_be_manually_excluded_without_entering_ag(self):
         from manage_candidate_exclusions import manage

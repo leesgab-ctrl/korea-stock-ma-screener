@@ -3,6 +3,7 @@ import copy
 import json
 
 from ah_rules import hybrid_rows
+from first_rise_rules import confirmed
 
 
 def load_family_candidates(path, current, tier):
@@ -12,6 +13,8 @@ def load_family_candidates(path, current, tier):
     result = []
     for source in payload.get("candidates", []):
         if source.get("candidateTier") != tier or source.get("tradingDaysRemaining", 0) <= 0:
+            continue
+        if tier == "first_rise" and not confirmed(source):
             continue
         item = copy.deepcopy(source)
         chart = item.get("displayCharts", {}).get("intraday", {})

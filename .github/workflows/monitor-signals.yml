@@ -41,7 +41,7 @@ jobs:
       - name: Install notification chart renderer
         if: inputs.charts_only != true
         run: pip install playwright && python -m playwright install --with-deps chromium
-      - name: Scan first-rise observation candidates
+      - name: Refresh first-rise candidates (new admissions only after 20:30 KST)
         continue-on-error: true
         env:
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}

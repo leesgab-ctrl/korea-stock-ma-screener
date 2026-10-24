@@ -125,11 +125,15 @@ function currentCandidates() {
     : state.view === "firstRise" ? state.firstRisePayload?.candidates || []
     : ["ak", "ag"].includes(state.view) ? state.payload?.candidates || [] : sharedMonitorCandidates();
 }
+function confirmedFirstRise(item) {
+  return item.closeConfirmation?.ruleVersion === "first-rise-close5-v2" && item.closeConfirmation.qualified === true;
+}
 function sharedMonitorCandidates() {
   const blocked = new Set((state.payload?.manualExclusions || []).map(item => item.code));
   const items = new Map();
   for (const item of [...(state.payload?.candidates || []), ...(state.payload?.analysisCandidates || []), ...(state.ahPayload?.candidates || []), ...(state.firstRisePayload?.candidates || [])]) {
     if (blocked.has(item.code)) continue;
+    if (item.candidateTier === "first_rise" && !confirmedFirstRise(item)) continue;
     const family = item.candidateTier === "first_rise" ? "첫날상승" : item.candidateTier === "ah" ? "A-H" : item.candidateTier === "expanded_ak" ? "A-K" : "A-G";
     const existing = items.get(item.code);
     if (existing) {
@@ -311,6 +315,7 @@ async function loadData({ pollOnly = false } = {}) {
     state.ahPayload = ahResponse?.ok ? await ahResponse.json() : { candidates: [] };
     state.firstRiseLoadFailed = !firstRiseResponse?.ok;
     state.firstRisePayload = firstRiseResponse?.ok ? await firstRiseResponse.json() : { candidates: [] };
+    state.firstRisePayload.candidates = (state.firstRisePayload.candidates || []).filter(confirmedFirstRise);
     const replays = replayResponse?.ok ? await replayResponse.json().catch(() => null) : null;
     state.imageReplayPayload = replays?.version === 1 && Array.isArray(replays.matches) ? replays : { matches: [] };
     if (historyChartMode) {
@@ -921,7 +926,7 @@ function renderCandidates(candidates) {
     || a.name.localeCompare(b.name, "ko")
   );
   state.expandedCharts = visible.length > 0 && visible.length < 20;
-  elements.candidateMeta.textContent = `${visible.length}종목 · ${familyView ? state.view === "firstRise" ? "최근 등록순 · 첫 상승일 관찰 · 등록일 포함 10거래일 관리" : state.view === "ah" ? "최근 등록순 · 최근 5거래일 신규 편입 · MA120·180 근사 포함" : "최근 등록순 · 등록일 포함 10거래일 관리" : state.view === "new" ? "오늘·직전 거래일 등록" : state.view === "target" ? "등록 이후 MA20 < MA40" : "등록 이후 MA20 > MA40"}`;
+  elements.candidateMeta.textContent = `${visible.length}종목 · ${familyView ? state.view === "firstRise" ? "종가 +5% 이상 마감확정 · 장중 신규 선정 없음 · 10거래일 관리" : state.view === "ah" ? "최근 등록순 · 최근 5거래일 신규 편입 · MA120·180 근사 포함" : "최근 등록순 · 등록일 포함 10거래일 관리" : state.view === "new" ? "오늘·직전 거래일 등록" : state.view === "target" ? "등록 이후 MA20 < MA40" : "등록 이후 MA20 > MA40"}`;
   elements.candidateList.innerHTML = "";
   if (!visible.length) {
     elements.candidateList.innerHTML = '<div class="empty-list">현재 조건에 해당하는 후보가 없습니다.</div>';
@@ -1025,8 +1030,8 @@ function renderCandidates(candidates) {
     }
     if (item.candidateTier === "first_rise" && item.firstRiseSignal) {
       const signal = item.firstRiseSignal;
-      node.querySelector(".candidate-tier").textContent += ` · 포착 ${formatDateTime(signal.completedAt)}`;
-      node.querySelector(".candidate-tier").title = `직전 6봉 밀집 최대 ${signal.clusterMaxPct.toFixed(2)}% · 30분봉 거래량 ${signal.barVolumeMultiple.toFixed(2)}배 · 당일 누적 ${signal.dailyVolumeMultiple.toFixed(2)}배`;
+      node.querySelector(".candidate-tier").textContent += ` · 첫날 종가 +${item.closeConfirmation.changePct.toFixed(2)}%`;
+      node.querySelector(".candidate-tier").title = `기준일 ${item.dailySignalDate} · 마감 검증 ${formatDateTime(item.closeConfirmation.confirmedAt)}\n장중 형태 확인봉 ${formatDateTime(signal.completedAt)} (장중 등록·알림 아님) · 직전 6봉 밀집 최대 ${signal.clusterMaxPct.toFixed(2)}% · 30분봉 거래량 ${signal.barVolumeMultiple.toFixed(2)}배`;
     }
     elements.candidateList.append(node);
     if (state.expandedCharts) appendInlineChart(elements.candidateList, item, item.code);

@@ -3,9 +3,39 @@ import datetime as dt
 import math
 
 KST = dt.timezone(dt.timedelta(hours=9))
-VERSION = "first-rise-v1"
+VERSION = "first-rise-close5-v2"
+CONFIRM_TIME = dt.time(20, 30)
 WINDOW_DAYS = 10
 PERIODS = (5, 10, 20, 40, 60)
+
+
+def after_close(day, current):
+    current = current.astimezone(KST)
+    return current >= dt.datetime.combine(dt.date.fromisoformat(day), CONFIRM_TIME, KST)
+
+
+def closing_confirmation(daily, day, current, quote=None):
+    if not after_close(day, current):
+        return None
+    rows = sorted({r["d"]: r for r in daily if r["d"] <= day}.values(), key=lambda r: r["d"])
+    if len(rows) < 2 or rows[-1]["d"] != day:
+        return None
+    close, previous = rows[-1].get("c"), rows[-2].get("c")
+    reference_source = "native_daily_history"
+    if quote and quote.get("dataStatus") == "ok" and quote.get("time", "")[:10] == day:
+        previous = quote.get("previousClose")
+        reference_source = "naver_quote_previous_close"
+    if any(not isinstance(v, (int, float)) or not math.isfinite(v) or v <= 0 for v in (close, previous)):
+        return None
+    change = 100 * (close / previous - 1)
+    return {"ruleVersion": VERSION, "day": day, "qualified": change >= 5 - 1e-9,
+            "close": close, "previousClose": previous, "previousCloseSource": reference_source, "changePct": round(change, 6),
+            "confirmedAt": current.astimezone(KST).isoformat(timespec="seconds")}
+
+
+def confirmed(item):
+    close = item.get("closeConfirmation", {})
+    return close.get("ruleVersion") == VERSION and close.get("qualified") is True
 
 
 def daily_context(history, day):
@@ -76,10 +106,12 @@ def remaining_days(day, calendar):
 
 def registration_message(item):
     signal = item["firstRiseSignal"]
-    return (f"[첫날상승 관찰대상 등록] {item['name']}({item['code']})\n"
-            f"- 포착봉 완성 {signal['completedAt']}\n- 등록시각 {item['registeredAt']}\n"
-            f"- 포착 종가 {signal['price']:,.0f}원 · 전일대비 {signal['changePct']:+.2f}%\n"
+    close = item["closeConfirmation"]
+    return (f"[장마감 첫날상승 확정 · 관찰대상] {item['name']}({item['code']})\n"
+            f"- 기준일 {close['day']} · 확정·등록시각 {item['registeredAt']}\n"
+            f"- 당일 종가 {close['close']:,.0f}원 · 전일대비 {close['changePct']:+.2f}%\n"
+            f"- 장중 형태 확인봉 완성 {signal['completedAt']} (장중 알림 아님)\n"
             f"- 직전 6봉 MA5~60 최대 간격 {signal['clusterMaxPct']:.2f}%\n"
             f"- 30분봉 거래량 {signal['barVolumeMultiple']:.2f}배 / 당일 누적 거래량 {signal['dailyVolumeMultiple']:.2f}배\n"
-            "첫 상승일 관찰대상입니다. 매수검토 확정이 아니며 이후 조정·재상승 이미지조건을 감시합니다.\n"
+            "종가 +5% 이상 상승 마감을 확인한 관찰대상입니다. 매수 신호가 아니며 다음 거래일부터 조정·재상승 이미지조건을 감시합니다.\n"
             f"https://leesgab-ctrl.github.io/korea-stock-ma-screener/monitor.html?view=firstRise&stock={item['code']}")

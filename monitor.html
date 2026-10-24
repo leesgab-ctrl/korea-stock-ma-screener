@@ -294,18 +294,19 @@
         </section>
 
         <section id="firstRiseCriteria">
-          <div class="criteria-section-heading"><strong>첫날상승 대상종목 선정기준</strong><span>모든 조건 AND · 실제 30분봉 완성봉</span></div>
+          <div class="criteria-section-heading"><strong>첫날상승 대상종목 선정기준</strong><span>종가 +5% 이상 · 20:30 이후 마감확정</span></div>
           <ol class="criteria-steps">
             <li>전일 일봉 MA20이 6거래일 전 MA20보다 낮아야 합니다. 5일 연속 하락 조건과는 다릅니다.</li>
             <li>직전 3거래일 중 전일 대비 +8% 이상 상승한 날이 없어야 합니다.</li>
             <li>직전 6개 30분봉 각각에서 MA5·10·20·40·60의 최대·최소 간격이 4% 이내여야 합니다. 간격 = (최댓값 / 최솟값 − 1) × 100. MA90·120·180은 선정 필수조건이 아닙니다.</li>
             <li>직전 종가는 직전 봉의 위 5개 이평선 최댓값 이하, 현재 완성봉 종가는 그 최댓값 위로 돌파해야 합니다.</li>
-            <li>현재 봉은 양봉이고 MA3가 직전 봉보다 상승하며, 종가가 전일 종가 대비 +3% 이상이어야 합니다.</li>
+            <li>장마감 후 과거 완성봉을 검증합니다. 형태 확인봉은 양봉이고 MA3가 직전 봉보다 상승하며, 봉 종가가 전일 종가 대비 +3% 이상이어야 합니다. 장중에는 이 조건으로 선정·등록·문자 발송하지 않습니다.</li>
             <li>현재 30분봉 거래량이 현재 봉을 제외한 직전 20봉 평균의 3배 이상이어야 합니다.</li>
             <li>현재 완성봉까지의 당일 누적 거래량이 당일 누적량을 포함한 20일 평균의 3배 이상이어야 합니다. 평균 = (직전 19거래일 거래량 + 당시 누적량) / 20. 미래 마감 거래량은 사용하지 않습니다.</li>
+            <li>첫 상승일의 일봉 종가가 전일 종가 대비 +5% 이상이어야 최종 확정합니다. 장중 고가나 한때의 상승률로 대체하지 않습니다. 당일 일봉이 없거나 종가 자료가 불확실하면 확정하지 않습니다.</li>
           </ol>
-          <p class="criteria-note">기존 AG·AK·AH 선정식과 별도로 첫 상승일 관찰대상을 등록합니다. 등록일 포함 10거래일 관리하며 선정일·포착시각·실제 등록시각을 구분합니다. 첫날상승 등록 안내는 매수검토 확정이 아닙니다. 이후 기존 이미지조건·색상·주가·형태 분석 및 알림에 동일하게 포함하고, 중복 소속은 한 번만 감시합니다. 당일 편입 전에 발생한 이미지조건은 AH와 같이 편입 시 과거 포착 안내로 구분합니다. 최초 도입 시 불러온 과거 후보의 알림은 발송하지 않습니다.</p>
-          <p class="criteria-note">평일 09:00~20:50 기존 10분 간격 작업에서 검색·등록·감시하며 운영관리의 대상종목 검색·추가에서도 실행합니다. 실제 30분봉만 사용하고 자료 부족·조회 실패 시 확정하지 않습니다. GitHub 실행 지연으로 봉 완성시각과 등록·알림시각은 다를 수 있습니다.</p>
+          <p class="criteria-note">기존 AG·AK·AH 선정식과 별도로 장마감 확정 관찰대상을 등록합니다. 등록일 포함 10거래일 관리하며 장중 형태 확인봉·마감 확정·실제 등록시각을 구분합니다. 등록 안내는 매수 신호가 아닙니다. 다음 거래일부터 기존 이미지조건·색상·주가·형태 분석 및 알림에 동일하게 포함하고, 중복 소속은 한 번만 감시합니다. 첫날 장중에 발생한 이미지조건은 편입 안내 문자로 소급 발송하지 않습니다. 기존 첫날상승 목록도 선정 당일 종가 +5% 기준으로 다시 검증하고, 미충족 종목은 제외 이력에 보관합니다.</p>
+          <p class="criteria-note">장후 데이터까지 반영한 종가 확인을 위해 평일 20:30·20:40·20:50 작업에서 신규 확정·등록합니다. 장중 및 20:30 전 운영관리 수동 검색으로도 신규 확정하지 않습니다. 기존에 확정된 종목의 다음 거래일 이후 감시는 기존 10분 간격을 유지합니다. 실제 30분봉만 사용하고 자료 부족·조회 실패 시 확정하지 않습니다. GitHub 실행 지연으로 확정·등록·알림이 늦어질 수 있습니다.</p>
         </section>
         <section id="ahCriteria">
           <div class="criteria-section-heading"><strong>대상종목 AH 선정기준</strong><span>일봉 A·B·C·D·E·H 모두 충족</span></div>
@@ -433,9 +434,9 @@
     </dialog>
   <script src="price-analysis.js?v=20261024-ah3"></script>
   <script src="rising-patterns.js?v=20261017-3"></script>
-  <script src="candidate-scan.js?v=20261025-first1"></script>
+  <script src="candidate-scan.js?v=20261025-close5"></script>
   <script src="notification-markers.js?v=20261023-1"></script>
-  <script src="monitor.js?v=20261025-first1"></script>
+  <script src="monitor.js?v=20261025-close5"></script>
   <dialog id="capturePreviewDialog" class="capture-preview-dialog">
     <header><h2 id="capturePreviewTitle">공부용 이미지</h2><button id="capturePreviewClose" class="external-link" type="button">닫기</button></header>
     <img id="capturePreviewImage" alt="등록된 공부용 이미지">

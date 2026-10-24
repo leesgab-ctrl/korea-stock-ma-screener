@@ -7,7 +7,8 @@ import os
 from pathlib import Path
 import urllib.request
 
-from first_rise_rules import KST, VERSION, WINDOW_DAYS, daily_context, detect, remaining_days, registration_message
+from first_rise_rules import (KST, VERSION, CONFIRM_TIME, WINDOW_DAYS, daily_context, detect,
+                              remaining_days, registration_message, after_close, closing_confirmation, confirmed)
 from ah_rules import hybrid_rows
 from update_candidate_monitor import fetch_bytes, fetch_display_chart, fetch_display_quote, stock_rows
 from notification_history import record_delivery
@@ -73,6 +74,19 @@ def notify(topic, message):
         raise ValueError("ntfy delivery was not acknowledged")
 
 
+def confirm_chart(charts, day, current):
+    daily = charts["daily"]
+    if daily.get("dataStatus") != "ok":
+        return None
+    if day == current.date().isoformat() and daily.get("marketStatus") != "CLOSE":
+        return None
+    quote = charts.get("quote", {})
+    close = next((r.get("c") for r in daily["history"] if r["d"] == day), None)
+    if quote.get("dataStatus") == "ok" and quote.get("time", "")[:10] == day and close != quote.get("price"):
+        return None
+    return closing_confirmation(daily["history"], day, current, quote)
+
+
 def update(payload, market, current, *, volumes=None, no_notify=False, charts_only=False,
            cache_root=None, refresh_fn=refresh, sender=notify, excluded=()):
     stamp = current.isoformat(timespec="seconds")
@@ -84,15 +98,14 @@ def update(payload, market, current, *, volumes=None, no_notify=False, charts_on
     if not calendar:
         raise ValueError("No available trading session")
     day = calendar[-1]
-    if current.weekday() < 5 and current.time().replace(tzinfo=None) < dt.time(20) and day != today:
-        charts_only = True
+    allow_new = (not charts_only and current.weekday() < 5 and day == today and after_close(day, current))
     blocked = set(excluded)
-    existing = {x["code"]: x for x in payload.get("candidates", [])}
+    existing = {x["code"]: x for x in payload.get("candidates", []) + payload.get("pendingCloseValidation", [])}
     stocks = {s["c"]: s for s in market["stocks"]}
     selected = set(existing) - blocked
     scanned = 0
     for code, stock in stocks.items():
-        if charts_only or code in blocked:
+        if not allow_new or code in blocked:
             continue
         rows = stock.get("_ahDaily") or [{"d": r["date"], "c": r["close"], "v": r["volume"]} for r in stock_rows(market, stock)]
         context = daily_context(rows, day)
@@ -119,7 +132,7 @@ def update(payload, market, current, *, volumes=None, no_notify=False, charts_on
                 errors.append({"code": code, "message": str(error)[:180]})
     registry = payload.setdefault("registry", {})
     history = payload.setdefault("history", [])
-    candidates, additions, sent = [], [], 0
+    candidates, additions, pending, sent = [], [], [], 0
     topic = os.environ.get("NTFY_TOPIC", "").strip()
     for code in sorted(selected | set(existing)):
         item = existing.get(code)
@@ -131,15 +144,30 @@ def update(payload, market, current, *, volumes=None, no_notify=False, charts_on
         charts = refreshed.get(code)
         if not charts:
             if item:
-                candidates.append(item)
+                (candidates if confirmed(item) else pending).append(item)
             continue
-        signals = [] if charts_only else detect(charts["intraday"]["history"], charts["daily"]["history"], day, current)
+        if item and (not confirmed(item) or not item["closeConfirmation"].get("previousCloseSource")):
+            validation = confirm_chart(charts, item["dailySignalDate"], current)
+            if validation is None:
+                pending.append(item)
+                errors.append({"code": code, "message": "First-day closing price validation pending"})
+                continue
+            if not validation["qualified"]:
+                history.append({**item, "closeConfirmation": validation, "archivedAt": stamp,
+                                "archiveReason": "first_day_close_below_5pct", "registrationNoticePending": False})
+                continue
+            item["closeConfirmation"] = validation
+            item["registrationNoticePending"] = False
+        close = confirm_chart(charts, day, current) if allow_new else None
+        if allow_new and close is None:
+            errors.append({"code": code, "message": "Final daily close unavailable or market not closed"})
+        signals = detect(charts["intraday"]["history"], charts["daily"]["history"], day, current) if close and close["qualified"] else []
         if not item and signals and registry.get(code, {}).get("lastSignalDate") != day:
             stock = stocks[code]
             item = {"code": code, "name": stock["n"], "market": stock.get("m", ""), "candidateTier": "first_rise",
                     "dailySignalDate": day, "registeredAt": stamp, "registrationPrice": charts["quote"].get("price"),
                     "initialImport": bootstrap, "status": "watching", "firstRiseSignal": signals[0],
-                    "registrationNoticePending": not bootstrap and day == today}
+                    "registrationNoticePending": not bootstrap and day == today, "closeConfirmation": close}
             registry[code] = {"lastSignalDate": day, "registeredAt": stamp}
             additions.append({k: item[k] for k in ("code", "name", "candidateTier", "dailySignalDate", "registeredAt")})
         if not item:
@@ -147,7 +175,7 @@ def update(payload, market, current, *, volumes=None, no_notify=False, charts_on
         item["displayCharts"] = charts
         item["tradingDaysRemaining"] = remaining_days(item["dailySignalDate"], calendar)
         item["intraday"] = {"lastPrice": charts["quote"].get("price"), "lastPriceTime": charts["quote"].get("time")}
-        if item.get("registrationNoticePending") and not no_notify and not charts_only and topic and current.weekday() < 5:
+        if item.get("registrationNoticePending") and not no_notify and not charts_only and topic and allow_new:
             if item["registeredAt"][:10] != today:
                 item["registrationNoticePending"] = False
             else:
@@ -160,12 +188,13 @@ def update(payload, market, current, *, volumes=None, no_notify=False, charts_on
                     item["registrationNoticeSentAt"] = stamp
                     sent += 1
                     record_delivery(payload, code, item["name"], item["firstRiseSignal"]["barTime"], stamp,
-                                    "firstRiseRegistration", "첫날상승 관찰대상 등록", signature=f"first-rise|{code}|{item['registeredAt']}")
+                                    "firstRiseRegistration", "장마감 첫날상승 확정", signature=f"first-rise|{code}|{item['registeredAt']}")
         candidates.append(item)
     payload.update(version=VERSION, initializedAt=payload.get("initializedAt", stamp), generatedAt=stamp, asOf=day,
-                   windowTradingDays=WINDOW_DAYS, candidates=candidates, history=history[-1000:], errors=errors,
+                   windowTradingDays=WINDOW_DAYS, candidates=candidates, pendingCloseValidation=pending, history=history[-1000:], errors=errors,
                    candidateScan={"startedAt": stamp, "completedAt": stamp, "asOf": day, "checkedStocks": scanned,
-                                  "newRegistrations": additions, "currentDayData": day == today},
+                                  "newRegistrations": additions, "currentDayData": day == today,
+                                  "closeOnly": True, "registrationAllowed": allow_new},
                    summary={"active": len(candidates), "scanned": scanned, "volumeQualified": len(selected),
                             "dataErrors": len(errors) + len(payload.get("universeErrors", [])), "pushConfigured": bool(topic), "alertsSentThisRun": sent})
     return payload
@@ -181,10 +210,11 @@ def main():
         parser.error("Offline caches require --no-notify")
     current = dt.datetime.now(KST)
     market = load(ROOT / "data/stock-data.json", {})
-    volumes = None if args.cache_root or args.charts_only else volume_snapshot()
+    scan_window = current.weekday() < 5 and current.time().replace(tzinfo=None) >= CONFIRM_TIME and not args.charts_only
+    volumes = volume_snapshot() if scan_window and not args.cache_root else None
     exclusions = load(ROOT / "data/candidate-exclusions.json", {}).get("excluded", [])
     saved = load(OUTPUT, {})
-    extend_universe(market, saved, current, args.cache_root, not args.charts_only)
+    extend_universe(market, saved, current, args.cache_root, scan_window)
     payload = update(saved, market, current, volumes=volumes, no_notify=args.no_notify, charts_only=args.charts_only,
                      cache_root=args.cache_root, excluded=[x["code"] for x in exclusions])
     OUTPUT.write_text(json.dumps(payload, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")

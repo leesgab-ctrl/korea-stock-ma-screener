@@ -39,7 +39,7 @@
     field("checked").textContent = report ? `${report.checkedStocks.toLocaleString("ko-KR")}종목` : "기록 없음";
     field("counts").textContent = `AG ${candidates.filter(item => item.candidateTier === "core").length} · AK ${candidates.filter(item => item.candidateTier === "expanded_ak").length} · AH ${candidates.filter(item => item.candidateTier === "ah").length} · 첫날상승 ${candidates.filter(item => item.candidateTier === "first_rise").length}`;
     field("added").textContent = report ? `${report.newRegistrations.length}종목` : "기록 없음";
-    field("firstRiseLast").textContent = date(payload.firstRiseScan?.completedAt);
+    field("firstRiseLast").textContent = (payload.firstRiseScan?.registrationAllowed === false ? "마감확정 목록 갱신 · " : "") + date(payload.firstRiseScan?.completedAt);
     field("firstRiseAdded").textContent = `${payload.firstRiseScan?.newRegistrations?.length || 0}종목`;
     field("dataNote").textContent = report && !report.currentDayData ? "당일 일봉 미수집 · 이전 거래일 데이터로 신규 등록하지 않았습니다." : "";
     const list = field("newList");
@@ -166,7 +166,8 @@
       panel.setAttribute("aria-label", "대상종목 검색 및 추가");
       panel.innerHTML = `<h2>대상종목 검색·추가</h2>
         <dl class="candidate-scan-summary">
-          <div><dt>자동 검색 예약</dt><dd>AG·AK 평일 08:30 · 16:40 / AH·첫날상승 09:00~20:50 10분 간격 (실행 지연 가능)</dd></div>
+          <div><dt>자동 검색 예약</dt><dd>AG·AK 평일 08:30 · 16:40 / AH 09:00~20:50 10분 간격 / 첫날상승 신규 확정 20:30·20:40·20:50 (실행 지연 가능)</dd></div>
+          <div><dt>첫날상승 확정 기준</dt><dd>당일 종가 +5% 이상 · 장중 신규 선정·등록·문자 없음</dd></div>
           <div><dt>마지막 검색 완료</dt><dd data-scan="last"></dd></div>
           <div><dt>일봉 기준일</dt><dd data-scan="basis"></dd></div>
           <div><dt>검색 대상</dt><dd data-scan="checked"></dd></div>

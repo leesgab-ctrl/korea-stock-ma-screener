@@ -482,9 +482,11 @@ def process(payload, current, topic="", no_notify=True, board=None, rules=None, 
             rows = completed_rows(chart, current)
             if not rows:
                 continue
-            is_ah = candidate.get("candidateTier") in ("ah", "first_rise")
+            is_ah = candidate.get("candidateTier") == "ah"
             events = [event for event in detect(rows, rule) if timestamp(event["time"]) >= registration
                       or (is_ah and timestamp(event["completedAt"]).date() == registration.date())]
+            if candidate.get("candidateTier") == "first_rise":
+                events = [event for event in events if event["time"][:10] > candidate["dailySignalDate"]]
             for event in events:
                 event.update(code=candidate["code"], name=candidate.get("name", candidate["code"]),
                              ruleName=rule["name"], sourceImageIds=[item["id"] for item in images])

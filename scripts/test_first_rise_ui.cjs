@@ -30,7 +30,9 @@ const server = http.createServer((request, response) => {
       await page.waitForFunction(n => document.querySelectorAll('#candidateList > .candidate').length === n, first.candidates.length);
       assert.equal(await page.locator('[data-view=firstRise]').getAttribute('aria-selected'), 'true');
       assert.match(await page.locator('#candidateMeta').textContent(), /10거래일/);
-      assert.match(await page.locator('#candidateList .candidate-tier').first().textContent(), /첫날상승.*포착/);
+      assert.match(await page.locator('#candidateList .candidate-tier').first().textContent(), /첫날상승.*첫날 종가/);
+      assert.match(await page.locator('#candidateMeta').textContent(), /종가 \+5%.*장중 신규 선정 없음/);
+      assert.equal(await page.evaluate(() => sharedMonitorCandidates().filter(item => item.candidateTier === 'first_rise').every(confirmedFirstRise)), true);
       const frame = page.frameLocator('.inline-stock-chart').first();
       await frame.locator('#maChart').waitFor({state: 'visible'});
       const pixels = await frame.locator('#maChart').evaluate(canvas => {
@@ -47,7 +49,7 @@ const server = http.createServer((request, response) => {
       assert.match(page.url(), /view=firstRise/);
       await page.locator('[data-view=operations]').click();
       await page.locator('#criteriaButton').click();
-      assert.equal(await page.locator('#firstRiseCriteria li').count(), 7);
+      assert.equal(await page.locator('#firstRiseCriteria li').count(), 8);
       assert.match(await page.locator('#firstRiseCriteria').textContent(), /4%.*미래 마감 거래량/s);
       await page.locator('#firstRiseCriteria').scrollIntoViewIfNeeded();
       await page.screenshot({path: path.join(root, `outputs/first-rise-criteria-${width}.png`)});
