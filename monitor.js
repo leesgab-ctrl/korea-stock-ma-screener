@@ -1,12 +1,12 @@
 const requestedCode = new URLSearchParams(window.location.search).get("stock");
 const requestedView = new URLSearchParams(window.location.search).get("view");
-const initialView = ["imageSearch", "ak", "ag", "ah", "capture", "operations", "positions", "core", "target", "reference", "new"].includes(requestedView) ? requestedView : null;
+const initialView = ["imageSearch", "ak", "ag", "ah", "firstRise", "capture", "operations", "positions", "core", "target", "reference", "new"].includes(requestedView) ? requestedView : null;
 const historyChartMode = new URLSearchParams(window.location.search).get("historyChart") === "1";
 const inlineChartMode = new URLSearchParams(window.location.search).get("inlineChart") === "1";
 const inlineChartItems = new Map();
 const inlineChartObservers = [];
 window.getMonitorInlineChart = key => ({ item: inlineChartItems.get(key), payload: {...state.payload,
-  notificationHistory: [...(state.payload?.notificationHistory || []), ...(state.ahPayload?.notificationHistory || []), ...(state.positions?.notificationHistory || [])]} });
+  notificationHistory: [...(state.payload?.notificationHistory || []), ...(state.ahPayload?.notificationHistory || []), ...(state.firstRisePayload?.notificationHistory || []), ...(state.positions?.notificationHistory || [])]} });
 const PENDING_EXCLUSION_KEY = "koreaStockMonitor.pendingExclusions";
 function readPendingExclusions() {
   try {
@@ -24,6 +24,7 @@ const state = {
   exclusionMessage: "",
   payload: null,
   ahPayload: null,
+  firstRisePayload: null,
   imageReplayPayload: null,
   lastLoadedAt: 0,
   positions: null,
@@ -111,24 +112,25 @@ const statusLabels = {
   waiting60: "MA3 돌파 대기",
 };
 const statusPriority = { signal: 0, rising: 1, waiting60: 2, setup: 3, signaled: 4, watching: 5, insufficient: 6, ineligible: 7, excluded: 8 };
-const tierLabels = { core: "핵심 A-G", expanded: "확대 A-G", expanded_ak: "확대 A-K", ah: "A-H" };
-const viewLabels = { imageSearch: "상승검색", ak: "대상종목AK", ag: "대상종목AG", ah: "대상종목AH", core: "핵심종목", new: "신규종목", target: "조정회복형", reference: "상승조정형", capture: "이미지공부", positions: "보유종목", operations: "운영관리" };
+const tierLabels = { core: "핵심 A-G", expanded: "확대 A-G", expanded_ak: "확대 A-K", ah: "A-H", first_rise: "첫날상승" };
+const viewLabels = { imageSearch: "상승검색", ak: "대상종목AK", ag: "대상종목AG", ah: "대상종목AH", firstRise: "첫날상승", core: "핵심종목", new: "신규종목", target: "조정회복형", reference: "상승조정형", capture: "이미지공부", positions: "보유종목", operations: "운영관리" };
 const operationMonitorViews = ["core", "target", "reference"];
 function matchesFamilyView(item, view) {
   return view === "ak" ? item.candidateTier === "expanded_ak"
     : view === "ag" ? !item.candidateTier || item.candidateTier === "core"
-    : view === "ah" ? item.candidateTier === "ah" : false;
+    : view === "ah" ? item.candidateTier === "ah" : view === "firstRise" ? item.candidateTier === "first_rise" : false;
 }
 function currentCandidates() {
   return state.view === "ah" ? state.ahPayload?.candidates || []
+    : state.view === "firstRise" ? state.firstRisePayload?.candidates || []
     : ["ak", "ag"].includes(state.view) ? state.payload?.candidates || [] : sharedMonitorCandidates();
 }
 function sharedMonitorCandidates() {
   const blocked = new Set((state.payload?.manualExclusions || []).map(item => item.code));
   const items = new Map();
-  for (const item of [...(state.payload?.candidates || []), ...(state.payload?.analysisCandidates || []), ...(state.ahPayload?.candidates || [])]) {
+  for (const item of [...(state.payload?.candidates || []), ...(state.payload?.analysisCandidates || []), ...(state.ahPayload?.candidates || []), ...(state.firstRisePayload?.candidates || [])]) {
     if (blocked.has(item.code)) continue;
-    const family = item.candidateTier === "ah" ? "A-H" : item.candidateTier === "expanded_ak" ? "A-K" : "A-G";
+    const family = item.candidateTier === "first_rise" ? "첫날상승" : item.candidateTier === "ah" ? "A-H" : item.candidateTier === "expanded_ak" ? "A-K" : "A-G";
     const existing = items.get(item.code);
     if (existing) {
       if (!existing.screeningFamilies.includes(family)) existing.screeningFamilies.push(family);
@@ -240,10 +242,10 @@ function renderImageSearch() {
 }
 function screeningFamily(item) {
   if (item.screeningFamilies?.length) return item.screeningFamilies.join(" · ");
-  return item.candidateTier === "ah" ? "A-H" : item.candidateTier === "expanded_ak" ? "A-K" : "A-G";
+  return item.candidateTier === "first_rise" ? "첫날상승" : item.candidateTier === "ah" ? "A-H" : item.candidateTier === "expanded_ak" ? "A-K" : "A-G";
 }
 function newRegistrationLabel(item) {
-  if (item.candidateTier === "ah" && item.initialImport) return "초기 편입";
+  if (["ah", "first_rise"].includes(item.candidateTier) && item.initialImport) return "초기 편입";
   const today = new Intl.DateTimeFormat("en-CA", {timeZone: "Asia/Seoul", year: "numeric", month: "2-digit", day: "2-digit"}).format(new Date());
   const records = [...(state.payload?.candidates || []), ...(state.payload?.history || [])];
   const dates = records.flatMap(record => [
@@ -290,28 +292,31 @@ async function loadData({ pollOnly = false } = {}) {
     return;
   }
   if (elements.refreshButton.disabled) return;
-  const previousContent = pollOnly ? JSON.stringify([state.payload, state.positions, state.ahPayload, state.imageReplayPayload]) : null;
+  const previousContent = pollOnly ? JSON.stringify([state.payload, state.positions, state.ahPayload, state.firstRisePayload, state.imageReplayPayload]) : null;
   clearTimeout(exclusionPollTimer);
   elements.refreshButton.disabled = true;
   try {
     const stamp = Date.now();
-    const [response, positionsResponse, ahResponse, replayResponse] = await Promise.all([
+    const [response, positionsResponse, ahResponse, replayResponse, firstRiseResponse] = await Promise.all([
       fetch(`data/candidate-monitor.json?t=${stamp}`, { cache: "no-store" }),
       fetch(`data/positions.json?t=${stamp}`, { cache: "no-store" }),
       fetch(`data/ah-monitor.json?t=${stamp}`, { cache: "no-store" }).catch(() => null),
       fetch(`data/image-search-replays.json?t=${stamp}`, { cache: "no-store" }).catch(() => null),
+      fetch(`data/first-rise-monitor.json?t=${stamp}`, { cache: "no-store" }).catch(() => null),
     ]);
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     state.payload = await response.json();
     state.positions = positionsResponse.ok ? await positionsResponse.json() : { positions: [] };
     state.ahLoadFailed = !ahResponse?.ok;
     state.ahPayload = ahResponse?.ok ? await ahResponse.json() : { candidates: [] };
+    state.firstRiseLoadFailed = !firstRiseResponse?.ok;
+    state.firstRisePayload = firstRiseResponse?.ok ? await firstRiseResponse.json() : { candidates: [] };
     const replays = replayResponse?.ok ? await replayResponse.json().catch(() => null) : null;
     state.imageReplayPayload = replays?.version === 1 && Array.isArray(replays.matches) ? replays : { matches: [] };
     if (historyChartMode) {
       const referenceStart = new URLSearchParams(window.location.search).get('referenceStart');
       const archived = [...(state.payload.history || []), ...(state.payload.analysisHistory || []),
-        ...(state.ahPayload?.candidates || []), ...(referenceStart ? state.payload.candidates || [] : [])].find(item => item.code === requestedCode);
+        ...(state.ahPayload?.candidates || []), ...(state.firstRisePayload?.candidates || []), ...(state.firstRisePayload?.history || []), ...(referenceStart ? state.payload.candidates || [] : [])].find(item => item.code === requestedCode);
       state.payload.candidates = archived ? [archived] : [];
       state.selectedCode = archived?.code || null;
       document.body.classList.add("history-chart-mode");
@@ -358,7 +363,7 @@ async function loadData({ pollOnly = false } = {}) {
       state.selectedCode = null;
     }
     // Pending requests poll every 10 seconds; unchanged charts must keep their frames and viewport.
-    if (!pollOnly || state.loadFailed || previousContent !== JSON.stringify([state.payload, state.positions, state.ahPayload, state.imageReplayPayload])) {
+    if (!pollOnly || state.loadFailed || previousContent !== JSON.stringify([state.payload, state.positions, state.ahPayload, state.firstRisePayload, state.imageReplayPayload])) {
       render();
       renderManualExclusions();
     } else {
@@ -385,7 +390,12 @@ async function loadData({ pollOnly = false } = {}) {
 }
 
 function renderMonitorStatus() {
-  const { summary = {}, generatedAt } = (state.view === "ah" ? state.ahPayload : state.payload) || {};
+  const { summary = {}, generatedAt } = (state.view === "firstRise" ? state.firstRisePayload : state.view === "ah" ? state.ahPayload : state.payload) || {};
+  if (state.view === "firstRise" && state.firstRiseLoadFailed) {
+    elements.runStatus.textContent = "첫날상승 데이터를 불러오지 못했습니다";
+    elements.updatedAt.textContent = "새로고침 후 다시 확인해 주세요.";
+    return;
+  }
   if (state.view === "ah" && state.ahLoadFailed) {
     elements.runStatus.textContent = "AH 데이터를 불러오지 못했습니다";
     elements.updatedAt.textContent = "새로고침 후 다시 확인해 주세요.";
@@ -406,7 +416,7 @@ function render() {
   if (state.deepLinkPending) {
     const requested = activeCandidates.find((item) => item.code === state.selectedCode);
     if (requested) {
-      state.view = requested.candidateTier === "ah" ? "ah" : requested.candidateTier === "expanded_ak" ? "ak" : "ag";
+      state.view = requested.candidateTier === "first_rise" ? "firstRise" : requested.candidateTier === "ah" ? "ah" : requested.candidateTier === "expanded_ak" ? "ak" : "ag";
     }
   }
   if (!inlineChartMode && !historyChartMode) {
@@ -429,7 +439,7 @@ function render() {
   elements.asOf.textContent = asOf || "-";
   renderMonitorStatus();
   renderViewCounts(activeCandidates, openPositions);
-  const candidateView = ["ak", "ag", "ah", "new", "target", "reference"].includes(state.view);
+  const candidateView = ["ak", "ag", "ah", "firstRise", "new", "target", "reference"].includes(state.view);
   document.querySelector(".workspace").classList.toggle("hidden", !candidateView);
   document.querySelector(".toolbar").classList.toggle("hidden", !candidateView);
   document.querySelector(".positions-panel").classList.toggle("hidden", state.view !== "positions");
@@ -541,7 +551,7 @@ function renderViewCounts(candidates, positions) {
   const dates = watchQuoteDates(candidates);
   document.querySelectorAll(".view-tab").forEach((button) => {
     const view = button.dataset.view;
-    const count = view === "ah" ? state.ahPayload?.candidates?.length || 0
+    const count = view === "firstRise" ? state.firstRisePayload?.candidates?.length || 0 : view === "ah" ? state.ahPayload?.candidates?.length || 0
       : ["ak", "ag"].includes(view) ? candidates.filter(item => matchesFamilyView(item, view)).length
       : view === "capture" ? window.RisingPatterns?.count || 0 : view === "positions" ? positions.length : candidates.filter((item) => view === "core" ? isCoreCandidate(item, dates)
       : view === "new" ? Boolean(newRegistrationLabel(item)) : chartGroup(item) === view).length;
@@ -770,8 +780,10 @@ function renderClosedPosition(item) {
 
 function filteredCandidates(candidates) {
   const keyword = state.keyword.trim().toLowerCase();
+  const blocked = new Set((state.payload?.manualExclusions || []).map(item => item.code));
   return candidates.filter((item) => {
-    const statusMatch = ["ak", "ag", "ah"].includes(state.view) ? matchesFamilyView(item, state.view)
+    if (blocked.has(item.code) || state.pendingExclusions.get(item.code)?.action === "exclude") return false;
+    const statusMatch = ["ak", "ag", "ah", "firstRise"].includes(state.view) ? matchesFamilyView(item, state.view)
       : state.view === "new" ? Boolean(newRegistrationLabel(item)) : chartGroup(item) === state.view;
     const keywordMatch = !keyword || item.name.toLowerCase().includes(keyword) || item.code.includes(keyword);
     return statusMatch && keywordMatch;
@@ -902,14 +914,14 @@ function isTodayRising(item, date) {
 
 function renderCandidates(candidates) {
   restoreDetailPanel();
-  const familyView = ["ak", "ag", "ah"].includes(state.view);
+  const familyView = ["ak", "ag", "ah", "firstRise"].includes(state.view);
   const visible = filteredCandidates(candidates).sort(familyView ? compareRegistrationNewest : ["target", "reference"].includes(state.view) ? compareCandidateSpread : (a, b) =>
     Number(candidateObservation(b).purple) - Number(candidateObservation(a).purple)
     || (statusPriority[a.status] ?? 99) - (statusPriority[b.status] ?? 99)
     || a.name.localeCompare(b.name, "ko")
   );
   state.expandedCharts = visible.length > 0 && visible.length < 20;
-  elements.candidateMeta.textContent = `${visible.length}종목 · ${familyView ? state.view === "ah" ? "최근 등록순 · 최근 5거래일 신규 편입 · MA120·180 근사 포함" : "최근 등록순 · 등록일 포함 10거래일 관리" : state.view === "new" ? "오늘·직전 거래일 등록" : state.view === "target" ? "등록 이후 MA20 < MA40" : "등록 이후 MA20 > MA40"}`;
+  elements.candidateMeta.textContent = `${visible.length}종목 · ${familyView ? state.view === "firstRise" ? "최근 등록순 · 첫 상승일 관찰 · 등록일 포함 10거래일 관리" : state.view === "ah" ? "최근 등록순 · 최근 5거래일 신규 편입 · MA120·180 근사 포함" : "최근 등록순 · 등록일 포함 10거래일 관리" : state.view === "new" ? "오늘·직전 거래일 등록" : state.view === "target" ? "등록 이후 MA20 < MA40" : "등록 이후 MA20 > MA40"}`;
   elements.candidateList.innerHTML = "";
   if (!visible.length) {
     elements.candidateList.innerHTML = '<div class="empty-list">현재 조건에 해당하는 후보가 없습니다.</div>';
@@ -1010,6 +1022,11 @@ function renderCandidates(candidates) {
       node.querySelectorAll(".candidate-observation").forEach(notice => notice.remove());
       noticeRow.style.backgroundColor = "";
       node.style.backgroundColor = "";
+    }
+    if (item.candidateTier === "first_rise" && item.firstRiseSignal) {
+      const signal = item.firstRiseSignal;
+      node.querySelector(".candidate-tier").textContent += ` · 포착 ${formatDateTime(signal.completedAt)}`;
+      node.querySelector(".candidate-tier").title = `직전 6봉 밀집 최대 ${signal.clusterMaxPct.toFixed(2)}% · 30분봉 거래량 ${signal.barVolumeMultiple.toFixed(2)}배 · 당일 누적 ${signal.dailyVolumeMultiple.toFixed(2)}배`;
     }
     elements.candidateList.append(node);
     if (state.expandedCharts) appendInlineChart(elements.candidateList, item, item.code);
@@ -1483,7 +1500,7 @@ document.querySelector(".operation-links").addEventListener("click", event => {
   }
 }, true);
 document.addEventListener("rising-patterns-change", () => {
-  renderViewCounts([...(state.payload?.candidates || []), ...(state.ahPayload?.candidates || [])], (state.positions?.positions || []).filter(item => item.status === "open"));
+  renderViewCounts(sharedMonitorCandidates(), (state.positions?.positions || []).filter(item => item.status === "open"));
   if (state.view === "imageSearch") renderImageSearch();
 });
 const MEMO_STORAGE_KEY = "koreaStockMonitor.memo";
@@ -1545,7 +1562,7 @@ function openOperationContent(button, content) {
 document.querySelector("#candidateScanButton").addEventListener("click", event => {
   window.CandidateScan.open({
     button: event.currentTarget, openOperationContent, loadData,
-    getPayload: () => ({...state.payload, candidates: [...(state.payload?.candidates || []), ...(state.ahPayload?.candidates || [])]}), tokenKey: GITHUB_TOKEN_KEY,
+    getPayload: () => ({...state.payload, candidates: [...(state.payload?.candidates || []), ...(state.ahPayload?.candidates || []), ...(state.firstRisePayload?.candidates || [])], firstRiseScan: state.firstRisePayload?.candidateScan}), tokenKey: GITHUB_TOKEN_KEY,
   });
 });
 document.querySelectorAll("[data-operation-page]").forEach((link) => {
@@ -1800,8 +1817,9 @@ function renderDetail(item) {
     elements.signalMessage.textContent = `밀착 후 재상승 · ${formatDateTime(rebound.time)} · 포착가격 ${formatter.format(rebound.price)}원 · MA10 조정 후 MA3 → MA20 상향 돌파 (별도 관찰 신호)`;
   }
   const fullSeries = chartSeriesWithMa120(native);
-  const markerPayload = state.view === "ah" ? {...state.payload, notificationHistory: [
+  const markerPayload = ["ah", "firstRise"].includes(state.view) ? {...state.payload, notificationHistory: [
     ...(state.payload?.notificationHistory || []), ...(state.ahPayload?.notificationHistory || []),
+    ...(state.firstRisePayload?.notificationHistory || []),
   ]} : state.payload;
   chartViewport.notifications = window.NotificationMarkers?.forCode(markerPayload, state.positions, item.code) || [];
   if (chartViewport.count == null && fullSeries.length) {

@@ -1792,15 +1792,20 @@ def main() -> None:
     color_changed = False
     prior_common_members = sorted((item["code"], item["registeredAt"]) for item in previous.get("analysisCandidates", []))
     prior_image_scope = previous.get("imageSearch", {}).get("scope")
-    from common_monitor import load_ah_candidates, merge_candidates
+    from common_monitor import load_ah_candidates, load_first_rise_candidates, merge_candidates
     try:
         ah_candidates = load_ah_candidates(ROOT / "data/ah-monitor.json", current)
     except (OSError, ValueError, TypeError, KeyError):
         ah_candidates = []
         payload.setdefault("summary", {})["ahCommonDataError"] = True
+    try:
+        first_rise_candidates = load_first_rise_candidates(ROOT / "data/first-rise-monitor.json", current)
+    except (OSError, ValueError, TypeError, KeyError):
+        first_rise_candidates = []
+        payload.setdefault("summary", {})["firstRiseCommonDataError"] = True
     primary_candidates = payload.get("candidates", [])
     blocked_codes = {entry["code"] for entry in payload.get("manualExclusions", [])}
-    common_candidates = merge_candidates(primary_candidates, ah_candidates, blocked_codes)
+    common_candidates = merge_candidates(primary_candidates, [*ah_candidates, *first_rise_candidates], blocked_codes)
     payload.setdefault("summary", {})["commonActive"] = len(common_candidates)
     primary_codes = {item["code"] for item in primary_candidates}
     additional = [item for item in common_candidates if item["code"] not in primary_codes]

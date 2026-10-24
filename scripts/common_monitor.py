@@ -5,13 +5,13 @@ import json
 from ah_rules import hybrid_rows
 
 
-def load_ah_candidates(path, current):
+def load_family_candidates(path, current, tier):
     if not path.exists():
         return []
     payload = json.loads(path.read_text(encoding="utf-8"))
     result = []
     for source in payload.get("candidates", []):
-        if source.get("candidateTier") != "ah" or source.get("tradingDaysRemaining", 0) <= 0:
+        if source.get("candidateTier") != tier or source.get("tradingDaysRemaining", 0) <= 0:
             continue
         item = copy.deepcopy(source)
         chart = item.get("displayCharts", {}).get("intraday", {})
@@ -20,6 +20,14 @@ def load_ah_candidates(path, current):
         chart.pop("ahModel", None)
         result.append(item)
     return result
+
+
+def load_ah_candidates(path, current):
+    return load_family_candidates(path, current, "ah")
+
+
+def load_first_rise_candidates(path, current):
+    return load_family_candidates(path, current, "first_rise")
 
 
 def merge_candidates(primary, extra, excluded_codes=()):

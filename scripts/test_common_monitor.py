@@ -6,7 +6,7 @@ import tempfile
 import unittest
 from unittest.mock import Mock
 
-from common_monitor import load_ah_candidates, merge_candidates
+from common_monitor import load_ah_candidates, load_first_rise_candidates, merge_candidates
 from image_pattern_search import process
 from test_image_pattern_search import fixture, at
 
@@ -47,7 +47,7 @@ class CommonMonitorTests(unittest.TestCase):
         self.assertEqual(process(payload, at("12:10"), "test", False, board, rules, sender)[0], 0)
         self.assertEqual(sender.call_count, 2)
         self.assertEqual(payload["imageSearch"]["candidateCount"], 1)
-        self.assertEqual(payload["imageSearch"]["scope"], "active_ak_ag_ah")
+        self.assertEqual(payload["imageSearch"]["scope"], "active_ak_ag_ah_first_rise")
 
     def test_initial_ah_image_enable_never_replays_past_notifications(self):
         payload, rules, board = fixture()

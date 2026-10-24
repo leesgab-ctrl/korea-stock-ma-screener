@@ -37,21 +37,23 @@
     field("last").textContent = date(report?.completedAt);
     field("basis").textContent = report?.asOf || payload?.asOf || "-";
     field("checked").textContent = report ? `${report.checkedStocks.toLocaleString("ko-KR")}종목` : "기록 없음";
-    field("counts").textContent = `AG ${candidates.filter(item => item.candidateTier === "core").length} · AK ${candidates.filter(item => item.candidateTier === "expanded_ak").length} · AH ${candidates.filter(item => item.candidateTier === "ah").length}`;
+    field("counts").textContent = `AG ${candidates.filter(item => item.candidateTier === "core").length} · AK ${candidates.filter(item => item.candidateTier === "expanded_ak").length} · AH ${candidates.filter(item => item.candidateTier === "ah").length} · 첫날상승 ${candidates.filter(item => item.candidateTier === "first_rise").length}`;
     field("added").textContent = report ? `${report.newRegistrations.length}종목` : "기록 없음";
+    field("firstRiseLast").textContent = date(payload.firstRiseScan?.completedAt);
+    field("firstRiseAdded").textContent = `${payload.firstRiseScan?.newRegistrations?.length || 0}종목`;
     field("dataNote").textContent = report && !report.currentDayData ? "당일 일봉 미수집 · 이전 거래일 데이터로 신규 등록하지 않았습니다." : "";
     const list = field("newList");
     list.replaceChildren();
-    for (const item of report?.newRegistrations || []) {
+    for (const item of [...(report?.newRegistrations || []), ...(payload.firstRiseScan?.newRegistrations || [])]) {
       const li = document.createElement("li");
-      li.textContent = `${item.name} (${item.code}) · ${item.candidateTier === "expanded_ak" ? "AK" : "AG"} · ${date(item.registeredAt)}`;
+      li.textContent = `${item.name} (${item.code}) · ${item.candidateTier === "first_rise" ? "첫날상승" : item.candidateTier === "expanded_ak" ? "AK" : "AG"} · ${date(item.registeredAt)}`;
       list.append(li);
     }
     const recent = field("recent");
     recent.replaceChildren();
     for (const item of [...candidates].sort((a, b) => String(b.registeredAt).localeCompare(String(a.registeredAt))).slice(0, 10)) {
       const li = document.createElement("li");
-      li.textContent = `${date(item.registeredAt)} · ${item.name} · ${item.candidateTier === "ah" ? "AH" : item.candidateTier === "expanded_ak" ? "AK" : "AG"}`;
+      li.textContent = `${date(item.registeredAt)} · ${item.name} · ${item.candidateTier === "first_rise" ? "첫날상승" : item.candidateTier === "ah" ? "AH" : item.candidateTier === "expanded_ak" ? "AK" : "AG"}`;
       recent.append(li);
     }
   }
@@ -90,7 +92,7 @@
       savePending({...pending, runId: run.id});
       showRun(run.id);
       if (run.status !== "completed") {
-        status(run.status === "in_progress" ? "A-G·A-K·A-H 검색·등록·배포 진행 중" : "다른 작업 완료 후 실행 대기 중");
+        status(run.status === "in_progress" ? "A-G·A-K·A-H·첫날상승 검색·등록·배포 진행 중" : "다른 작업 완료 후 실행 대기 중");
         return;
       }
       if (run.conclusion !== "success") {
@@ -106,7 +108,7 @@
       const sameRun = String(report?.runId) === String(run.id);
       if (!sameRun && !(Date.parse(report?.startedAt) >= Date.parse(run.updated_at))) return;
       await options.loadData();
-      refresh(payload);
+      refresh();
       status(sameRun ? `검색·등록 완료 · 신규 ${report.newRegistrations.length}종목 추가`
         : "검색·등록 완료 · 이후 실행된 최신 검색 결과를 표시합니다.");
       savePending(null);
@@ -164,12 +166,14 @@
       panel.setAttribute("aria-label", "대상종목 검색 및 추가");
       panel.innerHTML = `<h2>대상종목 검색·추가</h2>
         <dl class="candidate-scan-summary">
-          <div><dt>자동 검색 예약</dt><dd>평일 08:30 · 16:40 KST (실행 지연 가능)</dd></div>
+          <div><dt>자동 검색 예약</dt><dd>AG·AK 평일 08:30 · 16:40 / AH·첫날상승 09:00~20:50 10분 간격 (실행 지연 가능)</dd></div>
           <div><dt>마지막 검색 완료</dt><dd data-scan="last"></dd></div>
           <div><dt>일봉 기준일</dt><dd data-scan="basis"></dd></div>
           <div><dt>검색 대상</dt><dd data-scan="checked"></dd></div>
           <div><dt>현재 관리</dt><dd data-scan="counts"></dd></div>
           <div><dt>마지막 검색 신규 등록</dt><dd data-scan="added"></dd></div>
+          <div><dt>첫날상승 검색 완료</dt><dd data-scan="firstRiseLast"></dd></div>
+          <div><dt>첫날상승 최근 검색 추가</dt><dd data-scan="firstRiseAdded"></dd></div>
         </dl>
         <p data-scan="dataNote" class="muted"></p><ul data-scan="newList"></ul>
         <form data-scan="form">
@@ -178,7 +182,7 @@
             <p class="muted">이 저장소의 Actions 읽기·쓰기 권한</p>
           </details>
           <div class="candidate-scan-actions">
-            <button data-scan="submit" class="external-link" type="submit">A-G·A-K·A-H 검색 및 추가</button>
+            <button data-scan="submit" class="external-link" type="submit">AG·AK·AH·첫날상승 검색 및 추가</button>
             <button data-scan="check" class="external-link" type="button" hidden>상태 확인</button>
             <a data-scan="run" target="_blank" rel="noopener noreferrer" hidden>실행 내역</a>
           </div>

@@ -110,7 +110,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           if [ "$INPUT_ACTION" = "exclude" ] || [ "$INPUT_ACTION" = "restore" ]; then
-            git add data/candidate-exclusions.json data/candidate-monitor.json
+          git add data/candidate-exclusions.json data/candidate-monitor.json data/first-rise-monitor.json
           else
             git add data/positions.json
           fi

@@ -102,14 +102,15 @@ def send(topic, candidate, payload, row, state, kind, current):
     stop = min(lows[d] for d in dates) if len(dates) == 3 else None
     label = {"purple": "진한 보라색 조정 관찰", "convergenceBreakout": "MA40·60 밀집 후 MA3 상향돌파 매수 후보", "coreMorningMa3": "핵심종목 아침 MA3 상승", "recoveryMa10Breakout": "조정 후 MA10·MA40 상향돌파"}.get(kind, "전체 5개 MA 밀착")
     if kind == "imageEnrollment":
-        label = "AH 편입 전 이미지조건 포착 안내"
+        family = "첫날상승" if candidate.get("candidateTier") == "first_rise" else "AH"
+        label = f"{family} 편입 전 이미지조건 포착 안내"
         stages = {"primary": "1차 포착", "confirmation": "확인 포착", "watch": "검토필요"}
         signals = "\n".join(f"- {item['ruleName']} · {item['completedAt']} · {stages.get(item['stage'], item['stage'])}"
                             + (f" · 전일대비 {item['changePct']:+.2f}%" if item.get("changePct") is not None else "")
                             for item in state["enrollmentSignals"])
         quote = candidate.get("displayCharts", {}).get("quote", {})
         current_price = price_with_day_change(quote.get("price"), quote.get("time", ""), quote) if quote.get("price") else "자료 없음"
-        message = (f"[AH 신규 편입 · 당일 선행 포착 안내] {candidate['name']}({candidate['code']})\n"
+        message = (f"[{family} 신규 편입 · 당일 선행 포착 안내] {candidate['name']}({candidate['code']})\n"
                    f"- 편입시각 {state['enrollmentAt']}\n{signals}\n"
                    f"- 편입 전 기준봉 종가 {price_text}\n- 최신 수집가 {current_price}\n"
                    "편입 전에 발생한 신호를 알려드립니다. 현재 새 돌파가 발생했다는 뜻은 아닙니다.")

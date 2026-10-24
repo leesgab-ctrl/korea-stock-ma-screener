@@ -436,7 +436,7 @@ def process(payload, current, topic="", no_notify=True, board=None, rules=None, 
     previous_events = {(event.get("code"), event.get("id")): event for event in payload.get("imageSearch", {}).get("events", [])}
     tracking = payload.setdefault("imageSearchNotificationState", {})
     enrollment_state = payload.setdefault("ahImageEnrollmentState", {})
-    snapshot = {"version": 1, "updatedAt": current.isoformat(timespec="seconds"), "status": "ok", "scope": "active_ak_ag_ah",
+    snapshot = {"version": 1, "updatedAt": current.isoformat(timespec="seconds"), "status": "ok", "scope": "active_ak_ag_ah_first_rise",
                 "rules": [], "matches": [], "events": [], "errors": [], "candidateCount": 0}
     try:
         board = load_board(current) if board is None else board
@@ -448,7 +448,7 @@ def process(payload, current, topic="", no_notify=True, board=None, rules=None, 
         snapshot.update(status="error", errors=[f"이미지 조건 목록 조회 실패: {type(exc).__name__}"])
         payload["imageSearch"] = snapshot
         return 0, before != json.dumps([tracking, enrollment_state], sort_keys=True)
-    candidates = [item for item in payload.get("candidates", []) if item.get("candidateTier", "core") in ("core", "expanded_ak", "ah")]
+    candidates = [item for item in payload.get("candidates", []) if item.get("candidateTier", "core") in ("core", "expanded_ak", "ah", "first_rise")]
     snapshot["candidateCount"] = len(candidates)
     count = 0
     jobs = {}
@@ -482,7 +482,7 @@ def process(payload, current, topic="", no_notify=True, board=None, rules=None, 
             rows = completed_rows(chart, current)
             if not rows:
                 continue
-            is_ah = candidate.get("candidateTier") == "ah"
+            is_ah = candidate.get("candidateTier") in ("ah", "first_rise")
             events = [event for event in detect(rows, rule) if timestamp(event["time"]) >= registration
                       or (is_ah and timestamp(event["completedAt"]).date() == registration.date())]
             for event in events:

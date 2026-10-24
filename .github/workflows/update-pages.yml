@@ -38,6 +38,13 @@ jobs:
         run: |
           curl --fail --retry 3 --silent --show-error -o /tmp/candidate-monitor.json https://leesgab-ctrl.github.io/korea-stock-ma-screener/data/candidate-monitor.json
           mv /tmp/candidate-monitor.json data/candidate-monitor.json
+      - name: Scan first-rise observation candidates
+        continue-on-error: true
+        env:
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+        run: |
+          python -m unittest discover -s scripts -p test_first_rise*.py
+          python scripts/update_first_rise_monitor.py
       - name: Refresh AH before common monitoring
         continue-on-error: true
         env:
@@ -56,7 +63,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/candidate-monitor.json data/ah-monitor.json
+          git add data/candidate-monitor.json data/ah-monitor.json data/first-rise-monitor.json
           git diff --cached --quiet || git commit -m "Update AG AK AH candidate monitor"
           git pull --rebase --autostash origin main
           git push
