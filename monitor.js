@@ -184,6 +184,7 @@ function compareRegistrationNewest(a, b) {
     || a.name.localeCompare(b.name, "ko");
 }
 function imagePatternLabel(event) {
+  if (event.signalType === "firstRiseMa10Ma60") return "첫날상승후 MA10·MA60 접근";
   if (event.signalType === "ahMa120Ma180") return `AH MA120이 MA180 돌파${event.approximate ? " · 근사" : ""}`;
   if (event.signalType === "ma3Ma60Near" && event.stage === "watch") return "피라미드형 1차 검토필요";
   if (event.signalType === "ma3Ma60Near") return event.stage === "primary" ? "피라미드형3MA반등" : "MA60 부근 MA3 돌파 확인";

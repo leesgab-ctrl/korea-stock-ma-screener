@@ -5,12 +5,13 @@ import math
 from pathlib import Path
 import urllib.request
 from notification_prices import day_change_percent
+import first_rise_pullback
 
 KST = dt.timezone(dt.timedelta(hours=9))
 RULES_PATH = Path(__file__).resolve().parents[1] / "data/image-search-rules.json"
 BOARD_URL = "https://raw.githubusercontent.com/leesgab-ctrl/korea-stock-ma-screener/codex/study-images/data/study-images.json"
 KEYS = ("m3", "m10", "m20", "m40", "m60")
-RULE_TYPES = ("decline_ma40_recovery", "decline_ma10_ma40", "rising_cluster_ma3", "ma3_ma120_recovery", "ma20_pyramid_ma60_recovery", "ma3_ma60_near_rebound")
+RULE_TYPES = ("decline_ma40_recovery", "decline_ma10_ma40", "rising_cluster_ma3", "ma3_ma120_recovery", "ma20_pyramid_ma60_recovery", "ma3_ma60_near_rebound", "first_rise_ma10_ma60_pullback")
 
 
 def timestamp(value):
@@ -361,7 +362,9 @@ def detect_ma60_near_rebound(rows, rule):
     return events
 
 
-def detect(rows, rule):
+def detect(rows, rule, candidate=None):
+    if rule["type"] == "first_rise_ma10_ma60_pullback":
+        return first_rise_pullback.detect(rows, rule, candidate or {})
     if rule["type"] == "ma3_ma60_near_rebound":
         return detect_ma60_near_rebound(rows, rule)
     if rule["type"] == "ma20_pyramid_ma60_recovery":
@@ -420,6 +423,7 @@ def detect(rows, rule):
 def send_alert(topic, candidate, payload, row, event, current):
     from color_notifications import send
     kind = "imageEnrollment" if event.get("enrollmentSignals") else \
+        "imageFirstRisePullback" if event.get("signalType") == "firstRiseMa10Ma60" else \
         "imageMa60NearWatch" if event.get("signalType") == "ma3Ma60Near" and event.get("stage") == "watch" else \
         "imageMa60NearRebound" if event.get("signalType") == "ma3Ma60Near" else \
         "imagePyramidRecovery" if event.get("signalType") == "ma20Pyramid" else \
@@ -473,7 +477,11 @@ def process(payload, current, topic="", no_notify=True, board=None, rules=None, 
             snapshot["errors"].append("확정 시각이 올바르지 않아 해당 조건의 알림을 중지했습니다.")
             continue
         for candidate in candidates:
-            registered = candidate.get("registeredAt") or candidate.get("dailySignalDate")
+            first_rise_rule = rule["type"] == "first_rise_ma10_ma60_pullback"
+            member = first_rise_pullback.membership(candidate) if first_rise_rule else None
+            if first_rise_rule and not member:
+                continue
+            registered = (member or candidate).get("registeredAt") or (member or candidate).get("dailySignalDate")
             try:
                 registration = timestamp(registered)
             except (TypeError, ValueError):
@@ -482,14 +490,16 @@ def process(payload, current, topic="", no_notify=True, board=None, rules=None, 
             rows = completed_rows(chart, current)
             if not rows:
                 continue
-            is_ah = candidate.get("candidateTier") == "ah"
-            events = [event for event in detect(rows, rule) if timestamp(event["time"]) >= registration
+            is_ah = candidate.get("candidateTier") == "ah" and not first_rise_rule
+            events = [event for event in detect(rows, rule, candidate) if timestamp(event["time"]) >= registration
                       or (is_ah and timestamp(event["completedAt"]).date() == registration.date())]
             if candidate.get("candidateTier") == "first_rise":
                 events = [event for event in events if event["time"][:10] > candidate["dailySignalDate"]]
             for event in events:
                 event.update(code=candidate["code"], name=candidate.get("name", candidate["code"]),
                              ruleName=rule["name"], sourceImageIds=[item["id"] for item in images])
+                if first_rise_rule:
+                    event["membershipRegisteredAt"] = registered
                 if is_ah and timestamp(event["completedAt"]) <= registration:
                     event["beforeRegistration"] = True
                 quote = candidate.get("displayCharts", {}).get("quote", {})
@@ -523,13 +533,15 @@ def process(payload, current, topic="", no_notify=True, board=None, rules=None, 
                     event = missed[-1]
                     enrollment_jobs.setdefault(enrollment_key, []).append((candidate, by_time[event["time"]], event, saved))
             for event in events:
+                if first_rise_rule and saved.get("selectionSentAt"):
+                    continue
                 if event.get("beforeRegistration"):
                     continue
                 completion = timestamp(event["completedAt"])
                 start = timestamp(event["time"])
                 age = current - completion
                 delivery = f"{candidate['code']}|{registered}|{event['time']}|{event['stage']}"
-                if event.get("signalType") in ("ma3Rise", "ma3Ma120", "ma20Pyramid", "ma3Ma60Near"):
+                if event.get("signalType") in ("ma3Rise", "ma3Ma120", "ma20Pyramid", "ma3Ma60Near", "firstRiseMa10Ma60"):
                     delivery += "|" + event["signalType"]
                 if start <= timestamp(saved["baseline"]) or completion < enabled_at or delivery in saved["sent"] \
                         or completion.date() != current.date() or not dt.time(9) <= start.time() <= dt.time(20) \
@@ -561,6 +573,8 @@ def process(payload, current, topic="", no_notify=True, board=None, rules=None, 
                 enrollment_state[f"{candidate['code']}|{candidate['registeredAt']}"] = delivered[delivery]
         for _, _, _, saved in entries:
             saved["sent"][delivery] = delivered[delivery]
+            if event.get("signalType") == "firstRiseMa10Ma60":
+                saved["selectionSentAt"] = delivered[delivery]
     for key in list(tracking):
         if key not in active_keys:
             del tracking[key]

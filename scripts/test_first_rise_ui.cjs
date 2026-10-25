@@ -75,8 +75,13 @@ const server = http.createServer((request, response) => {
       assert.match(await page.locator('#firstRiseCriteria').textContent(), /4%.*미래 마감 거래량/s);
       assert.match(await page.locator('#firstRiseCriteria').textContent(), /직전 거래일 MA3 ≤ MA10.*선정 당일 MA3 > MA10/s);
       assert.match(await page.locator('#firstRiseCriteria').textContent(), /종가 \+5% 기준은 사용하지 않습니다/);
+      assert.match(await page.locator('#firstRiseReviewCriteria').textContent(), /MA10.*MA60.*±1%.*±0.5%/s);
+      assert.match(await page.locator('#firstRiseReviewCriteria').textContent(), /50%.*제외하지 않습니다/);
       await page.locator('#firstRiseCriteria').scrollIntoViewIfNeeded();
       await page.screenshot({path: path.join(root, `outputs/first-rise-criteria-${width}.png`)});
+      await page.locator('#firstRiseReviewCriteria').scrollIntoViewIfNeeded();
+      assert.ok(await page.evaluate(() => document.querySelector('#criteriaDialog').scrollWidth <= document.querySelector('#criteriaDialog').clientWidth + 1));
+      await page.screenshot({path: path.join(root, `outputs/first-rise-review-${width}.png`)});
       await page.locator('#criteriaDialogClose').click();
       await page.locator('#candidateScanButton').click();
       assert.match(await page.locator('[data-scan=counts]').textContent(), /첫날상승/);
@@ -87,13 +92,14 @@ const server = http.createServer((request, response) => {
         const item = state.firstRisePayload.candidates[0];
         state.payload.imageSearch = {status: 'ok', matches: [{code: item.code, sourceImageIds: ['qa-image'],
           id: 'qa-first-rise', completedAt: new Date(Date.now()-60000).toISOString(), ruleName: 'QA',
-          signalType: 'ma3Ma120', stage: 'primary', price: 100, changePct: 1}]};
+          signalType: 'firstRiseMa10Ma60', stage: 'watch', price: 100, changePct: 1}]};
         renderImageSearch();
       });
       const code = first.candidates[0].code;
       const row = page.locator(`#imageSearchMatches .watch-quote-row[data-code="${code}"]`);
       assert.equal(await row.count(), 1);
       assert.match(await row.locator('.watch-quote-group').first().textContent(), /첫날상승/);
+      assert.match(await page.locator('#imageSearchMatches').textContent(), /첫날상승후 MA10·MA60 접근/);
       await page.locator('[data-view=ag]').click();
       await page.waitForFunction(n => document.querySelectorAll('#candidateList > .candidate').length === n,
         legacy.candidates.filter(x => !x.candidateTier || x.candidateTier === 'core').length);

@@ -38,5 +38,11 @@ def merge_candidates(primary, extra, excluded_codes=()):
     result = {}
     for item in [*primary, *extra]:
         if item["code"] not in excluded:
-            result.setdefault(item["code"], item)
+            if item["code"] not in result:
+                item.pop("firstRiseMembership", None)
+                result[item["code"]] = item
+            if (item.get("candidateTier") == "first_rise" and confirmed(item)
+                    and result[item["code"]].get("candidateTier") != "first_rise"):
+                result[item["code"]]["firstRiseMembership"] = copy.deepcopy({key: item[key] for key in
+                    ("code", "candidateTier", "dailySignalDate", "registeredAt", "closeConfirmation", "tradingDaysRemaining", "firstRiseSignal") if key in item})
     return list(result.values())

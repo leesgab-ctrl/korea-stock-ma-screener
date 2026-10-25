@@ -314,6 +314,11 @@
           <p class="criteria-note">기존 AG·AK·AH 선정식과 별도로 최종 확정 종목만 등록일 포함 10거래일 관리합니다. 다음 거래일부터 기존 이미지조건·색상·주가·형태 분석 및 알림에 포함하고 중복 소속은 한 번만 감시합니다. 첫날 장중 이미지조건을 편입 안내로 소급 발송하지 않습니다. 기존 목록과 이전 +5% 기준 제외 종목도 새 일봉 돌파 기준으로 재검증하되 등록일·등록가는 보존하고 과거 문자를 재발송하지 않습니다.</p>
           <p class="criteria-note">평일 15:10 예약과 15:15 보완 예약으로 1차 확인을 시도합니다. 정상 확인되거나 안내가 발송된 1차 목록은 고정하며, 보완 예약은 조회·발송 실패를 재시도합니다. 실제 검사가 15:10~15:15 구간을 벗어나면 뒤늦은 시세를 당시 결과처럼 표시하지 않습니다. 20:30 예약에서 최종 확정하고 20:40·20:50에 오류를 재시도합니다. GitHub 예약·실행·배포는 지연될 수 있으므로 정확한 시각은 보장하지 않습니다. 기존 확정 종목의 이후 감시는 10분 간격을 유지합니다.</p>
         </section>
+        <section id="firstRiseReviewCriteria">
+          <div class="criteria-section-heading"><strong>첫날상승 매수검토 접근 알림</strong><span>나노엔텍 이미지 · 실제 완성 30분봉</span></div>
+          <p class="criteria-note">첫날상승 최종 확정 종목의 관리기간에만 적용하며, 1차 미확정 목록은 제외합니다. 선정일 형태 확인봉 이후 MA10이 상승하여 MA60 위에 고점을 만든 뒤 하락하고, 다음 거래일부터 MA10·MA60 간격 (MA10 ÷ MA60 − 1) × 100이 ±1% 이내에 들어오면 선정 건당 한 번 알립니다. ±0.5% 이내이면 근접으로 구분합니다. MA60 아래쪽도 허용하며 MA3 재상승은 아직 확인하지 않은 접근 안내입니다.</p>
+          <p class="criteria-note">전일 양봉 몸통 중간값과 기준봉 종가의 되돌림률은 문자에 참고로 표시할 뿐, 50%를 넘었다는 이유로 제외하지 않습니다. 큰 하락의 별도 수치 제외 기준은 아직 설정하지 않았습니다. 실제 매수나 이후 상승을 보장하지 않으며, 기존 피라미드형 조건과는 별개입니다. 이미지 삭제·확정 해제 시 이 연결 알림도 중지합니다. 신규 연결 시 과거 포착을 소급 발송하지 않습니다.</p>
+        </section>
         <section id="ahCriteria">
           <div class="criteria-section-heading"><strong>대상종목 AH 선정기준</strong><span>일봉 A·B·C·D·E·H 모두 충족</span></div>
           <p class="criteria-note">0봉은 검색 기준일, 1봉 전은 직전 거래일입니다. 모든 이동평균은 종가 기준 단순이동평균입니다. 장중에는 당일 종가 자리에 현재가를 반영하여 판단합니다.</p>
@@ -442,7 +447,7 @@
   <script src="rising-patterns.js?v=20261017-3"></script>
   <script src="candidate-scan.js?v=20261025-two-stage"></script>
   <script src="notification-markers.js?v=20261023-1"></script>
-  <script src="monitor.js?v=20261025-two-stage"></script>
+  <script src="monitor.js?v=20261025-first-rise-pullback"></script>
   <dialog id="capturePreviewDialog" class="capture-preview-dialog">
     <header><h2 id="capturePreviewTitle">공부용 이미지</h2><button id="capturePreviewClose" class="external-link" type="button">닫기</button></header>
     <img id="capturePreviewImage" alt="등록된 공부용 이미지">

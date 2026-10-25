@@ -114,6 +114,22 @@ def send(topic, candidate, payload, row, state, kind, current):
                    f"- 편입시각 {state['enrollmentAt']}\n{signals}\n"
                    f"- 편입 전 기준봉 종가 {price_text}\n- 최신 수집가 {current_price}\n"
                    "편입 전에 발생한 신호를 알려드립니다. 현재 새 돌파가 발생했다는 뜻은 아닙니다.")
+    elif kind == "imageFirstRisePullback":
+        label = "첫날상승 MA10·MA60 접근 매수검토"
+        reference = state.get("dailyReference")
+        daily_note = "- 일봉 참고: 전일 양봉 자료 없음 · 50% 조정은 필수조건 아님\n"
+        if reference:
+            daily_note = (f"- 일봉 참고({reference['day']}): 전일 양봉 몸통 중간 {reference['midpoint']:,.2f}원\n"
+                          f"- 기준봉 종가의 전일 양봉 몸통 되돌림 {reference['retracementPercent']:.1f}% · 참고만, 자동 제외 아님\n")
+        near = "±0.5% 이내 근접" if state["closeApproach"] else "±1% 이내 접근"
+        message = (f"[첫날상승 · 매수검토 접근 안내] {candidate['name']}({candidate['code']})\n"
+                   f"- 첫날상승 선정일 {state['selectionDay']}\n"
+                   "- 상승했던 30분봉 MA10이 하락하여 MA60 부근에 접근했습니다.\n"
+                   f"- MA10·MA60 간격 {state['gapPercent']:+.2f}% ({near})\n"
+                   f"- MA10 {row['m10']:,.2f} / MA60 {row['m60']:,.2f}\n"
+                   f"- 기준봉 종가 {price_text}\n{daily_note}"
+                   f"- 봉 완성 시각 {state['completedAt']}\n"
+                   "MA3 재상승은 아직 확인하지 않은 눌림 관찰 알림입니다. 추가 하락할 수 있으며 즉시 매수 신호가 아닙니다.")
     elif kind == "imageMa60NearWatch":
         label = "피라미드형 1차 검토필요"
         message = (f"[피라미드형 1차 검토필요 · 상승가능성 검토요청] {candidate['name']}({candidate['code']})\n"
@@ -224,8 +240,9 @@ def send(topic, candidate, payload, row, state, kind, current):
     # Keep the receipt only after ntfy acknowledges the attachment.
     signature = None
     if kind.startswith("image"):
-        signature = f"{candidate['code']}|{candidate.get('registeredAt') or candidate.get('dailySignalDate')}|{row['t']}|{state.get('stage', '')}"
-        if state.get("signalType") in ("ma3Rise", "ma3Ma120", "ma20Pyramid", "ma3Ma60Near"):
+        registered = state.get("membershipRegisteredAt") or candidate.get("registeredAt") or candidate.get("dailySignalDate")
+        signature = f"{candidate['code']}|{registered}|{row['t']}|{state.get('stage', '')}"
+        if state.get("signalType") in ("ma3Rise", "ma3Ma120", "ma20Pyramid", "ma3Ma60Near", "firstRiseMa10Ma60"):
             signature += "|" + state["signalType"]
     record_delivery(payload, candidate["code"], candidate["name"], row["t"], current.isoformat(), kind,
                     state.get("ruleName") or label, signature=signature, stage=state.get("stage", ""))
