@@ -116,6 +116,26 @@ class PreliminaryFirstRiseTests(unittest.TestCase):
             update(p, market, current.replace(minute=20), volumes=volumes, refresh_fn=refresh, sender=sender)
             self.assertEqual(sender.call_count, 2)
 
+    def test_empty_first_stage_is_finalized_and_final_notification_can_retry(self):
+        market, _, final_time, _, final_refresh, volumes = self.data()
+        sender = Mock()
+        with patch.dict(os.environ, NTFY_TOPIC='test'):
+            p = update({'initializedAt': 'old', 'preliminary': {'day': '2026-10-23', 'candidates': []}}, market,
+                       final_time, volumes={}, refresh_fn=final_refresh, sender=sender)
+            self.assertTrue(p['preliminary']['finalizedAt'])
+            sender.assert_not_called()
+        _, current, _, refresh, _, _ = self.data()
+        p = update({}, market, current, volumes=volumes, refresh_fn=refresh, no_notify=True)
+        sender = Mock(side_effect=OSError('offline'))
+        with patch.dict(os.environ, NTFY_TOPIC='test'):
+            p = update(p, market, final_time, volumes=volumes, refresh_fn=final_refresh, sender=sender)
+            self.assertTrue(p['preliminary']['finalizedAt'])
+            self.assertNotIn('finalNotifiedAt', p['preliminary'])
+            sender.side_effect = None
+            p = update(p, market, final_time.replace(minute=40), volumes=volumes, refresh_fn=final_refresh, sender=sender)
+            self.assertTrue(p['preliminary']['finalNotifiedAt'])
+            self.assertEqual(p['preliminary']['candidates'][0]['finalVerdict'], 'confirmed')
+
 
 if __name__ == '__main__':
     unittest.main()

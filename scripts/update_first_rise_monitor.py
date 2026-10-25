@@ -239,21 +239,22 @@ def update(payload, market, current, *, volumes=None, no_notify=False, charts_on
                 snapshot["notifiedAt"] = stamp
                 sent += 1
     snapshot = payload.get("preliminary", {})
-    if allow_new and snapshot.get("day") == today and snapshot.get("candidates"):
-        final_codes = {item["code"] for item in candidates if item["dailySignalDate"] == day and confirmed(item)}
-        error_codes = {item["code"] for item in errors}
-        for item in snapshot["candidates"]:
-            item["finalVerdict"] = "confirmed" if item["code"] in final_codes else "pending" if item["code"] in error_codes else "not_met"
-        if not any(item["finalVerdict"] == "pending" for item in snapshot["candidates"]):
-            snapshot["finalizedAt"] = stamp
-            if not snapshot.get("finalNotifiedAt") and topic and not no_notify:
-                try:
-                    sender(topic, preliminary_message(snapshot, final=True))
-                except Exception as error:
-                    errors.append({"code": "preliminary-final", "message": f"ntfy: {type(error).__name__}"})
-                else:
-                    snapshot["finalNotifiedAt"] = stamp
-                    sent += 1
+    if allow_new and snapshot.get("day") == today:
+        if not snapshot.get("finalizedAt"):
+            final_codes = {item["code"] for item in candidates if item["dailySignalDate"] == day and confirmed(item)}
+            error_codes = {item["code"] for item in errors}
+            for item in snapshot["candidates"]:
+                item["finalVerdict"] = "confirmed" if item["code"] in final_codes else "pending" if item["code"] in error_codes else "not_met"
+            if not any(item["finalVerdict"] == "pending" for item in snapshot["candidates"]):
+                snapshot["finalizedAt"] = stamp
+        if snapshot.get("finalizedAt") and snapshot["candidates"] and not snapshot.get("finalNotifiedAt") and topic and not no_notify:
+            try:
+                sender(topic, preliminary_message(snapshot, final=True))
+            except Exception as error:
+                errors.append({"code": "preliminary-final", "message": f"ntfy: {type(error).__name__}"})
+            else:
+                snapshot["finalNotifiedAt"] = stamp
+                sent += 1
     payload.update(version=VERSION, initializedAt=payload.get("initializedAt", stamp), generatedAt=stamp, asOf=day,
                    windowTradingDays=WINDOW_DAYS, candidates=candidates, pendingCloseValidation=pending, history=history[-1000:], errors=errors,
                    candidateScan={"startedAt": stamp, "completedAt": stamp, "asOf": day, "checkedStocks": scanned,
