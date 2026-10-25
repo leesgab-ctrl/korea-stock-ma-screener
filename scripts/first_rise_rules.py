@@ -5,6 +5,8 @@ import math
 KST = dt.timezone(dt.timedelta(hours=9))
 VERSION = "first-rise-daily-ma3-cross10-v3"
 CONFIRM_TIME = dt.time(20, 30)
+PRELIMINARY_START = dt.time(15, 10)
+PRELIMINARY_END = dt.time(15, 15, 59, 999999)
 WINDOW_DAYS = 10
 PERIODS = (5, 10, 20, 40, 60)
 
@@ -17,6 +19,34 @@ def after_close(day, current):
 def closing_confirmation(daily, day, current, quote=None):
     if not after_close(day, current):
         return None
+    result = daily_cross_snapshot(daily, day, quote)
+    return {**result, "confirmedAt": current.astimezone(KST).isoformat(timespec="seconds")} if result else None
+
+
+def preliminary_window(current):
+    current = current.astimezone(KST)
+    return current.weekday() < 5 and PRELIMINARY_START <= current.time().replace(tzinfo=None) <= PRELIMINARY_END
+
+
+def preliminary_confirmation(daily, day, current, quote):
+    if not preliminary_window(current) or day != current.astimezone(KST).date().isoformat() or quote.get("dataStatus") != "ok":
+        return None
+    try:
+        observed = dt.datetime.fromisoformat(quote["time"])
+        if observed.tzinfo is None:
+            return None
+        observed = observed.astimezone(KST)
+    except (KeyError, ValueError, TypeError):
+        return None
+    if (observed.date().isoformat() != day or observed.time().replace(tzinfo=None) > PRELIMINARY_END
+            or not dt.timedelta(minutes=-5) <= current - observed <= dt.timedelta(minutes=15)):
+        return None
+    rows = [r for r in daily if r["d"] < day] + [{"d": day, "c": quote.get("price")}]
+    result = daily_cross_snapshot(rows, day, quote)
+    return {**result, "stage": "preliminary", "observedAt": observed.isoformat(timespec="seconds")} if result else None
+
+
+def daily_cross_snapshot(daily, day, quote=None):
     rows = sorted({r["d"]: r for r in daily if r["d"] <= day}.values(), key=lambda r: r["d"])
     if len(rows) < 11 or rows[-1]["d"] != day:
         return None
@@ -36,13 +66,30 @@ def closing_confirmation(daily, day, current, quote=None):
     change = 100 * (close / previous - 1)
     return {"ruleVersion": VERSION, "day": day, "qualified": prior3 <= prior10 and ma3 > ma10,
             "ma3": ma3, "ma10": ma10, "previousMa3": prior3, "previousMa10": prior10,
-            "close": close, "previousClose": previous, "previousCloseSource": reference_source, "changePct": round(change, 6),
-            "confirmedAt": current.astimezone(KST).isoformat(timespec="seconds")}
+            "close": close, "previousClose": previous, "previousCloseSource": reference_source, "changePct": round(change, 6)}
 
 
 def confirmed(item):
     close = item.get("closeConfirmation", {})
-    return close.get("ruleVersion") == VERSION and close.get("qualified") is True
+    return close.get("ruleVersion") == VERSION and close.get("qualified") is True and close.get("stage") != "preliminary"
+
+
+def preliminary_message(snapshot, final=False):
+    if final:
+        good = [item["name"] for item in snapshot["candidates"] if item.get("finalVerdict") == "confirmed"]
+        bad = [item["name"] for item in snapshot["candidates"] if item.get("finalVerdict") == "not_met"]
+        return (f"[첫날상승 20:30 최종 검증] {snapshot['day']}\n"
+                f"- 1차 목록 중 최종 확정: {', '.join(good) or '없음'}\n"
+                f"- 최종 미충족: {', '.join(bad) or '없음'}\n"
+                "종가 기준 검증 결과입니다. 확정 종목만 관찰대상으로 관리하며 매수 신호가 아닙니다.\n"
+                "https://leesgab-ctrl.github.io/korea-stock-ma-screener/monitor.html?view=firstRise")
+    lines = [f"- {item['name']}({item['code']}) · {item['preliminaryConfirmation']['close']:,.0f}원"
+             f" · 전일대비 {item['preliminaryConfirmation']['changePct']:+.2f}%" for item in snapshot["candidates"]]
+    return (f"[첫날상승 1차 확인 · 최종 미확정] {snapshot['day']} · {len(lines)}종목\n"
+            + ('일부 자료 조회 실패 · 확인된 종목만 표시합니다.\n' if snapshot.get('status') == 'partial' else '')
+            + '\n'.join(lines) + "\n15:10~15:15 현재가 기준 잠정 일봉 MA3·MA10 돌파입니다. "
+            "매수 신호가 아니며 종가에 따라 취소될 수 있습니다. 20:30에 최종 검증합니다.\n"
+            "https://leesgab-ctrl.github.io/korea-stock-ma-screener/monitor.html?view=firstRise")
 
 
 def daily_context(history, day):

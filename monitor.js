@@ -110,9 +110,10 @@ const statusLabels = {
   ineligible: "초기조건 제외",
   excluded: "구조적 약세",
   waiting60: "MA3 돌파 대기",
+  preliminary: "1차 확인 · 최종 미확정",
 };
 const statusPriority = { signal: 0, rising: 1, waiting60: 2, setup: 3, signaled: 4, watching: 5, insufficient: 6, ineligible: 7, excluded: 8 };
-const tierLabels = { core: "핵심 A-G", expanded: "확대 A-G", expanded_ak: "확대 A-K", ah: "A-H", first_rise: "첫날상승" };
+const tierLabels = { core: "핵심 A-G", expanded: "확대 A-G", expanded_ak: "확대 A-K", ah: "A-H", first_rise: "첫날상승", first_rise_preliminary: "첫날상승 1차" };
 const viewLabels = { imageSearch: "상승검색", ak: "대상종목AK", ag: "대상종목AG", ah: "대상종목AH", firstRise: "첫날상승", core: "핵심종목", new: "신규종목", target: "조정회복형", reference: "상승조정형", capture: "이미지공부", positions: "보유종목", operations: "운영관리" };
 const operationMonitorViews = ["core", "target", "reference"];
 function matchesFamilyView(item, view) {
@@ -126,7 +127,41 @@ function currentCandidates() {
     : ["ak", "ag"].includes(state.view) ? state.payload?.candidates || [] : sharedMonitorCandidates();
 }
 function confirmedFirstRise(item) {
-  return item.closeConfirmation?.ruleVersion === "first-rise-daily-ma3-cross10-v3" && item.closeConfirmation.qualified === true;
+  return item.closeConfirmation?.ruleVersion === "first-rise-daily-ma3-cross10-v3" && item.closeConfirmation.qualified === true && item.closeConfirmation.stage !== "preliminary";
+}
+function renderFirstRisePreliminary() {
+  const panel = document.querySelector("#firstRisePreliminaryPanel");
+  panel.classList.toggle("hidden", state.view !== "firstRise");
+  if (state.view !== "firstRise") return;
+  const snapshot = state.firstRisePayload?.preliminary;
+  const meta = document.querySelector("#firstRisePreliminaryMeta");
+  const list = document.querySelector("#firstRisePreliminaryList");
+  list.replaceChildren();
+  if (!snapshot?.day) {
+    meta.textContent = "평일 15:10~15:15 1차 확인 예정 · 20:30 최종 검증 · 매수 신호 아님";
+    return;
+  }
+  meta.textContent = `${snapshot.day} · ${formatDateTime(snapshot.generatedAt)} 확인 · ${snapshot.candidates.length}종목 · ${snapshot.finalizedAt ? "최종 결과 반영" : "20:30 종가 검증 전"} · 매수 신호 아님${snapshot.status === "partial" ? " · 일부 자료 조회 실패" : ""}`;
+  const verdicts = {confirmed: "최종 확정", not_met: "최종 미충족", pending: "최종 자료 재확인"};
+  for (const item of snapshot.candidates) {
+    if (state.keyword && !`${item.name} ${item.code}`.toLowerCase().includes(state.keyword.toLowerCase())) continue;
+    const detail = document.createElement("details");
+    detail.className = "first-rise-preliminary-row";
+    const summary = document.createElement("summary");
+    const name = document.createElement("strong");
+    name.textContent = `${item.name} (${item.code})`;
+    const status = document.createElement("span");
+    status.textContent = verdicts[item.finalVerdict] || "1차 · 최종 미확정";
+    const price = document.createElement("span");
+    const observed = item.preliminaryConfirmation;
+    price.textContent = `${formatter.format(observed.close)}원 · 전일대비 ${observed.changePct > 0 ? "+" : ""}${observed.changePct.toFixed(2)}% · ${formatDateTime(observed.observedAt)}`;
+    summary.append(name, status, price);
+    detail.append(summary);
+    detail.addEventListener("toggle", () => {
+      if (detail.open && !detail.querySelector("iframe")) appendInlineChart(detail, item, `first-rise-preliminary-${item.code}`);
+    });
+    list.append(detail);
+  }
 }
 function sharedMonitorCandidates() {
   const blocked = new Set((state.payload?.manualExclusions || []).map(item => item.code));
@@ -445,6 +480,7 @@ function render() {
   renderMonitorStatus();
   renderViewCounts(activeCandidates, openPositions);
   const candidateView = ["ak", "ag", "ah", "firstRise", "new", "target", "reference"].includes(state.view);
+  renderFirstRisePreliminary();
   document.querySelector(".workspace").classList.toggle("hidden", !candidateView);
   document.querySelector(".toolbar").classList.toggle("hidden", !candidateView);
   document.querySelector(".positions-panel").classList.toggle("hidden", state.view !== "positions");
@@ -926,7 +962,7 @@ function renderCandidates(candidates) {
     || a.name.localeCompare(b.name, "ko")
   );
   state.expandedCharts = visible.length > 0 && visible.length < 20;
-  elements.candidateMeta.textContent = `${visible.length}종목 · 일봉 MA3·MA10 상향돌파 마감확정 · 장중 신규 선정 없음 · 10거래일 관리`;
+  elements.candidateMeta.textContent = `최종 확정 ${visible.length}종목 · 일봉 MA3·MA10 상향돌파 · 1차 15:10~15:15 / 최종 20:30 · 10거래일 관리`;
   if (state.view !== "firstRise") elements.candidateMeta.textContent = `${visible.length}종목 · ${familyView ? state.view === "ah" ? "최근 등록순 · 최근 5거래일 신규 편입 · MA120·180 근사 포함" : "최근 등록순 · 등록일 포함 10거래일 관리" : state.view === "new" ? "오늘·직전 거래일 등록" : state.view === "target" ? "등록 이후 MA20 < MA40" : "등록 이후 MA20 > MA40"}`;
   elements.candidateList.innerHTML = "";
   if (!visible.length) {
@@ -1789,7 +1825,7 @@ function renderDetail(item) {
   elements.detailBadge.className = `status-chip ${item.status}`;
   elements.detailProgress.textContent = `${Math.min(intraday.riseCount || 0, 5)} / 5`;
   elements.dailySignal.textContent = item.dailySignalDate || "-";
-  elements.remainingDays.textContent = item.positionDetail ? "보유 중 계속 감시" : `${item.tradingDaysRemaining}거래일`;
+  elements.remainingDays.textContent = item.status === "preliminary" ? "최종 확정 전" : item.positionDetail ? "보유 중 계속 감시" : `${item.tradingDaysRemaining}거래일`;
   elements.signalMessage.className = `signal-message${item.status === "signal" ? " signal" : ""}`;
   elements.signalMessage.textContent = item.positionDetail
     ? `매수 ${formatter.format(item.buyPrice)}원 · 목표 ${formatter.format(item.targetPrice)}원 · 손절 ${formatter.format(item.stopPrice)}원 · ${item.returnPct == null ? "수익률 대기" : `현재 ${item.returnPct > 0 ? "+" : ""}${formatter.format(item.returnPct)}%`}`
@@ -1823,6 +1859,7 @@ function renderDetail(item) {
     elements.signalMessage.textContent = `밀착 후 재상승 · ${formatDateTime(rebound.time)} · 포착가격 ${formatter.format(rebound.price)}원 · MA10 조정 후 MA3 → MA20 상향 돌파 (별도 관찰 신호)`;
   }
   const fullSeries = chartSeriesWithMa120(native);
+  if (item.status === "preliminary") elements.signalMessage.textContent = "15:10~15:15 현재가 기준 1차 확인입니다. 최종 미확정이며 매수 신호가 아닙니다. 20:30 종가로 다시 검증합니다.";
   const markerPayload = ["ah", "firstRise"].includes(state.view) ? {...state.payload, notificationHistory: [
     ...(state.payload?.notificationHistory || []), ...(state.ahPayload?.notificationHistory || []),
     ...(state.firstRisePayload?.notificationHistory || []),

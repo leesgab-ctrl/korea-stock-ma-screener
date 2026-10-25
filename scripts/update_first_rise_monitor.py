@@ -9,6 +9,7 @@ import urllib.request
 
 from first_rise_rules import (KST, VERSION, CONFIRM_TIME, WINDOW_DAYS, daily_context, detect,
                               remaining_days, registration_message, after_close, closing_confirmation, confirmed)
+from first_rise_rules import preliminary_window, preliminary_confirmation, preliminary_message
 from ah_rules import hybrid_rows
 from update_candidate_monitor import fetch_bytes, fetch_display_chart, fetch_display_quote, stock_rows
 from notification_history import record_delivery
@@ -99,6 +100,10 @@ def update(payload, market, current, *, volumes=None, no_notify=False, charts_on
         raise ValueError("No available trading session")
     day = calendar[-1]
     allow_new = (not charts_only and current.weekday() < 5 and day == today and after_close(day, current))
+    allow_preliminary = not charts_only and day == today and preliminary_window(current)
+    saved_preliminary = payload.get("preliminary", {})
+    preliminary_frozen = (saved_preliminary.get("day") == today
+                          and (saved_preliminary.get("status") == "ok" or saved_preliminary.get("notifiedAt")))
     blocked = set(excluded)
     existing = {x["code"]: x for x in payload.get("candidates", []) + payload.get("pendingCloseValidation", [])}
     history = payload.setdefault("history", [])
@@ -110,9 +115,11 @@ def update(payload, market, current, *, volumes=None, no_notify=False, charts_on
                                                 if key not in ("archivedAt", "archiveReason")})
     stocks = {s["c"]: s for s in market["stocks"]}
     selected = set(existing) - blocked
+    if allow_new and payload.get("preliminary", {}).get("day") == today:
+        selected.update(item["code"] for item in payload["preliminary"]["candidates"] if item["code"] not in blocked)
     scanned = 0
     for code, stock in stocks.items():
-        if not allow_new or code in blocked:
+        if not (allow_new or (allow_preliminary and not preliminary_frozen)) or code in blocked:
             continue
         rows = stock.get("_ahDaily") or [{"d": r["date"], "c": r["close"], "v": r["volume"]} for r in stock_rows(market, stock)]
         context = daily_context(rows, day)
@@ -138,7 +145,7 @@ def update(payload, market, current, *, volumes=None, no_notify=False, charts_on
             except Exception as error:
                 errors.append({"code": code, "message": str(error)[:180]})
     registry = payload.setdefault("registry", {})
-    candidates, additions, pending, sent = [], [], [], 0
+    candidates, additions, pending, provisional, sent = [], [], [], [], 0
     topic = os.environ.get("NTFY_TOPIC", "").strip()
     for code in sorted(selected | set(existing)):
         item = existing.get(code)
@@ -152,6 +159,17 @@ def update(payload, market, current, *, volumes=None, no_notify=False, charts_on
             if item:
                 (candidates if confirmed(item) else pending).append(item)
             continue
+        if allow_preliminary and not preliminary_frozen and not item:
+            assessment = preliminary_confirmation(charts["daily"]["history"], day, current, charts.get("quote", {}))
+            if assessment is None:
+                errors.append({"code": code, "message": "Preliminary quote unavailable, stale, or outside 15:10-15:15 snapshot window"})
+            signals = detect(charts["intraday"]["history"], charts["daily"]["history"], day, current) if assessment and assessment["qualified"] else []
+            if signals:
+                stock = stocks[code]
+                provisional.append({"code": code, "name": stock["n"], "market": stock.get("m", ""),
+                                    "candidateTier": "first_rise_preliminary", "dailySignalDate": day,
+                                    "status": "preliminary", "preliminaryConfirmation": assessment,
+                                    "firstRiseSignal": signals[0], "displayCharts": charts})
         if item and (not confirmed(item) or not item["closeConfirmation"].get("previousCloseSource")):
             validation = confirm_chart(charts, item["dailySignalDate"], current)
             if validation is None:
@@ -201,11 +219,46 @@ def update(payload, market, current, *, volumes=None, no_notify=False, charts_on
                     record_delivery(payload, code, item["name"], item["firstRiseSignal"]["barTime"], stamp,
                                     "firstRiseRegistration", "장마감 첫날상승 확정", signature=f"first-rise|{code}|{item['registeredAt']}")
         candidates.append(item)
+    previous_preliminary = payload.get("preliminary", {})
+    if allow_preliminary:
+        if previous_preliminary.get("day") and previous_preliminary["day"] != today:
+            payload.setdefault("preliminaryHistory", []).append({**previous_preliminary, "candidates": [
+                {key: value for key, value in item.items() if key != "displayCharts"} for item in previous_preliminary["candidates"]]})
+            payload["preliminaryHistory"] = payload["preliminaryHistory"][-10:]
+        if not preliminary_frozen:
+            payload["preliminary"] = {"day": today, "generatedAt": stamp, "status": "partial" if errors else "ok",
+                                      "candidates": provisional, "ruleVersion": VERSION,
+                                      "notifiedAt": previous_preliminary.get("notifiedAt") if previous_preliminary.get("day") == today else None}
+        snapshot = payload["preliminary"]
+        if snapshot["candidates"] and not snapshot["notifiedAt"] and topic and not no_notify:
+            try:
+                sender(topic, preliminary_message(snapshot))
+            except Exception as error:
+                errors.append({"code": "preliminary", "message": f"ntfy: {type(error).__name__}"})
+            else:
+                snapshot["notifiedAt"] = stamp
+                sent += 1
+    snapshot = payload.get("preliminary", {})
+    if allow_new and snapshot.get("day") == today and snapshot.get("candidates"):
+        final_codes = {item["code"] for item in candidates if item["dailySignalDate"] == day and confirmed(item)}
+        error_codes = {item["code"] for item in errors}
+        for item in snapshot["candidates"]:
+            item["finalVerdict"] = "confirmed" if item["code"] in final_codes else "pending" if item["code"] in error_codes else "not_met"
+        if not any(item["finalVerdict"] == "pending" for item in snapshot["candidates"]):
+            snapshot["finalizedAt"] = stamp
+            if not snapshot.get("finalNotifiedAt") and topic and not no_notify:
+                try:
+                    sender(topic, preliminary_message(snapshot, final=True))
+                except Exception as error:
+                    errors.append({"code": "preliminary-final", "message": f"ntfy: {type(error).__name__}"})
+                else:
+                    snapshot["finalNotifiedAt"] = stamp
+                    sent += 1
     payload.update(version=VERSION, initializedAt=payload.get("initializedAt", stamp), generatedAt=stamp, asOf=day,
                    windowTradingDays=WINDOW_DAYS, candidates=candidates, pendingCloseValidation=pending, history=history[-1000:], errors=errors,
                    candidateScan={"startedAt": stamp, "completedAt": stamp, "asOf": day, "checkedStocks": scanned,
                                   "newRegistrations": additions, "currentDayData": day == today,
-                                  "closeOnly": True, "registrationAllowed": allow_new},
+                                  "closeOnly": True, "registrationAllowed": allow_new, "preliminaryScan": allow_preliminary},
                    summary={"active": len(candidates), "scanned": scanned, "volumeQualified": len(selected),
                             "dataErrors": len(errors) + len(payload.get("universeErrors", [])), "pushConfigured": bool(topic), "alertsSentThisRun": sent})
     return payload
@@ -221,7 +274,7 @@ def main():
         parser.error("Offline caches require --no-notify")
     current = dt.datetime.now(KST)
     market = load(ROOT / "data/stock-data.json", {})
-    scan_window = current.weekday() < 5 and current.time().replace(tzinfo=None) >= CONFIRM_TIME and not args.charts_only
+    scan_window = (preliminary_window(current) or (current.weekday() < 5 and current.time().replace(tzinfo=None) >= CONFIRM_TIME)) and not args.charts_only
     volumes = volume_snapshot() if scan_window and not args.cache_root else None
     exclusions = load(ROOT / "data/candidate-exclusions.json", {}).get("excluded", [])
     saved = load(OUTPUT, {})

@@ -39,7 +39,7 @@
     field("checked").textContent = report ? `${report.checkedStocks.toLocaleString("ko-KR")}종목` : "기록 없음";
     field("counts").textContent = `AG ${candidates.filter(item => item.candidateTier === "core").length} · AK ${candidates.filter(item => item.candidateTier === "expanded_ak").length} · AH ${candidates.filter(item => item.candidateTier === "ah").length} · 첫날상승 ${candidates.filter(item => item.candidateTier === "first_rise").length}`;
     field("added").textContent = report ? `${report.newRegistrations.length}종목` : "기록 없음";
-    field("firstRiseLast").textContent = (payload.firstRiseScan?.registrationAllowed === false ? "마감확정 목록 갱신 · " : "") + date(payload.firstRiseScan?.completedAt);
+    field("firstRiseLast").textContent = (payload.firstRiseScan?.preliminaryScan ? "1차 확인 · " : payload.firstRiseScan?.registrationAllowed === false ? "마감확정 목록 갱신 · " : "최종 검증 · ") + date(payload.firstRiseScan?.completedAt);
     field("firstRiseAdded").textContent = `${payload.firstRiseScan?.newRegistrations?.length || 0}종목`;
     field("dataNote").textContent = report && !report.currentDayData ? "당일 일봉 미수집 · 이전 거래일 데이터로 신규 등록하지 않았습니다." : "";
     const list = field("newList");
@@ -166,8 +166,8 @@
       panel.setAttribute("aria-label", "대상종목 검색 및 추가");
       panel.innerHTML = `<h2>대상종목 검색·추가</h2>
         <dl class="candidate-scan-summary">
-          <div><dt>자동 검색 예약</dt><dd>AG·AK 평일 08:30 · 16:40 / AH 09:00~20:50 10분 간격 / 첫날상승 신규 확정 20:30·20:40·20:50 (실행 지연 가능)</dd></div>
-          <div><dt>첫날상승 확정 기준</dt><dd>종가 기준 일봉 MA3가 MA10 상향돌파 · 장중 신규 선정·등록·문자 없음</dd></div>
+          <div><dt>자동 검색 예약</dt><dd>AG·AK 평일 08:30 · 16:40 / AH 09:00~20:50 10분 간격 / 첫날상승 1차 15:10~15:15, 최종 20:30 (오류 재시도 20:40·20:50)</dd></div>
+          <div><dt>첫날상승 확정 기준</dt><dd>1차는 현재가 기준 잠정 일봉 MA3·MA10 돌파, 최종은 종가 기준 돌파 · 1차는 미확정·매수 신호 아님 · 예약 시각은 지연 가능</dd></div>
           <div><dt>마지막 검색 완료</dt><dd data-scan="last"></dd></div>
           <div><dt>일봉 기준일</dt><dd data-scan="basis"></dd></div>
           <div><dt>검색 대상</dt><dd data-scan="checked"></dd></div>

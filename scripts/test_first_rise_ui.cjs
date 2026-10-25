@@ -31,7 +31,8 @@ const server = http.createServer((request, response) => {
       assert.equal(await page.locator('[data-view=firstRise]').getAttribute('aria-selected'), 'true');
       assert.match(await page.locator('#candidateMeta').textContent(), /10거래일/);
       assert.match(await page.locator('#candidateList .candidate-tier').first().textContent(), /첫날상승.*일봉 MA3 > MA10 돌파확정/);
-      assert.match(await page.locator('#candidateMeta').textContent(), /일봉 MA3·MA10 상향돌파.*장중 신규 선정 없음/);
+      assert.match(await page.locator('#candidateMeta').textContent(), /일봉 MA3·MA10 상향돌파.*1차 15:10~15:15.*최종 20:30/);
+      assert.equal(await page.locator('#firstRisePreliminaryPanel').isVisible(), true);
       assert.equal(await page.evaluate(() => sharedMonitorCandidates().filter(item => item.candidateTier === 'first_rise').every(confirmedFirstRise)), true);
       const frame = page.frameLocator('.inline-stock-chart').first();
       await frame.locator('#maChart').waitFor({state: 'visible'});
@@ -44,6 +45,27 @@ const server = http.createServer((request, response) => {
       assert.ok(pixels > 200);
       assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1));
       await page.screenshot({path: path.join(root, `outputs/first-rise-${width}.png`)});
+      await page.evaluate(() => {
+        const item = structuredClone(state.firstRisePayload.candidates[0]);
+        const confirmation = item.closeConfirmation;
+        delete item.closeConfirmation;
+        delete item.registeredAt;
+        Object.assign(item, {code: '999999', name: 'QA 1차 종목', candidateTier: 'first_rise_preliminary', status: 'preliminary',
+          preliminaryConfirmation: {...confirmation, stage: 'preliminary', observedAt: new Date().toISOString()}});
+        state.firstRisePayload.preliminary = {day: new Date().toISOString().slice(0, 10), generatedAt: new Date().toISOString(),
+          status: 'ok', candidates: [item]};
+        render();
+      });
+      assert.equal(await page.locator('#firstRisePreliminaryList details').count(), 1);
+      assert.equal(await page.evaluate(() => sharedMonitorCandidates().some(item => item.code === '999999')), false);
+      assert.equal(await page.locator('#candidateList > .candidate').count(), first.candidates.length);
+      await page.locator('#firstRisePreliminaryList summary').click();
+      const preliminaryFrame = page.frameLocator('#firstRisePreliminaryList iframe');
+      await preliminaryFrame.locator('#maChart').waitFor({state: 'visible'});
+      assert.match(await preliminaryFrame.locator('#signalMessage').textContent(), /최종 미확정.*매수 신호가 아닙니다/);
+      assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1));
+      await page.locator('#firstRisePreliminaryPanel').scrollIntoViewIfNeeded();
+      await page.screenshot({path: path.join(root, `outputs/first-rise-preliminary-${width}.png`)});
       await page.reload();
       await page.waitForFunction(n => document.querySelectorAll('#candidateList > .candidate').length === n, first.candidates.length);
       assert.match(page.url(), /view=firstRise/);
