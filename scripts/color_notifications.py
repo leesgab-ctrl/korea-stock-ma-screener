@@ -199,11 +199,16 @@ def send(topic, candidate, payload, row, state, kind, current):
         label = f"이미지조건 {stage}"
         recovery = f"있음 (MA60을 {state['recoveryBars']}봉 만에 회복)" if state.get("fastRecovery") else "없음"
         lines = "·".join(str(value) for value in state["clusterLines"])
+        daily_note = ""
+        if state.get("dailyMa3Ma120"):
+            daily_ma = state["dailyMa3Ma120"]
+            daily_note = (f"- 일봉 제한 통과: MA3 {daily_ma['ma3']:,.2f} < MA120 {daily_ma['ma120']:,.2f}\n"
+                          "- 일봉 현재값은 해당 30분봉 종가 기준으로 계산했습니다.\n")
         message = (f"[이미지조건 · {stage}] {candidate['name']}({candidate['code']})\n"
                    f"- 유형: {state['ruleName']}\n"
                    f"- 상승추세의 눌림·밀집 구간에서 MA3가 {state['riseCount']}봉 연속 상승했습니다.\n"
                    f"- {len(state['clusterLines'])}선 밀집: MA{lines} 최대간격 {state['clusterSpreadPercent']:.2f}% (1% 미만)\n"
-                   f"- 빠른 회복 참고: {recovery} · 필수 조건 아님\n"
+                   f"- 빠른 회복 참고: {recovery} · 필수 조건 아님\n{daily_note}"
                    f"- MA3 {row['m3']:,.2f} / MA10 {row['m10']:,.2f} / MA40 {row['m40']:,.2f} / MA60 {row['m60']:,.2f}\n"
                    f"- 기준봉 종가 {price_text}\n"
                    f"- 봉 완성 시각 {state['completedAt']}\n"
@@ -273,7 +278,7 @@ def send(topic, candidate, payload, row, state, kind, current):
     record_delivery(payload, candidate["code"], candidate["name"], row["t"], delivery.now().isoformat(), kind,
                     state.get("ruleName") or label, signature=signature, stage=state.get("stage", ""),
                     price_snapshot=price_snapshot, signal_price=row["c"], condition={
-                        key: state[key] for key in ("ruleId", "ruleVersion", "signalType", "requireRisingMa120ForConfirmation", "requireMa60AboveMa120ForConfirmation", "requireMa40AboveMa120ForPrimary", "triggerPaths", "m120Previous", "m120", "m40Previous", "m60Previous", "m40", "m60", "requireMa3Ma20CrossForWatch", "requireDailyMa5BelowMa120ForWatch", "dailyMa5Ma120", "m20")
+                        key: state[key] for key in ("ruleId", "ruleVersion", "signalType", "requireRisingMa120ForConfirmation", "requireMa60AboveMa120ForConfirmation", "requireMa40AboveMa120ForPrimary", "triggerPaths", "m120Previous", "m120", "m40Previous", "m60Previous", "m40", "m60", "requireMa3Ma20CrossForWatch", "requireDailyMa5BelowMa120ForWatch", "dailyMa5Ma120", "requireDailyMa3BelowMa120", "dailyMa3Ma120", "m20")
                         if key in state})
 
 

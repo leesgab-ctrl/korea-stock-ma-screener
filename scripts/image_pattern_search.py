@@ -295,7 +295,7 @@ def ma20_recovery_background(rows, start, end, rule):
     return pyramid_setup(rows, start, end, rule)
 
 
-def pyramid_watch_daily_reference(candidate, row):
+def daily_ma_reference(candidate, row, short_period=5):
     chart = (candidate or {}).get("displayCharts", {}).get("daily", {})
     daily = {bar["d"]: bar for bar in [*chart.get("history", []), *chart.get("series", [])]
              if isinstance(bar.get("d"), str) and bar["d"] < row["t"][:10]}
@@ -306,7 +306,7 @@ def pyramid_watch_daily_reference(candidate, row):
         return None
     # Reconstruct today's daily averages at the signal time, without today's later close.
     closes = [bar["c"] for bar in prior] + [row["c"]]
-    return {"day": row["t"][:10], "ma5": sum(closes[-5:]) / 5, "ma120": sum(closes) / 120,
+    return {"day": row["t"][:10], f"ma{short_period}": sum(closes[-short_period:]) / short_period, "ma120": sum(closes) / 120,
             "currentPrice": row["c"], "priceBasis": "completed_30m_close", "priorTradingDays": 119}
 
 
@@ -389,7 +389,7 @@ def detect_ma60_near_rebound(rows, rule, candidate=None):
         watch_review = review or (event_review if stage == "confirmation" else None)
         if gated_watch and watch_review and watch_review["pyramid"]["peakTime"] not in notified_peaks:
             cross20 = previous and previous["m3"] <= previous["m20"] and row["m3"] > row["m20"]
-            daily = pyramid_watch_daily_reference(candidate, row) if rule.get("requireDailyMa5BelowMa120ForWatch") is True else None
+            daily = daily_ma_reference(candidate, row) if rule.get("requireDailyMa5BelowMa120ForWatch") is True else None
             if (rule.get("requireMa3Ma20CrossForWatch") is not True or cross20) and (
                     rule.get("requireDailyMa5BelowMa120ForWatch") is not True or daily and daily["ma5"] < daily["ma120"]):
                 stages.append(("watch", watch_review, daily))
@@ -565,9 +565,14 @@ def process(payload, current, topic="", no_notify=True, board=None, rules=None, 
                       or (is_ah and timestamp(event["completedAt"]).date() == registration.date())]
             if candidate.get("candidateTier") == "first_rise":
                 events = [event for event in events if event["time"][:10] > candidate["dailySignalDate"]]
+            by_time = {row["t"]: row for row in rows}
             for event in events:
                 event["notificationEnabled"] = rule.get("notificationsEnabled") is not False \
                     and event["stage"] not in (rule.get("disabledNotificationStages") or [])
+                if rule.get("requireDailyMa3BelowMa120") is True and event.get("signalType") == "ma3Rise":
+                    daily = daily_ma_reference(candidate, by_time[event["time"]], 3)
+                    event.update(requireDailyMa3BelowMa120=True, dailyMa3Ma120=daily)
+                    event["notificationEnabled"] = bool(event["notificationEnabled"] and daily and daily["ma3"] < daily["ma120"])
                 event.update(code=candidate["code"], name=candidate.get("name", candidate["code"]),
                              ruleName=rule["name"], sourceImageIds=[item["id"] for item in images])
                 if first_rise_rule:
@@ -598,7 +603,6 @@ def process(payload, current, topic="", no_notify=True, board=None, rules=None, 
             # Regular and aftermarket bars use the same completed-bar and freshness rules.
             if no_notify or not topic or current.weekday() >= 5:
                 continue
-            by_time = {row["t"]: row for row in rows}
             enrollment_key = f"{candidate['code']}|{registered}"
             if (is_ah and not candidate.get("initialImport") and registration.date() == current.date()
                     and enrollment_key not in enrollment_state):

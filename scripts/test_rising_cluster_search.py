@@ -20,6 +20,16 @@ def fixture():
     candidate = {"code": "000002", "name": "Cluster", "candidateTier": "expanded_ak",
                  "registeredAt": "2026-10-14T16:40+09:00",
                  "displayCharts": {"intraday": {"dataStatus": "ok", "series": rows}, "daily": {"history": []}}}
+    daily = []
+    day = dt.date(2026, 10, 14)
+    while len(daily) < 119:
+        if day.weekday() < 5:
+            daily.append({"d": day.isoformat(), "c": 200})
+        day -= dt.timedelta(days=1)
+    daily.reverse()
+    for bar in daily[-2:]:
+        bar["c"] = 100
+    candidate["displayCharts"]["daily"]["history"] = daily
     board = {"version": 1, "records": [{"id": rule["imageIds"][0], "conditionConfirmed": True,
                                          "updatedAt": start.replace(hour=8).isoformat()}]}
     return {"candidates": [candidate]}, rule, board
@@ -47,6 +57,73 @@ class RisingClusterTests(unittest.TestCase):
         self.assertLess(events[1]["clusterSpreadPercent"], 1)
         self.assertGreater(events[1]["currentSpreadPercent"], 1)
         self.assertEqual(events[0]["recoveryBars"], 1)
+
+    def test_daily_gate_is_required_for_both_stages(self):
+        self.assertTrue(self.rule["requireDailyMa3BelowMa120"])
+        for price in (100, 101):
+            self.setUp()
+            for bar in self.payload["candidates"][0]["displayCharts"]["daily"]["history"]:
+                bar["c"] = 100
+            self.rows[5]["c"] = self.rows[6]["c"] = price
+            self.run_at("11:30")
+            self.assertEqual(self.run_at("12:00"), 0)
+            self.assertEqual(self.run_at("12:30"), 0)
+            self.sender.assert_not_called()
+            self.assertEqual(len(self.payload["imageSearch"]["events"]), 2)
+            self.assertTrue(all(not event["notificationEnabled"] for event in self.payload["imageSearch"]["events"]))
+
+    def test_each_stage_rechecks_daily_gate_independently(self):
+        for prices, stages in (((99, 101), ["primary"]), ((101, 99), ["confirmation"])):
+            self.setUp()
+            for bar in self.payload["candidates"][0]["displayCharts"]["daily"]["history"]:
+                bar["c"] = 100
+            self.rows[5]["c"], self.rows[6]["c"] = prices
+            self.run_at("11:30")
+            self.run_at("12:00")
+            self.run_at("12:30")
+            self.assertEqual([call.args[4]["stage"] for call in self.sender.call_args_list], stages)
+
+    def test_missing_daily_data_fails_closed_without_removing_old_receipts(self):
+        self.payload["notificationHistory"] = [{"id": "old-cluster"}]
+        self.payload["candidates"][0]["displayCharts"]["daily"]["history"].pop()
+        self.run_at("11:30")
+        self.assertEqual(self.run_at("12:30"), 0)
+        self.sender.assert_not_called()
+        self.assertEqual(self.payload["notificationHistory"], [{"id": "old-cluster"}])
+
+    def test_today_and_future_daily_prices_do_not_leak_into_signal(self):
+        daily = self.payload["candidates"][0]["displayCharts"]["daily"]["history"]
+        daily.extend([{"d": "2026-10-15", "c": 10000}, {"d": "2026-10-16", "c": 20000}])
+        self.run_at("11:30")
+        self.assertEqual(self.run_at("12:00"), 1)
+        event = self.sender.call_args.args[4]
+        self.assertAlmostEqual(event["dailyMa3Ma120"]["ma3"], (200 + self.rows[5]["c"]) / 3)
+
+    def test_ah_enrollment_cannot_bypass_daily_gate(self):
+        candidate = self.payload["candidates"][0]
+        candidate.update(candidateTier="ah", registeredAt="2026-10-15T18:00+09:00", initialImport=False)
+        for bar in candidate["displayCharts"]["daily"]["history"]:
+            bar["c"] = 100
+        self.assertEqual(self.run_at("18:00"), 0)
+        self.sender.assert_not_called()
+
+    def test_message_and_receipt_include_the_daily_gate_values(self):
+        self.run_at("11:30")
+        self.run_at("12:00")
+        event = self.sender.call_args.args[4]
+        response = Mock()
+        response.read.return_value = b'{"id":"test","attachment":{"url":"test"}}'
+        response.__enter__ = Mock(return_value=response)
+        response.__exit__ = Mock(return_value=False)
+        candidate = self.payload["candidates"][0]
+        with patch.object(colors, "chart_image", return_value=b"image"), \
+                patch.object(colors.delivery, "capture", return_value={"status": "error"}), \
+                patch.object(colors.urllib.request, "urlopen", return_value=response) as opened:
+            search.send_alert("test", candidate, self.payload, self.rows[5], event, search.timestamp(event["completedAt"]))
+        message = urllib.parse.parse_qs(urllib.parse.urlsplit(opened.call_args.args[0].full_url).query)["message"][0]
+        self.assertIn("일봉 제한 통과: MA3", message)
+        self.assertIn("< MA120", message)
+        self.assertEqual(self.payload["notificationHistory"][-1]["condition"]["dailyMa3Ma120"], event["dailyMa3Ma120"])
 
     def test_preceding_cluster_is_allowed_before_first_expansion(self):
         self.rows[5]["m3"] = 101.2
