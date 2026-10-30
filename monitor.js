@@ -523,7 +523,7 @@ function render() {
   document.querySelector("#corePanel").classList.toggle("hidden", state.view !== "core");
   document.querySelector("#viewTitle").textContent = viewLabels[state.view];
   renderOperations(activeCandidates);
-  if (document.querySelector("#watchQuotesButton").classList.contains("operation-active")) renderWatchQuotes();
+  if (document.querySelector("#watchQuotesButton")?.classList.contains("operation-active")) renderWatchQuotes();
   if (state.view === "core") renderWatchQuotes(true);
   if (candidateView) renderCandidates(currentCandidates());
   const closedPositions = (state.positions?.positions || []).filter((item) => item.status === "closed");
@@ -1520,16 +1520,6 @@ function buildWatchQuotes(items, tradingDates, {title, showTrend = false, showFa
   for (const [canvas, item] of trends) drawMaTrend(canvas, item, today);
   return content;
 }
-document.querySelector("#watchQuotesButton").addEventListener("click", () => renderWatchQuotes());
-document.querySelector("#priceAnalysisButton").addEventListener("click", () => renderPriceAnalysis());
-document.querySelector("#shapeAnalysisButton").addEventListener("click", () => renderPriceAnalysis(true));
-document.querySelector("#positionsButton").addEventListener("click", () => {
-  state.view = "positions";
-  state.deepLinkPending = false;
-  savedView = {view: "positions", operation: "positionsButton"};
-  try { sessionStorage.setItem(VIEW_STORAGE_KEY, JSON.stringify(savedView)); } catch {}
-  render();
-});
 document.querySelectorAll("[data-monitor-view]").forEach(button => button.addEventListener("click", () => {
   state.view = button.dataset.monitorView;
   state.deepLinkPending = false;

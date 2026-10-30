@@ -70,6 +70,9 @@ const server = http.createServer((request, response) => {
       await page.waitForFunction(n => document.querySelectorAll('#candidateList > .candidate').length === n, first.candidates.length);
       assert.match(page.url(), /view=firstRise/);
       await page.locator('[data-view=operations]').click();
+      for (const id of ['positionsButton', 'watchQuotesButton', 'priceAnalysisButton', 'shapeAnalysisButton']) {
+        assert.equal(await page.locator(`#operationsPanel #${id}`).count(), 0);
+      }
       await page.locator('#criteriaButton').click();
       assert.equal(await page.locator('#firstRiseCriteria li').count(), 8);
       assert.match(await page.locator('#firstRiseCriteria').textContent(), /4%.*미래 마감 거래량/s);
