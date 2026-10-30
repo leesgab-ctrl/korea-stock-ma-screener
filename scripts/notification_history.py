@@ -5,7 +5,7 @@ import math
 
 
 def record_delivery(payload, code, name, bar_time, sent_at, kind, label, *, signature=None, stage="", source="ntfy",
-                    price_snapshot=None, signal_price=None):
+                    price_snapshot=None, signal_price=None, condition=None):
     try:
         bar = dt.datetime.fromisoformat(bar_time)
         sent = dt.datetime.fromisoformat(sent_at)
@@ -24,6 +24,8 @@ def record_delivery(payload, code, name, bar_time, sent_at, kind, label, *, sign
                     "stage": stage, "source": source})
     if isinstance(price_snapshot, dict):
         records[-1]["priceSnapshot"] = copy.deepcopy(price_snapshot)
+    if isinstance(condition, dict) and condition:
+        records[-1]["condition"] = copy.deepcopy(condition)
     if (isinstance(signal_price, (int, float)) and not isinstance(signal_price, bool)
             and math.isfinite(signal_price) and signal_price > 0):
         records[-1]["signalPrice"] = signal_price

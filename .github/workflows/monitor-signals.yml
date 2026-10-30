@@ -74,6 +74,7 @@ jobs:
           IMAGES_ONLY: ${{ github.event.schedule == '*/10 7-11 * * 1-5' }}
         run: |
           python -m unittest discover -s scripts -p test_notification_snapshot.py
+          python -m unittest discover -s scripts -p test_decline_ma10_ma120_gate.py
           python -m unittest discover -s scripts -p test_common_monitor.py
           MODE=intraday
           if [ "$CHARTS_ONLY" = "true" ]; then MODE=charts; fi

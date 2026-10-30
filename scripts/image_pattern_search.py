@@ -412,11 +412,20 @@ def detect(rows, rule, candidate=None):
             episode["confirmed"] = True
             stage = "confirmation"
         if stage:
+            ma120_details = {}
+            if stage == "confirmation" and rule.get("requireRisingMa120ForConfirmation") is True:
+                ma120_values = (previous.get("m120"), row.get("m120"))
+                if not all(isinstance(value, (int, float)) and not isinstance(value, bool)
+                           and math.isfinite(value) and value > 0 for value in ma120_values) \
+                        or ma120_values[1] <= ma120_values[0]:
+                    continue
+                ma120_details = {"requireRisingMa120ForConfirmation": True,
+                                 "m120Previous": ma120_values[0], "m120": ma120_values[1]}
             events.append({"id": f"{rule['id']}|{episode['time']}|{stage}", "ruleId": rule["id"],
                            "ruleVersion": rule["version"], "stage": stage, "time": row["t"],
                            "completedAt": (timestamp(row["t"]) + dt.timedelta(minutes=30)).isoformat(timespec="minutes"),
                            "setupTime": episode["setupTime"], "episodeTime": episode["time"], "price": row["c"],
-                           **{key: row[key] for key in KEYS}})
+                           **{key: row[key] for key in KEYS}, **ma120_details})
     return events
 
 

@@ -95,6 +95,7 @@ def chart_image(candidate, payload):
 
 
 def send(topic, candidate, payload, row, state, kind, current):
+    notification_title = None
     price_text = price_with_day_change(row["c"], row["t"], candidate.get("displayCharts", {}).get("quote", {}))
     daily = candidate.get("displayCharts", {}).get("daily", {}).get("history", [])
     # One low per trading date; missing sessions must not masquerade as complete coverage.
@@ -197,10 +198,17 @@ def send(topic, candidate, payload, row, state, kind, current):
     elif kind in ("imageMa3Breakout", "imageMa10Breakout"):
         stage = "1차 포착" if kind == "imageMa3Breakout" else "확인 포착"
         line = "MA3" if kind == "imageMa3Breakout" else "MA10"
+        ma120_note = (f"- 발송 추가조건: MA120 상승 {state['m120Previous']:,.2f} → {state['m120']:,.2f}\n"
+                      if kind == "imageMa10Breakout" and state.get("requireRisingMa120ForConfirmation") else "")
+        if ma120_note:
+            notification_title = "하락중인 MA10이 MA40 돌파 MA120은 상승중"
         label = f"이미지조건 {stage}"
-        message = (f"[이미지조건 · {stage}] {candidate['name']}({candidate['code']})\n"
+        heading = notification_title or f"이미지조건 · {stage}"
+        intro = (f"{candidate['name']}({candidate['code']})\n[{heading}]\n" if notification_title else
+                 f"[{heading}] {candidate['name']}({candidate['code']})\n")
+        message = (intro +
                    f"- 유형: {state['ruleName']}\n"
-                   f"- 하락 역배열 후 {line}이 MA40을 상향 돌파했습니다.\n"
+                   f"- 하락 역배열 후 {line}이 MA40을 상향 돌파했습니다.\n{ma120_note}"
                    f"- MA3 {row['m3']:,.2f} / MA10 {row['m10']:,.2f} / MA40 {row['m40']:,.2f}\n"
                    f"- 기준봉 종가 {price_text}\n"
                    f"- 봉 완성 시각 {state['completedAt']}\n"
@@ -233,7 +241,7 @@ def send(topic, candidate, payload, row, state, kind, current):
     message += delivery.message(price_snapshot)
     request = urllib.request.Request("https://ntfy.sh/" + topic + "?" + urllib.parse.urlencode({"message": message}), data=image, headers={
         "Content-Type": "image/png", "Filename": f"{candidate['code']}-chart.png",
-        "Title": Header(f"{candidate['name']} {label} 포착", "utf-8", maxlinelen=10000).encode(),
+        "Title": Header(notification_title or f"{candidate['name']} {label} 포착", "utf-8", maxlinelen=10000).encode(),
         "Click": f"https://leesgab-ctrl.github.io/korea-stock-ma-screener/monitor.html?stock={candidate['code']}",
         "Priority": "5",
     })
@@ -249,7 +257,9 @@ def send(topic, candidate, payload, row, state, kind, current):
             signature += "|" + state["signalType"]
     record_delivery(payload, candidate["code"], candidate["name"], row["t"], delivery.now().isoformat(), kind,
                     state.get("ruleName") or label, signature=signature, stage=state.get("stage", ""),
-                    price_snapshot=price_snapshot, signal_price=row["c"])
+                    price_snapshot=price_snapshot, signal_price=row["c"], condition={
+                        key: state[key] for key in ("ruleId", "ruleVersion", "signalType", "requireRisingMa120ForConfirmation", "m120Previous", "m120")
+                        if key in state})
 
 
 def initialize_recovery_baselines(payload):
