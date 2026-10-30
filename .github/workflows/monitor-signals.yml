@@ -76,6 +76,7 @@ jobs:
           python -m unittest discover -s scripts -p test_notification_snapshot.py
           python -m unittest discover -s scripts -p test_decline_ma10_ma120_gate.py
           python -m unittest discover -s scripts -p test_decline_alert_policy.py
+          python -m unittest discover -s scripts -p test_ma120_recovery_search.py
           python -m unittest discover -s scripts -p test_common_monitor.py
           MODE=intraday
           if [ "$CHARTS_ONLY" = "true" ]; then MODE=charts; fi

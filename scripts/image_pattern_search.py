@@ -155,8 +155,13 @@ def detect_ma120_recovery(rows, rule):
                           and history[j]["m60"] > history[j]["m120"]
                           and history[j]["m120"] > history[j - 1]["m120"]), None)
             if below:
+                # Keep next-bar confirmation independent of the primary-only MA40 gate.
                 episode = {"time": row["t"], "setupTime": below["t"]}
-                stage = "primary"
+                ma40 = row.get("m40")
+                primary_order = isinstance(ma40, (int, float)) and not isinstance(ma40, bool) \
+                    and math.isfinite(ma40) and ma40 > row["m120"]
+                if rule.get("requireMa40AboveMa120ForPrimary") is not True or primary_order:
+                    stage = "primary"
         event_episode = episode if stage == "primary" else confirmed_episode
         if stage:
             events.append({"id": f"{rule['id']}|{event_episode['time']}|{stage}", "ruleId": rule["id"],
@@ -165,6 +170,8 @@ def detect_ma120_recovery(rows, rule):
                            "time": row["t"], "completedAt": (timestamp(row["t"]) + dt.timedelta(minutes=30)).isoformat(timespec="minutes"),
                            "setupTime": event_episode["setupTime"], "episodeTime": event_episode["time"], "price": row["c"],
                            "belowLookbackBars": lookback, "m120Previous": previous["m120"],
+                           "requireMa40AboveMa120ForPrimary": stage == "primary" and rule.get("requireMa40AboveMa120ForPrimary") is True,
+                           "m40": row.get("m40"),
                            "m3": row["m3"], "m60": row["m60"], "m120": row["m120"]})
         history.append(row)
         history = history[-(lookback + 1):]

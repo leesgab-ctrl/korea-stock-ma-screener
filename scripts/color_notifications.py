@@ -175,10 +175,13 @@ def send(topic, candidate, payload, row, state, kind, current):
         label = f"이미지조건 MA120 {stage}"
         reason = "최근 1~5봉 중 MA3가 MA120 아래였고, 현재 완성된 30분봉에서 MA120을 상향 돌파했습니다." if primary else \
             "돌파 직후 다음 완성봉도 MA3가 MA120 이상을 유지했습니다. MA3의 추가 상승 여부와는 별개입니다."
+        ma40_required = primary and state.get("requireMa40AboveMa120ForPrimary") is True
+        background = "MA120 상승 중 · MA40 > MA120 · MA60 > MA120" if ma40_required else "MA120 상승 중 · MA60 > MA120"
+        ma40_note = f" / MA40 {row['m40']:,.2f}" if ma40_required else ""
         message = (f"[이미지조건 · {stage}] {candidate['name']}({candidate['code']})\n"
                    f"- 유형: {state['ruleName']}\n- {reason}\n"
-                   f"- 배경: MA120 상승 중 · MA60 > MA120\n"
-                   f"- MA3 {row['m3']:,.2f} / MA60 {row['m60']:,.2f} / MA120 {row['m120']:,.2f}\n"
+                   f"- 배경: {background}\n"
+                   f"- MA3 {row['m3']:,.2f}{ma40_note} / MA60 {row['m60']:,.2f} / MA120 {row['m120']:,.2f}\n"
                    f"- 기준봉 종가 {price_text}\n- 봉 완성 시각 {state['completedAt']}\n"
                    "조건 관찰 신호이며, 이후 상승이나 수익을 보장하지 않습니다.")
     elif kind == "imageMa3Rise":
@@ -260,7 +263,7 @@ def send(topic, candidate, payload, row, state, kind, current):
     record_delivery(payload, candidate["code"], candidate["name"], row["t"], delivery.now().isoformat(), kind,
                     state.get("ruleName") or label, signature=signature, stage=state.get("stage", ""),
                     price_snapshot=price_snapshot, signal_price=row["c"], condition={
-                        key: state[key] for key in ("ruleId", "ruleVersion", "signalType", "requireRisingMa120ForConfirmation", "requireMa60AboveMa120ForConfirmation", "m120Previous", "m120", "m60")
+                        key: state[key] for key in ("ruleId", "ruleVersion", "signalType", "requireRisingMa120ForConfirmation", "requireMa60AboveMa120ForConfirmation", "requireMa40AboveMa120ForPrimary", "m120Previous", "m120", "m40", "m60")
                         if key in state})
 
 

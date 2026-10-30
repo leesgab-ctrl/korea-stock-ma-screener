@@ -15,7 +15,7 @@ class Ma120RecoveryTests(unittest.TestCase):
         self.start = dt.datetime(2026, 10, 16, 9, tzinfo=search.KST)
         self.rows = [{"t": (self.start + dt.timedelta(minutes=30 * i)).isoformat(timespec="minutes"),
                       "m3": 99.9 + i * .01 if value == 100 else value,
-                      "m60": 110, "m120": 99.9 + i * .01, "c": 101, "complete": True}
+                      "m40": 105, "m60": 110, "m120": 99.9 + i * .01, "c": 101, "complete": True}
                      for i, value in enumerate([102, 99, 101, 100, 100, 99, 101, 99, 101, 101])]
         self.candidate = {"code": "000002", "name": "MA120", "candidateTier": "expanded_ak",
                           "registeredAt": "2026-10-15T16:40+09:00", "displayCharts": {
@@ -83,6 +83,44 @@ class Ma120RecoveryTests(unittest.TestCase):
         for i, row in enumerate(self.rows):
             row["m60"] = 110 - i * .1
         self.assertTrue(self.detect())
+
+    def test_primary_requires_ma40_strictly_above_ma120_with_valid_data(self):
+        for value in (99, self.rows[2]["m120"], None, float("nan"), float("inf"), True):
+            self.setUp()
+            self.rows[2]["m40"] = value
+            events = self.detect()
+            self.assertNotIn(self.rows[2]["t"], [event["time"] for event in events], str(value))
+            self.assertIn(self.rows[3]["t"], [event["time"] for event in events], str(value))
+
+    def test_ma40_gate_only_checks_crossing_bar_and_does_not_require_ma40_above_ma60(self):
+        self.rows[1]["m40"] = 90
+        event = self.detect()[0]
+        self.assertEqual(event["stage"], "primary")
+        self.assertTrue(event["requireMa40AboveMa120ForPrimary"])
+        self.assertLess(event["m40"], event["m60"])
+
+    def test_next_bar_confirmation_does_not_require_ma40_above_ma120(self):
+        self.rows[3]["m40"] = 90
+        events = self.detect()
+        self.assertEqual(events[1]["stage"], "confirmation")
+        self.assertFalse(events[1]["requireMa40AboveMa120ForPrimary"])
+
+    def test_failed_primary_is_not_sent_later_when_ma40_recovers(self):
+        self.rows[:] = self.rows[:5]
+        self.rows[2]["m40"] = 90
+        self.rows[3]["m3"] = 99
+        self.run_at("10:00")
+        self.assertEqual(self.run_at("10:30"), 0)
+        self.assertEqual(self.run_at("11:00"), 0)
+        self.assertEqual(self.run_at("11:30"), 0)
+        self.sender.assert_not_called()
+
+    def test_ah_enrollment_does_not_send_primary_that_fails_ma40_gate(self):
+        self.rows[:] = self.rows[:3]
+        self.rows[2]["m40"] = 90
+        self.candidate.update(candidateTier="ah", registeredAt="2026-10-16T11:00+09:00", initialImport=False)
+        self.assertEqual(self.run_at("11:10"), 0)
+        self.sender.assert_not_called()
 
     def test_last_five_bars_not_start_of_dip_controls_eligibility(self):
         for distance, expected in [(1, True), (5, True), (6, False)]:
@@ -221,6 +259,11 @@ class Ma120RecoveryTests(unittest.TestCase):
             self.assertIn("MA120", message)
             self.assertIn("MA120 상승 중", message)
             self.assertIn("MA60 > MA120", message)
+            if event["stage"] == "primary":
+                self.assertIn("MA40 > MA120", message)
+                self.assertIn("MA40 105.00", message)
+            else:
+                self.assertNotIn("MA40 > MA120", message)
             self.assertIn("전일 대비 +1.00%", message)
             self.assertNotIn("MA10이 MA40", message)
             if event["stage"] == "confirmation":
