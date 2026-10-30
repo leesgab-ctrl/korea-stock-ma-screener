@@ -28,11 +28,15 @@ async function loadHistory() {
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const payload = await response.json();
     const activeCodes = new Set((payload.candidates || []).map(item => item.code));
-    state.history = (Array.isArray(payload.history) ? payload.history : []).filter(item => {
+    const primaryHistory = (Array.isArray(payload.history) ? payload.history : []).filter(item => {
       const endedManual = item.archiveReason === "manual_excluded" && item.verificationEndDate
         && Date.parse(payload.generatedAt) >= Date.parse(`${item.verificationEndDate}T20:00:00+09:00`);
       return (item.archiveReason === "window_completed" || item.verificationStatus === "completed" || endedManual) && !activeCodes.has(item.code);
     });
+    const additionalHistory = (Array.isArray(payload.analysisHistory) ? payload.analysisHistory : [])
+      .filter(item => item.archivedAt && !activeCodes.has(item.code));
+    state.history = [...new Map([...additionalHistory, ...primaryHistory]
+      .map(item => [`${item.code}|${item.registeredAt}`, item])).values()];
     state.excludedCodes = new Set((payload.manualExclusions || []).map((r) => r.code));
     if (referenceHistoryMode) {
       const referenceResponse = await fetch(`data/reference-history.json?t=${Date.now()}`, {cache: 'no-store'});
@@ -120,7 +124,7 @@ function renderHistory() {
   elements.historyList.innerHTML = "";
   elements.historyMeta.textContent = `저장 이력 ${records.length}종목`;
   if (!records.length) {
-    elements.historyList.innerHTML = `<div class="empty-list">${state.history.length ? "검색 결과가 없습니다." : "10거래일 관리가 끝난 종목부터 이력이 쌓입니다."}</div>`;
+    elements.historyList.innerHTML = `<div class="empty-list">${state.history.length ? "검색 결과가 없습니다." : "관리기간이 끝난 종목부터 이력이 쌓입니다."}</div>`;
     return;
   }
 
@@ -139,7 +143,7 @@ function renderHistory() {
     const row = document.createElement("tr");
     row.innerHTML = `
       <td>${pageStart + index + 1}</td>
-      <td><strong>${escapeHtml(item.name || "-")}</strong><span>${escapeHtml(item.code || "")}</span>${item.candidateTier === "expanded_ak" ? '<span>확대 A-K</span>' : ''}${item.referenceHistoricalProxy ? '<span>과거 참고</span>' : item.referenceEntry ? '<span>편입 기록</span>' : ''}${item.archiveReason === "manual_excluded" ? '<span>사용자 선정 제외</span>' : ""}</td>
+      <td><strong>${escapeHtml(item.name || "-")}</strong><span>${escapeHtml(item.code || "")}</span>${item.candidateTier === "ah" ? '<span>A-H</span>' : item.candidateTier === "first_rise" ? '<span>첫날상승</span>' : item.candidateTier === "expanded_ak" ? '<span>확대 A-K</span>' : ''}${item.referenceHistoricalProxy ? '<span>과거 참고</span>' : item.referenceEntry ? '<span>편입 기록</span>' : ''}${item.archiveReason === "manual_excluded" ? '<span>사용자 선정 제외</span>' : ""}</td>
       <td title="${escapeHtml(result.entryUnknown ? '등록 당시 30분봉 부족으로 최초 편입일 복원 불가' : result.registered || "")}">${escapeHtml(result.entryUnknown ? '편입일 미확인' : result.registered?.slice(5) || "기록 없음")}</td>
       <td class="history-prices"><span title="등록가">${formatPrice(result.baseline)}</span><span title="최종가">${formatPrice(result.finalPrice)}</span></td>
       <td title="등록 다음 거래일부터 5거래일 일봉 종가 중 최고수익률" class="${returnClass(result.fiveReturn)} ${result.fiveReturn >= 5 ? "target-hit" : ""}">${formatReturn(result.fiveReturn)}</td>
