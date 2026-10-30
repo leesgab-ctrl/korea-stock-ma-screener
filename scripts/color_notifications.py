@@ -175,6 +175,9 @@ def send(topic, candidate, payload, row, state, kind, current):
         label = f"이미지조건 MA120 {stage}"
         reason = "최근 1~5봉 중 MA3가 MA120 아래였고, 현재 완성된 30분봉에서 MA120을 상향 돌파했습니다." if primary else \
             "돌파 직후 다음 완성봉도 MA3가 MA120 이상을 유지했습니다. MA3의 추가 상승 여부와는 별개입니다."
+        if primary and "declining_ma40_breakout" in state.get("triggerPaths", []):
+            ma40_reason = "MA40 < MA60이고 두 선이 직전 봉보다 하락 중인 상태에서 MA3가 MA40을 상향 돌파했습니다."
+            reason = reason + "\n- " + ma40_reason if "ma120_recross" in state["triggerPaths"] else ma40_reason
         ma40_required = primary and state.get("requireMa40AboveMa120ForPrimary") is True
         background = "MA120 상승 중 · MA40 > MA120 · MA60 > MA120" if ma40_required else "MA120 상승 중 · MA60 > MA120"
         ma40_note = f" / MA40 {row['m40']:,.2f}" if ma40_required else ""
@@ -263,7 +266,7 @@ def send(topic, candidate, payload, row, state, kind, current):
     record_delivery(payload, candidate["code"], candidate["name"], row["t"], delivery.now().isoformat(), kind,
                     state.get("ruleName") or label, signature=signature, stage=state.get("stage", ""),
                     price_snapshot=price_snapshot, signal_price=row["c"], condition={
-                        key: state[key] for key in ("ruleId", "ruleVersion", "signalType", "requireRisingMa120ForConfirmation", "requireMa60AboveMa120ForConfirmation", "requireMa40AboveMa120ForPrimary", "m120Previous", "m120", "m40", "m60")
+                        key: state[key] for key in ("ruleId", "ruleVersion", "signalType", "requireRisingMa120ForConfirmation", "requireMa60AboveMa120ForConfirmation", "requireMa40AboveMa120ForPrimary", "triggerPaths", "m120Previous", "m120", "m40Previous", "m60Previous", "m40", "m60")
                         if key in state})
 
 

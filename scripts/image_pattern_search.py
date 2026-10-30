@@ -140,6 +140,9 @@ def detect_ma120_recovery(rows, rule):
         if missing_bar:
             episode, history, previous = None, [], None
         background = previous and row["m120"] > previous["m120"] and row["m60"] > row["m120"]
+        ma40 = row.get("m40")
+        primary_order = isinstance(ma40, (int, float)) and not isinstance(ma40, bool) \
+            and math.isfinite(ma40) and ma40 > row["m120"]
         stage = None
         if episode:
             if background and row["m3"] >= row["m120"]:
@@ -157,20 +160,31 @@ def detect_ma120_recovery(rows, rule):
             if below:
                 # Keep next-bar confirmation independent of the primary-only MA40 gate.
                 episode = {"time": row["t"], "setupTime": below["t"]}
-                ma40 = row.get("m40")
-                primary_order = isinstance(ma40, (int, float)) and not isinstance(ma40, bool) \
-                    and math.isfinite(ma40) and ma40 > row["m120"]
                 if rule.get("requireMa40AboveMa120ForPrimary") is not True or primary_order:
                     stage = "primary"
         event_episode = episode if stage == "primary" else confirmed_episode
-        if stage:
+        stages = [(stage, event_episode, ["ma120_recross"] if stage == "primary" else [])] if stage else []
+        previous_ma40 = (previous or {}).get("m40")
+        ma40_breakout = rule.get("allowDecliningMa40BreakoutPrimary") is True and background and primary_order \
+            and isinstance(previous_ma40, (int, float)) and not isinstance(previous_ma40, bool) \
+            and math.isfinite(previous_ma40) and previous_ma40 > 0 \
+            and ma40 < row["m60"] and ma40 < previous_ma40 and row["m60"] < previous["m60"] \
+            and previous["m3"] <= previous_ma40 and row["m3"] > ma40
+        if ma40_breakout:
+            if stage == "primary":
+                stages[0][2].append("declining_ma40_breakout")
+            else:
+                stages.append(("primary", {"time": row["t"], "setupTime": previous["t"]}, ["declining_ma40_breakout"]))
+        for stage, event_episode, paths in stages:
             events.append({"id": f"{rule['id']}|{event_episode['time']}|{stage}", "ruleId": rule["id"],
                            "ruleVersion": rule["version"], "stage": stage, "signalType": "ma3Ma120",
-                           "stageLabel": "MA3·MA120 상향 돌파 · 1차" if stage == "primary" else "다음 봉 MA3 ≥ MA120 유지 · 2차 확인",
+                           "stageLabel": "MA120 상승 중 MA3·MA40 상향 돌파 · 1차" if paths == ["declining_ma40_breakout"] else
+                           "MA3·MA120 상향 돌파 · 1차" if stage == "primary" else "다음 봉 MA3 ≥ MA120 유지 · 2차 확인",
                            "time": row["t"], "completedAt": (timestamp(row["t"]) + dt.timedelta(minutes=30)).isoformat(timespec="minutes"),
                            "setupTime": event_episode["setupTime"], "episodeTime": event_episode["time"], "price": row["c"],
                            "belowLookbackBars": lookback, "m120Previous": previous["m120"],
                            "requireMa40AboveMa120ForPrimary": stage == "primary" and rule.get("requireMa40AboveMa120ForPrimary") is True,
+                           "triggerPaths": paths, "m40Previous": previous.get("m40"), "m60Previous": previous["m60"],
                            "m40": row.get("m40"),
                            "m3": row["m3"], "m60": row["m60"], "m120": row["m120"]})
         history.append(row)
@@ -491,6 +505,7 @@ def process(payload, current, topic="", no_notify=True, board=None, rules=None, 
                 summary[key] = rule[key]
         summary.update(active=active, enabled=rule.get("enabled") is True,
                        notificationsEnabled=rule.get("notificationsEnabled") is not False,
+                       disabledNotificationStages=rule.get("disabledNotificationStages") or [],
                        confirmedImageIds=[item["id"] for item in images])
         snapshot["rules"].append(summary)
         if not active:
@@ -522,6 +537,8 @@ def process(payload, current, topic="", no_notify=True, board=None, rules=None, 
             if candidate.get("candidateTier") == "first_rise":
                 events = [event for event in events if event["time"][:10] > candidate["dailySignalDate"]]
             for event in events:
+                event["notificationEnabled"] = rule.get("notificationsEnabled") is not False \
+                    and event["stage"] not in (rule.get("disabledNotificationStages") or [])
                 event.update(code=candidate["code"], name=candidate.get("name", candidate["code"]),
                              ruleName=rule["name"], sourceImageIds=[item["id"] for item in images])
                 if first_rise_rule:
@@ -546,6 +563,7 @@ def process(payload, current, topic="", no_notify=True, board=None, rules=None, 
             if rule.get("notificationsEnabled") is False:
                 saved["baseline"] = rows[-1]["t"]
                 continue
+            events = [event for event in events if event["notificationEnabled"]]
             if chart.get("dataStatus") != "ok":
                 continue
             # Regular and aftermarket bars use the same completed-bar and freshness rules.

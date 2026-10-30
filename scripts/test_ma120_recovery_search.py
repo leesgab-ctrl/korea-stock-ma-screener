@@ -33,6 +33,91 @@ class Ma120RecoveryTests(unittest.TestCase):
         return search.process(self.payload, search.timestamp("2026-10-16T" + clock + "+09:00"), "test-only", no_notify,
                               board=self.board, rules=[self.rule], sender=self.sender)[0]
 
+    def ma40_path_rows(self):
+        self.rows[:] = self.rows[:4]
+        for i, row in enumerate(self.rows):
+            row.update(m3=[102, 104, 108, 109][i], m40=108 - i * .5, m60=114 - i)
+
+    def test_ma40_path_is_independent_of_any_recent_ma120_dip_or_cross(self):
+        self.ma40_path_rows()
+        events = self.detect()
+        self.assertEqual(len(events), 1)
+        self.assertEqual(events[0]["stage"], "primary")
+        self.assertEqual(events[0]["time"], self.rows[2]["t"])
+        self.assertEqual(events[0]["triggerPaths"], ["declining_ma40_breakout"])
+        self.assertTrue(all(row["m3"] > row["m120"] for row in self.rows))
+
+    def test_both_paths_on_one_bar_send_only_one_primary(self):
+        self.ma40_path_rows()
+        self.rows[1]["m3"] = 99
+        primary = [event for event in self.detect() if event["stage"] == "primary"]
+        self.assertEqual(len(primary), 1)
+        self.assertEqual(primary[0]["triggerPaths"], ["ma120_recross", "declining_ma40_breakout"])
+        self.run_at("10:00")
+        self.assertEqual(self.run_at("10:30"), 1)
+        self.assertEqual(self.run_at("10:30"), 0)
+        self.assertEqual(self.run_at("11:00"), 0)
+        self.assertEqual(self.sender.call_count, 1)
+
+    def test_ma40_path_requires_inverse_order_and_both_lines_strictly_falling(self):
+        for field, value in (("m40", 107.5), ("m60", 113), ("m60", 105.5)):
+            self.setUp()
+            self.ma40_path_rows()
+            self.rows[2][field] = value
+            self.assertEqual(self.detect(), [], (field, value))
+
+    def test_ma40_path_requires_all_shared_background_conditions(self):
+        for field, value in (("m120", 99.91), ("m120", 99.90), ("m60", 99), ("m40", 99)):
+            self.setUp()
+            self.ma40_path_rows()
+            self.rows[2][field] = value
+            self.assertEqual(self.detect(), [], (field, value))
+
+    def test_ma40_path_touch_and_already_above_are_not_new_crosses(self):
+        self.ma40_path_rows()
+        self.rows[2]["m3"] = self.rows[2]["m40"]
+        self.rows[:] = self.rows[:3]
+        self.assertEqual(self.detect(), [])
+        self.rows[0]["m3"] = 109
+        self.rows[1]["m3"] = 109
+        self.rows[2]["m3"] = 109
+        self.assertEqual(self.detect(), [])
+
+    def test_ma40_path_rejects_missing_or_invalid_previous_ma40(self):
+        for value in (None, float("nan"), float("inf"), True):
+            self.setUp()
+            self.ma40_path_rows()
+            self.rows[1]["m40"] = value
+            self.assertEqual(self.detect(), [])
+
+    def test_ma40_path_notifies_once_on_completed_bar_for_each_candidate_family(self):
+        for tier in ("core", "expanded_ak", "ah", "first_rise"):
+            self.setUp()
+            self.ma40_path_rows()
+            self.candidate.update(candidateTier=tier, dailySignalDate="2026-10-15")
+            self.run_at("10:00")
+            self.assertEqual(self.run_at("10:29"), 0, tier)
+            self.rows[2]["complete"] = False
+            self.assertEqual(self.run_at("10:30"), 0, tier)
+            self.rows[2]["complete"] = True
+            self.assertEqual(self.run_at("10:30"), 1, tier)
+            self.assertEqual(self.run_at("11:00"), 0, tier)
+
+    def test_ma40_only_message_identifies_its_trigger_not_a_ma120_recross(self):
+        self.ma40_path_rows()
+        event = dict(self.detect()[0], ruleName=self.rule["name"])
+        response = Mock()
+        response.read.return_value = b'{"attachment":{"url":"test"}}'
+        response.__enter__ = Mock(return_value=response)
+        response.__exit__ = Mock(return_value=False)
+        with patch.object(colors, "chart_image", return_value=b"image"), \
+                patch.object(colors.delivery, "capture", return_value={"status": "error"}), \
+                patch.object(colors.urllib.request, "urlopen", return_value=response) as opened:
+            search.send_alert("test-only", self.candidate, self.payload, self.rows[2], event, search.timestamp(event["completedAt"]))
+        message = urllib.parse.parse_qs(urllib.parse.urlsplit(opened.call_args.args[0].full_url).query)["message"][0]
+        self.assertIn("MA3가 MA40을 상향 돌파", message)
+        self.assertNotIn("현재 완성된 30분봉에서 MA120을 상향 돌파", message)
+
     def test_crossing_bar_first_and_next_bar_equal_confirms(self):
         events = self.detect()
         self.assertEqual([event["time"] for event in events], [self.rows[i]["t"] for i in (2, 3, 6, 8, 9)])
@@ -186,7 +271,7 @@ class Ma120RecoveryTests(unittest.TestCase):
         self.rows[3]["t"] = "2026-10-16T09:00+09:00"
         self.assertEqual([event["stage"] for event in self.detect()], ["primary", "confirmation"])
 
-    def test_completed_only_two_stages_once(self):
+    def test_completed_primary_sends_once_but_confirmation_is_display_only(self):
         self.assertEqual(self.run_at("10:00"), 0)
         self.assertEqual(self.run_at("10:29"), 0)
         self.assertEqual(self.run_at("10:30", no_notify=True), 0)
@@ -195,9 +280,48 @@ class Ma120RecoveryTests(unittest.TestCase):
         self.rows[3]["complete"] = False
         self.assertEqual(self.run_at("11:00"), 0)
         self.rows[3]["complete"] = True
-        self.assertEqual(self.run_at("11:00"), 1)
         self.assertEqual(self.run_at("11:00"), 0)
+        self.assertEqual(self.run_at("11:00"), 0)
+        self.assertEqual(self.sender.call_count, 1)
+        confirmation = next(event for event in self.payload["imageSearch"]["events"] if event["stage"] == "confirmation")
+        self.assertFalse(confirmation["notificationEnabled"])
+
+    def test_production_confirmation_is_disabled_but_primary_remains_enabled(self):
+        self.assertTrue(self.rule["enabled"])
+        self.assertIsNot(self.rule.get("notificationsEnabled"), False)
+        self.assertEqual(self.rule["disabledNotificationStages"], ["confirmation"])
+        self.assertNotIn("waitForMa40CrossWhenMa40Ma60Falling", self.rule)
+
+    def test_ah_enrollment_does_not_include_confirmation(self):
+        self.rows[:] = self.rows[:4]
+        self.candidate.update(candidateTier="ah", registeredAt="2026-10-16T12:00+09:00", initialImport=False)
+        self.assertEqual(self.run_at("12:10"), 1)
+        event = self.sender.call_args.args[4]
+        self.assertEqual(event["stage"], "primary")
+        self.assertTrue(all(signal["stage"] == "primary" for signal in event["enrollmentSignals"]))
+
+    def test_confirmation_only_ah_enrollment_does_not_send(self):
+        self.rows[:] = self.rows[:4]
+        self.rows[2]["m40"] = 90
+        self.candidate.update(candidateTier="ah", registeredAt="2026-10-16T12:00+09:00", initialImport=False)
+        self.assertEqual(self.run_at("12:10"), 0)
+        self.sender.assert_not_called()
+
+    def test_past_confirmation_receipts_are_preserved(self):
+        old = {"id": "old-confirmation", "stage": "confirmation", "code": self.candidate["code"]}
+        self.payload["notificationHistory"] = [old.copy()]
+        self.run_at("10:00")
+        self.run_at("11:00")
+        self.assertEqual(self.payload["notificationHistory"], [old])
+
+    def test_other_rules_can_still_send_confirmation(self):
+        other = {**self.rule, "id": "other", "name": "Other", "disabledNotificationStages": []}
+        for clock in ("10:00", "10:30", "11:00"):
+            search.process(self.payload, search.timestamp("2026-10-16T" + clock + "+09:00"), "test-only", False,
+                           board=self.board, rules=[self.rule, other], sender=self.sender)
         self.assertEqual(self.sender.call_count, 2)
+        self.assertEqual(self.sender.call_args.args[4]["stage"], "confirmation")
+        self.assertEqual(self.sender.call_args.args[4]["ruleName"], "Other")
 
     def test_core_family_is_also_scanned(self):
         self.candidate["candidateTier"] = "core"
@@ -229,7 +353,7 @@ class Ma120RecoveryTests(unittest.TestCase):
         self.assertEqual(self.run_at("17:30"), 0)
         self.sender.side_effect = None
         self.assertEqual(self.run_at("17:30"), 1)
-        self.assertEqual(self.run_at("18:00"), 1)
+        self.assertEqual(self.run_at("18:00"), 0)
 
     def test_ma120_alert_does_not_merge_with_ma40_or_cluster_alert(self):
         self.run_at("10:00")

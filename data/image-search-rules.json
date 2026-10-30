@@ -51,14 +51,16 @@
     },
     {
       "id": "ma3-ma120-recovery",
-      "version": 3,
+      "version": 4,
       "name": "MA120 이탈후 재돌파",
       "type": "ma3_ma120_recovery",
       "enabled": true,
       "belowLookbackBars": 5,
       "requireMa40AboveMa120ForPrimary": true,
+      "disabledNotificationStages": ["confirmation"],
+      "allowDecliningMa40BreakoutPrimary": true,
       "imageIds": ["4c67c6aa-9987-420e-aee1-db90370a63f4"],
-      "description": "완성된 30분봉 기준, 직전 1~5봉 중 MA120이 직전 봉보다 상승하고 MA60 > MA120이며 MA3 < MA120인 봉이 있어야 함. 현재 봉에서 MA120 > 직전 봉 MA120, MA40 > MA120, MA60 > MA120을 모두 만족하고 MA3가 MA120을 실제 상향 돌파할 때만 1차 알림. MA40·MA60 사이의 순서는 제한하지 않음. MA3가 아래에 머문 전체 기간은 제한하지 않으며 이미 위에 있던 봉은 1차 대상이 아님. 다음 봉 확인은 기존대로: 실제 돌파 바로 다음 완성봉에서 MA120 상승·MA60 > MA120 및 MA3 >= MA120이면 확인하며 MA40 추가조건은 적용하지 않음. 1차가 MA40 조건으로 제외돼도 다음 봉 확인은 별도로 판단. 다음 봉 실패 시 확인 취소."
+      "description": "완성된 30분봉의 공통조건: MA120 > 직전 봉 MA120, MA40 > MA120, MA60 > MA120. 공통조건 충족 시 두 경로를 OR로 병행 검색하며 대기 상태는 저장하지 않음. ① 기존 MA120 재돌파: 직전 1~5봉 중 MA120 상승·MA60 > MA120이며 MA3 < MA120인 봉이 있고, 현재 MA3가 MA120을 실제 상향 돌파. ② MA40 돌파: 현재 MA40 < MA60이고 두 선 모두 직전 봉보다 하락하며 MA3가 MA40을 실제 상향 돌파. ②는 최근 MA120 재돌파나 MA120 아래 이력이 없어도 독립 판정. 같은 봉에서 두 경로가 충족돼도 1차 문자 1회. 다음 봉 확인 문자는 발송 중지하며 AH 신규 등록 시 지난 신호 안내에서도 제외. 포착·학습용 표시와 과거 발송 이력은 유지."
     },
     {
       "id": "ma20-pyramid-ma60-recovery",
