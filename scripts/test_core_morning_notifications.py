@@ -1,3 +1,4 @@
+import copy
 import datetime as dt
 import json
 from pathlib import Path
@@ -14,6 +15,10 @@ import update_candidate_monitor as monitor
 
 class CoreMorningNotificationsTest(unittest.TestCase):
     def setUp(self):
+        # Exercise historical channel mechanics without changing the disabled production policy.
+        policy = patch.object(morning, "NOTIFICATIONS_ENABLED", True)
+        policy.start()
+        self.addCleanup(policy.stop)
         self.payload = {"candidates": [{"code": "145720", "name": "덴티움", "displayCharts": {
             "intraday": {"series": [{"t": "2026-10-12T09:30:00", "c": 100}]},
             "daily": {"history": []}}}]}
@@ -126,6 +131,22 @@ class CoreMorningNotificationsTest(unittest.TestCase):
             self.assertEqual(json.loads(output.read_text(encoding="utf-8"))["coreMorningNotificationState"]["2026-10-12"]["145720"]["status"], "sent")
             self.assertIn("alerts=1", github.read_text())
             self.assertIn("color_state_changed=true", github.read_text())
+
+
+class CoreMorningDisabledPolicyTest(unittest.TestCase):
+    def test_production_never_evaluates_sends_or_retries_morning_alerts(self):
+        self.assertFalse(morning.NOTIFICATIONS_ENABLED)
+        payload = {"candidates": [{"code": "145720", "name": "덴티움"}],
+                   "coreMorningNotificationState": {"2026-10-30": {"145720": {"status": "retry"}}},
+                   "notificationHistory": [{"id": "old-morning", "kind": "coreMorningMa3"}]}
+        before = copy.deepcopy(payload)
+        sender, evaluator = Mock(), Mock()
+        for clock in ("09:30", "10:00", "10:30", "10:59", "11:00", "20:00"):
+            self.assertEqual(morning.notify(payload, dt.datetime.fromisoformat(f"2026-10-30T{clock}:00+09:00"),
+                                           "test", sender=sender, evaluator=evaluator), (0, False))
+        sender.assert_not_called()
+        evaluator.assert_not_called()
+        self.assertEqual(payload, before)
 
 
 if __name__ == "__main__":

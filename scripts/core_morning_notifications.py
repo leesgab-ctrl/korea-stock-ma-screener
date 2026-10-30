@@ -7,6 +7,7 @@ import subprocess
 from color_notifications import send
 
 KST = dt.timezone(dt.timedelta(hours=9))
+NOTIFICATIONS_ENABLED = False
 
 
 def opening_checks(payload, today):
@@ -19,6 +20,8 @@ def opening_checks(payload, today):
 
 
 def notify(payload, current, topic, no_notify=False, sender=send, evaluator=opening_checks):
+    if not NOTIFICATIONS_ENABLED:
+        return 0, False
     current = current.astimezone(KST)
     # The 10:00 collection may arrive late. Retry only that fixed opening snapshot,
     # never count any subsequent candles or send the opening alert after 11:00.
