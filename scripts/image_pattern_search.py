@@ -482,7 +482,9 @@ def process(payload, current, topic="", no_notify=True, board=None, rules=None, 
         for key in ("thumbnail", "stageThumbnails"):
             if rule.get(key):
                 summary[key] = rule[key]
-        summary.update(active=active, enabled=rule.get("enabled") is True, confirmedImageIds=[item["id"] for item in images])
+        summary.update(active=active, enabled=rule.get("enabled") is True,
+                       notificationsEnabled=rule.get("notificationsEnabled") is not False,
+                       confirmedImageIds=[item["id"] for item in images])
         snapshot["rules"].append(summary)
         if not active:
             continue
@@ -534,6 +536,9 @@ def process(payload, current, topic="", no_notify=True, board=None, rules=None, 
             key = f"{candidate['code']}|{registered}|{rule['id']}|{rule['version']}"
             active_keys.add(key)
             saved = tracking.setdefault(key, {"baseline": rows[-1]["t"], "sent": {}})
+            if rule.get("notificationsEnabled") is False:
+                saved["baseline"] = rows[-1]["t"]
+                continue
             if chart.get("dataStatus") != "ok":
                 continue
             # Regular and aftermarket bars use the same completed-bar and freshness rules.

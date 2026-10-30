@@ -391,8 +391,11 @@
         const links = board.ruleLinks.filter(rule => rule.imageIds?.includes(item.id) && rule.enabled);
         const linkState = document.createElement("p");
         linkState.className = "capture-rule-state";
+        const liveLinks = links.filter(rule => rule.active);
+        const activeLabel = liveLinks.some(rule => rule.notificationsEnabled !== false)
+          ? " · 검색·알림 사용 중" : " · 검색 사용 · 문자 중지";
         linkState.textContent = links.length ? links.map(rule => rule.name).join(" · ")
-          + (item.conditionConfirmed ? links.some(rule => rule.active) ? " · 검색·알림 사용 중" : " · 다음 서버 갱신 적용" : " · 확정 체크 대기")
+          + (item.conditionConfirmed ? liveLinks.length ? activeLabel : " · 다음 서버 갱신 적용" : " · 확정 체크 대기")
           : "검색조건 설정 대기";
         article.querySelector(".capture-item-content").insertBefore(linkState, article.querySelector(".capture-item-actions"));
       }

@@ -7,6 +7,7 @@
       "name": "하락후 MA40 회복",
       "type": "decline_ma40_recovery",
       "enabled": true,
+      "notificationsEnabled": false,
       "declineComparisons": 3,
       "setupLookback": 20,
       "requireRisingMa120ForConfirmation": true,
@@ -14,7 +15,7 @@
       "imageIds": ["409c3779-d8e2-4b3f-9398-dadc27e06add"],
       "thumbnail": {"path": "data/pattern-icons/ma40-recovery-20261017.png", "width": 68, "height": 45},
       "stageThumbnails": {"confirmation": {"path": "data/pattern-icons/ma10-ma40-cross-20261017.png", "width": 116, "height": 78}},
-      "description": "MA20 < MA40 < MA60에서 3봉 연속 하락 후 20봉 이내 MA3·MA10 상승 및 MA3의 MA40 상향 돌파. MA3 회복 1차는 기존 조건 유지. 이후 20봉 이내 MA10의 MA40 상향 돌파 확인은 해당 완성 30분봉 MA120이 직전 완성봉 MA120보다 상승하고 동시에 MA60 > MA120일 때만 포착·발송. MA120 수평·하락·계산자료 부족 또는 MA60이 MA120과 같거나 아래이면 확인 문자 제외. MA3가 MA10 또는 MA40 이하로 내려가면 회복 시도 종료."
+      "description": "문자 발송 중지: MA3·MA40 회복 1차와 MA10·MA40 돌파 확인 모두 보내지 않음. 포착·학습용 조건과 과거 발송 이력은 유지. MA20 < MA40 < MA60에서 3봉 연속 하락 후 20봉 이내 MA3·MA10 상승 및 MA3의 MA40 상향 돌파를 포착. 이후 20봉 이내 MA10의 MA40 상향 돌파 확인은 해당 완성 30분봉 MA120이 직전 완성봉보다 상승하고 MA60 > MA120일 때 포착. MA3가 MA10 또는 MA40 이하로 내려가면 회복 시도 종료."
     },
     {
       "id": "daehan-recovery-pattern",
@@ -22,13 +23,14 @@
       "name": "하락중 MA10이 MA40 돌파",
       "type": "decline_ma10_ma40",
       "enabled": true,
+      "notificationsEnabled": false,
       "declineComparisons": 3,
       "setupLookback": 20,
       "requireRisingMa120ForConfirmation": true,
       "requireMa60AboveMa120ForConfirmation": true,
       "imageIds": ["88471f7a-13bc-4839-afbd-43492315dce5"],
       "thumbnail": {"path": "data/pattern-icons/ma10-ma40-cross-20261017.png", "width": 116, "height": 78},
-      "description": "MA20 < MA40 < MA60에서 3봉 연속 하락한 구간 이후 20봉 이내 MA10이 MA40을 상향 돌파. 해당 완성 30분봉 MA120 > 직전 완성봉 MA120이고 동시에 MA60 > MA120일 때만 포착·발송. MA120 수평·하락·계산자료 부족 또는 MA60이 MA120과 같거나 아래이면 제외. MA3는 MA40 위에 있어야 하며 순간적인 MA3 하락은 제외 사유가 아님. MA3 1차 알림 없이 MA10 돌파만 알림."
+      "description": "MA10·MA40 돌파 확인 문자 발송 중지. 포착·학습용 조건과 과거 발송 이력은 유지. MA20 < MA40 < MA60에서 3봉 연속 하락한 구간 이후 20봉 이내 MA10이 MA40을 상향 돌파하고, 해당 완성 30분봉 MA120 > 직전 완성봉 MA120 및 MA60 > MA120일 때 포착. MA3는 MA40 위에 있어야 하며 순간적인 MA3 하락은 제외 사유가 아님."
     },
     {
       "id": "rising-cluster-ma3-recovery",
