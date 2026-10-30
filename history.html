@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#176b58">
     <title>후보 검증 이력</title>
-    <link rel="stylesheet" href="monitor.css?v=20261015-3">
+    <link rel="stylesheet" href="monitor.css?v=20261030-history-search">
   </head>
   <body>
     <header class="topbar">
@@ -35,6 +35,12 @@
             <h2>이력리스트</h2>
           </div>
           <div class="history-heading-meta"><span id="historyMeta"></span><strong class="history-target">목표 +5%</strong></div>
+        </div>
+        <div class="history-toolbar">
+          <label class="search-field" for="historyKeyword">
+            <span>종목검색</span>
+            <input id="historyKeyword" type="search" placeholder="종목명 또는 코드" autocomplete="off">
+          </label>
         </div>
         <div id="historyList" class="history-list">
           <div class="empty-list">검증 이력을 불러오는 중입니다.</div>
