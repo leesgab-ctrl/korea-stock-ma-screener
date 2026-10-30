@@ -15,6 +15,8 @@ from notification_prices import price_with_day_change
 from notification_history import record_delivery
 import notification_snapshot as delivery
 
+DISABLED_NOTIFICATION_KINDS = frozenset({"recoveryMa10Breakout"})
+
 
 def states(bars):
     result = []
@@ -329,7 +331,7 @@ def notify(payload, current, topic, no_notify=False, sender=send):
             if completion > current:
                 continue
             kinds = [kind for kind in ("compact", "purple", "convergenceBreakout", "recoveryMa10Breakout")
-                     if state[kind] and not saved.get(kind)
+                     if kind not in DISABLED_NOTIFICATION_KINDS and state[kind] and not saved.get(kind)
                      and (kind != "recoveryMa10Breakout" or b["t"] > saved["recoveryBaseline"])]
             if kinds and dt.timedelta(0) <= current - completion <= dt.timedelta(minutes=90):
                 try:

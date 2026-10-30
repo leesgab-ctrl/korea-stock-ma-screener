@@ -20,6 +20,12 @@ def bars():
 
 
 class RecoveryRulesTest(unittest.TestCase):
+    def setUp(self):
+        # Preserve historical transport regressions; production muting is tested separately.
+        policy = patch.object(colors, "DISABLED_NOTIFICATION_KINDS", frozenset())
+        policy.start()
+        self.addCleanup(policy.stop)
+
     def test_sizitronics_returns_to_yellow_after_ma3_loses_ma10(self):
         rows = json.loads((Path(__file__).parent / "fixtures/sizitronics-recovery.json").read_text())
         result = recovery_states(rows)
@@ -186,6 +192,43 @@ class RecoveryRulesTest(unittest.TestCase):
         self.assertIn("회복테스트의 MA10이 MA40을 상향 돌파했습니다.", message)
         self.assertIn("MA3이 MA60 아래에 있는지 확인", message)
         self.assertIn("MA10 101.00 / MA40 100.00", message)
+
+
+class RecoveryNotificationDisabledPolicyTest(unittest.TestCase):
+    def make_payload(self):
+        return RecoveryRulesTest().payload(bars()[:5])
+
+    def run_notify(self, payload, sender):
+        return colors.notify(payload, dt.datetime.fromisoformat("2026-10-15T12:01:00+09:00"), "test", sender=sender)
+
+    def test_only_adjustment_recovery_notifications_are_disabled(self):
+        self.assertEqual(colors.DISABLED_NOTIFICATION_KINDS, {"recoveryMa10Breakout"})
+        self.assertTrue(colors.states(bars())[5]["recoveryMa10Breakout"])
+
+    def test_muted_event_advances_cursor_without_sending_or_deleting_receipts(self):
+        payload, sender = self.make_payload(), Mock()
+        payload["notificationHistory"] = [{"id": "old-recovery", "kind": "recoveryMa10Breakout"}]
+        self.run_notify(payload, sender)
+        payload["candidates"][0]["displayCharts"]["intraday"]["series"] = bars()[:6]
+        self.assertEqual(self.run_notify(payload, sender)[0], 0)
+        sender.assert_not_called()
+        saved = next(iter(payload["colorNotificationState"].values()))
+        self.assertEqual(saved["last"], bars()[5]["t"])
+        self.assertEqual(payload["notificationHistory"], [{"id": "old-recovery", "kind": "recoveryMa10Breakout"}])
+        with patch.object(colors, "DISABLED_NOTIFICATION_KINDS", frozenset()):
+            self.assertEqual(self.run_notify(payload, sender)[0], 0)
+        sender.assert_not_called()
+
+    def test_overlapping_other_notifications_are_not_suppressed(self):
+        for kind in ("compact", "purple", "convergenceBreakout"):
+            payload, sender = self.make_payload(), Mock()
+            self.run_notify(payload, sender)
+            payload["candidates"][0]["displayCharts"]["intraday"]["series"] = bars()[:6]
+            flags = colors.states(bars()[:6])
+            flags[-1][kind] = True
+            with patch.object(colors, "states", return_value=flags):
+                self.assertEqual(self.run_notify(payload, sender)[0], 1, kind)
+            self.assertEqual(sender.call_args.args[5], kind)
 
 
 if __name__ == "__main__":
