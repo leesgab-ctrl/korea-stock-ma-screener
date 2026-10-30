@@ -11,6 +11,7 @@ import urllib.request
 from ah_rules import (KST, MODEL, VERSION, daily_match, potential_match, hybrid_rows,
                       remaining_days, review_alerts, review_matches, completed_at, message, final_admission, ADMISSION_VERSION)
 from notification_history import record_delivery
+import notification_snapshot as delivery
 from update_candidate_monitor import fetch_display_chart, fetch_display_quote, stock_rows
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -233,6 +234,8 @@ def update(payload, market, current, *, no_notify=False, bootstrap=False, charts
                         continue
                     prior = [row for row in daily if row["d"] < alert["bar"]["t"][:10]]
                     text = message(item, alert, prior[-1]["c"] if prior else None)
+                    price_snapshot = delivery.capture(code)
+                    text += delivery.message(price_snapshot)
                     try:
                         sender(topic, text)
                     except Exception as error:
@@ -242,9 +245,11 @@ def update(payload, market, current, *, no_notify=False, bootstrap=False, charts
                     sent.add(alert["key"])
                     payload["sentKeys"].append(alert["key"])
                     delivered += 1
-                    item["lastReview"] = {"kind": alert["kind"], "barTime": alert["bar"]["t"], "sentAt": stamp}
+                    sent_at = delivery.now().isoformat(timespec="seconds")
+                    item["lastReview"] = {"kind": alert["kind"], "barTime": alert["bar"]["t"], "sentAt": sent_at}
                     record_delivery(payload, code=code, name=item["name"], bar_time=alert["bar"]["t"],
-                                    sent_at=stamp, kind="ah_review", label="AH 매수검토", signature=alert["key"], stage=alert["kind"])
+                                    sent_at=sent_at, kind="ah_review", label="AH 매수검토", signature=alert["key"], stage=alert["kind"],
+                                    price_snapshot=price_snapshot, signal_price=alert["bar"]["c"])
                 if not failed:
                     item["enrollmentPending"] = False
                     item["enrollmentHandled"] = True

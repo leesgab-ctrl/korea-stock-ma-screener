@@ -18,14 +18,17 @@ class DeliveryHistoryTests(unittest.TestCase):
         state = {"previousMa3": 97, "firstMa3": 98, "secondMa3": 99}
         current = dt.datetime(2026, 10, 23, 10, 2, tzinfo=KST)
         payload = {}
-        with patch.object(colors, "chart_image", return_value=b"test image"), patch.object(
+        with patch.object(colors.delivery, "now", return_value=current), \
+                patch.object(colors.delivery, "capture", return_value={"status": "error", "price": None}), \
+                patch.object(colors, "chart_image", return_value=b"test image"), patch.object(
                 colors.urllib.request, "urlopen", return_value=io.BytesIO(json.dumps({"attachment": {"name": "chart"}}).encode())):
             colors.send("test-topic", candidate, payload, row, state, "coreMorningMa3", current)
         self.assertEqual(len(payload["notificationHistory"]), 1)
         self.assertEqual(payload["notificationHistory"][0]["barTime"], row["t"])
         self.assertEqual(payload["notificationHistory"][0]["sentAt"], current.isoformat())
         failed = {}
-        with patch.object(colors, "chart_image", return_value=b"test image"), patch.object(
+        with patch.object(colors.delivery, "capture", return_value={"status": "error", "price": None}), \
+                patch.object(colors, "chart_image", return_value=b"test image"), patch.object(
                 colors.urllib.request, "urlopen", return_value=io.BytesIO(b"{}")):
             with self.assertRaises(RuntimeError):
                 colors.send("test-topic", candidate, failed, row, state, "coreMorningMa3", current)

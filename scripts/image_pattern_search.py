@@ -491,7 +491,8 @@ def process(payload, current, topic="", no_notify=True, board=None, rules=None, 
             if not rows:
                 continue
             is_ah = candidate.get("candidateTier") == "ah" and not first_rise_rule
-            events = [event for event in detect(rows, rule, candidate) if timestamp(event["time"]) >= registration
+            detected = detect(rows, rule, candidate) if first_rise_rule else detect(rows, rule)
+            events = [event for event in detected if timestamp(event["time"]) >= registration
                       or (is_ah and timestamp(event["completedAt"]).date() == registration.date())]
             if candidate.get("candidateTier") == "first_rise":
                 events = [event for event in events if event["time"][:10] > candidate["dailySignalDate"]]

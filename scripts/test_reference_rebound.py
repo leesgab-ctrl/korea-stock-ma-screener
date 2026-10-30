@@ -74,8 +74,10 @@ class ReferenceReboundTests(unittest.TestCase):
         candidate = {"code": "000001", "name": "Test", "dailySignalDate": "2026-10-06", "registeredAt": "2026-10-06",
                      "displayCharts": {"intraday": {"dataStatus": "ok", "referenceRebounds": events}}}
         payload = {"candidates": [candidate]}
-        with mock.patch.dict(monitor.os.environ, {"NTFY_TOPIC": "test"}), mock.patch.object(monitor.urllib.request, "urlopen") as send:
+        with mock.patch.dict(monitor.os.environ, {"NTFY_TOPIC": "test"}), mock.patch.object(monitor.urllib.request, "urlopen") as send, \
+                mock.patch.object(monitor.delivery, "capture", return_value={"status": "error", "price": None}):
             send.return_value.__enter__.return_value.status = 200
+            send.return_value.__enter__.return_value.read.return_value = b'{"id":"test-ack"}'
             self.assertEqual(monitor.notify_reference_rebounds(payload, current, True), (0, 1))
             send.assert_not_called()
             self.assertEqual(monitor.notify_reference_rebounds(payload, current), (1, 1))

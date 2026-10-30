@@ -180,6 +180,11 @@ class AhRulesTests(unittest.TestCase):
 
 
 class AhDriverTests(unittest.TestCase):
+    def setUp(self):
+        capture = patch("update_ah_monitor.delivery.capture", return_value={"version": 1, "status": "error", "price": None})
+        capture.start()
+        self.addCleanup(capture.stop)
+
     def fixture(self):
         now = dt.datetime(2026, 10, 23, 14, 40, tzinfo=KST)
         dates = [(now.date()-dt.timedelta(days=i)).isoformat() for i in range(180, -1, -1)]

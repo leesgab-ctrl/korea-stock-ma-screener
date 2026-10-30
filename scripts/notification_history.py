@@ -1,8 +1,11 @@
 """Delivery receipts for chart annotations; detected-only signals never enter this log."""
 import datetime as dt
+import copy
+import math
 
 
-def record_delivery(payload, code, name, bar_time, sent_at, kind, label, *, signature=None, stage="", source="ntfy"):
+def record_delivery(payload, code, name, bar_time, sent_at, kind, label, *, signature=None, stage="", source="ntfy",
+                    price_snapshot=None, signal_price=None):
     try:
         bar = dt.datetime.fromisoformat(bar_time)
         sent = dt.datetime.fromisoformat(sent_at)
@@ -19,6 +22,11 @@ def record_delivery(payload, code, name, bar_time, sent_at, kind, label, *, sign
     records.append({"id": key, "code": code, "name": name, "barTime": bar.isoformat(timespec="minutes"),
                     "sentAt": sent.isoformat(timespec="seconds"), "kind": kind, "label": label,
                     "stage": stage, "source": source})
+    if isinstance(price_snapshot, dict):
+        records[-1]["priceSnapshot"] = copy.deepcopy(price_snapshot)
+    if (isinstance(signal_price, (int, float)) and not isinstance(signal_price, bool)
+            and math.isfinite(signal_price) and signal_price > 0):
+        records[-1]["signalPrice"] = signal_price
     records.sort(key=lambda item: item["sentAt"])
     del records[:-5000]
     return True

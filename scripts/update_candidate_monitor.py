@@ -14,6 +14,8 @@ from zoneinfo import ZoneInfo
 from recovery_rules import recovery_states
 from image_pattern_search import process as process_image_search
 from notification_prices import price_with_day_change
+from notification_history import record_delivery
+import notification_snapshot as delivery
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -1478,7 +1480,7 @@ def analyze_intraday(candidate: dict[str, Any], current: dt.datetime, count: int
     return result
 
 
-def notify_ntfy(topic: str, candidate: dict[str, Any], recovery=None) -> None:
+def notify_ntfy(topic: str, candidate: dict[str, Any], recovery=None) -> dict[str, Any]:
     intraday = candidate["intraday"]
     signal_start = dt.datetime.fromisoformat(intraday["signalTime"]) if not recovery else None
     signal_complete = (signal_start + dt.timedelta(minutes=1 if signal_start.time() == dt.time(15, 30) else 30)) if signal_start else None
@@ -1500,6 +1502,8 @@ def notify_ntfy(topic: str, candidate: dict[str, Any], recovery=None) -> None:
                    f"확인가격: {recovery['price']:,}원 · 전일 대비 {recovery['changePct']:+.2f}% / 시가 대비 {recovery['openChangePct']:+.2f}%\n"
                    "초반 전일 대비 +5% 상승 → 전일 종가 대비 +0.5% 이하 조정 → 15:00 전일 종가 +0.5% 이상·시가 +1% 이하\n"
                    f"검사시각: {now_kst().isoformat(timespec='minutes')}")
+    price_snapshot = delivery.capture(candidate["code"])
+    message += delivery.message(price_snapshot)
     body = json.dumps(
         {
             "topic": topic,
@@ -1517,6 +1521,9 @@ def notify_ntfy(topic: str, candidate: dict[str, Any], recovery=None) -> None:
     with urllib.request.urlopen(request, timeout=20) as response:
         if response.status >= 300:
             raise RuntimeError(f"ntfy 전송 실패: HTTP {response.status}")
+        if not json.load(response).get("id"):
+            raise RuntimeError("ntfy delivery was not acknowledged")
+    return {"sentAt": delivery.now().isoformat(timespec="seconds"), "priceSnapshot": price_snapshot}
 
 
 def notify_reference_rebounds(payload, current, no_notify=False):
@@ -1542,9 +1549,10 @@ def notify_reference_rebounds(payload, current, no_notify=False):
             if not topic or no_notify:
                 continue
             price_text = price_with_day_change(event["price"], event["time"], candidate.get("displayCharts", {}).get("quote", {}))
+            price_snapshot = delivery.capture(candidate["code"])
             body = json.dumps({
                 "topic": topic, "title": f"{candidate['name']} 참고종목 재상승",
-                "message": f"{candidate['name']}({candidate['code']})\nMA10 하향 조정 후 MA3 → MA20 상향 돌파\n확정봉: {event['time']}\n포착가격: {price_text}\nMA20·MA40 밀착 / MA40·MA60 상승\n기존 매수신호와 별도인 관찰 알림입니다.",
+                "message": f"{candidate['name']}({candidate['code']})\nMA10 하향 조정 후 MA3 → MA20 상향 돌파\n확정봉: {event['time']}\n포착가격: {price_text}\nMA20·MA40 밀착 / MA40·MA60 상승\n기존 매수신호와 별도인 관찰 알림입니다." + delivery.message(price_snapshot),
                 "priority": 5, "tags": ["chart_with_upwards_trend"],
                 "click": monitor_link(candidate["code"]),
             }, ensure_ascii=False).encode("utf-8")
@@ -1552,6 +1560,11 @@ def notify_reference_rebounds(payload, current, no_notify=False):
             with urllib.request.urlopen(request, timeout=20) as response:
                 if response.status >= 300:
                     raise RuntimeError(f"ntfy HTTP {response.status}")
+                if not json.load(response).get("id"):
+                    raise RuntimeError("ntfy delivery was not acknowledged")
+            record_delivery(payload, candidate["code"], candidate["name"], event["time"], delivery.now().isoformat(timespec="seconds"),
+                            "referenceMa3Rebound", "참고종목 MA3·MA20 재상승", signature=signature,
+                            price_snapshot=price_snapshot, signal_price=event["price"])
             notified.add(signature)
             alerts += 1
     payload["notifiedSignals"] = sorted(notified)
@@ -1611,7 +1624,11 @@ def enrich(
         if recovery.get("matched") and current.time() <= dt.time(15, 30) and recovery_key not in notified:
             pending += 1
             if topic and not no_notify:
-                notify_ntfy(topic, candidate, recovery)
+                receipt = notify_ntfy(topic, candidate, recovery)
+                if isinstance(receipt, dict):
+                    record_delivery(payload, candidate["code"], candidate["name"], recovery["date"] + "T15:00+09:00",
+                                    receipt["sentAt"], "sessionRecovery", "15:00 정배열 조정·회복", signature=recovery_key,
+                                    price_snapshot=receipt["priceSnapshot"], signal_price=recovery["price"])
                 notified.add(recovery_key)
                 new_alerts += 1
         candidate["outcome"] = candidate_outcome(candidate)
@@ -1626,7 +1643,11 @@ def enrich(
             if signature not in notified and signal_is_fresh:
                 pending += 1
                 if topic and not no_notify:
-                    notify_ntfy(topic, candidate)
+                    receipt = notify_ntfy(topic, candidate)
+                    if isinstance(receipt, dict):
+                        record_delivery(payload, candidate["code"], candidate["name"], intraday["signalTime"],
+                                        receipt["sentAt"], "ma3BuyReview", "MA3 돌파 매수검토", signature=signature,
+                                        price_snapshot=receipt["priceSnapshot"], signal_price=intraday["signalPrice"])
                     notified.add(signature)
                     new_alerts += 1
         elif intraday.get("structuralExcluded"):

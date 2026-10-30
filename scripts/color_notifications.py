@@ -13,6 +13,7 @@ import urllib.request
 from recovery_rules import recovery_states
 from notification_prices import price_with_day_change
 from notification_history import record_delivery
+import notification_snapshot as delivery
 
 
 def states(bars):
@@ -221,13 +222,15 @@ def send(topic, candidate, payload, row, state, kind, current):
             message += f"\n- 손절기준 {(stop / row['c'] - 1) * 100:+.2f}% {stop:,.0f}원"
         else:
             message += "\n- 손절기준 산정 불가 · 매수 판단 보류"
-    message += f"\n- 확인시간 {current:%Y-%m-%d %H:%M}분\n- 기준봉 {row['t']}\n조건 관찰 알림 · 실제 주문 아님"
+    message += f"\n- 조건 검사시각 {current:%Y-%m-%d %H:%M}분\n- 기준봉 {row['t']}\n조건 관찰 알림 · 실제 주문 아님"
     snapshot = copy.deepcopy(candidate)
     chart = snapshot["displayCharts"]["intraday"]
     chart["series"] = [b for b in chart["series"] if b["t"] <= row["t"]]
     chart["history"] = [b for b in chart.get("history", []) if b["t"] <= row["t"]]
     snapshot["displayCharts"]["daily"]["history"] = [b for b in daily if b["d"] <= row["t"][:10]]
     image = chart_image(snapshot, payload)
+    price_snapshot = delivery.capture(candidate["code"])
+    message += delivery.message(price_snapshot)
     request = urllib.request.Request("https://ntfy.sh/" + topic + "?" + urllib.parse.urlencode({"message": message}), data=image, headers={
         "Content-Type": "image/png", "Filename": f"{candidate['code']}-chart.png",
         "Title": Header(f"{candidate['name']} {label} 포착", "utf-8", maxlinelen=10000).encode(),
@@ -244,8 +247,9 @@ def send(topic, candidate, payload, row, state, kind, current):
         signature = f"{candidate['code']}|{registered}|{row['t']}|{state.get('stage', '')}"
         if state.get("signalType") in ("ma3Rise", "ma3Ma120", "ma20Pyramid", "ma3Ma60Near", "firstRiseMa10Ma60"):
             signature += "|" + state["signalType"]
-    record_delivery(payload, candidate["code"], candidate["name"], row["t"], current.isoformat(), kind,
-                    state.get("ruleName") or label, signature=signature, stage=state.get("stage", ""))
+    record_delivery(payload, candidate["code"], candidate["name"], row["t"], delivery.now().isoformat(), kind,
+                    state.get("ruleName") or label, signature=signature, stage=state.get("stage", ""),
+                    price_snapshot=price_snapshot, signal_price=row["c"])
 
 
 def initialize_recovery_baselines(payload):
