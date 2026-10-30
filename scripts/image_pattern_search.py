@@ -413,14 +413,21 @@ def detect(rows, rule, candidate=None):
             stage = "confirmation"
         if stage:
             ma120_details = {}
-            if stage == "confirmation" and rule.get("requireRisingMa120ForConfirmation") is True:
-                ma120_values = (previous.get("m120"), row.get("m120"))
+            require_rising = rule.get("requireRisingMa120ForConfirmation") is True
+            require_order = rule.get("requireMa60AboveMa120ForConfirmation") is True
+            if stage == "confirmation" and (require_rising or require_order):
+                ma120_values = (previous.get("m120"), row.get("m120")) if require_rising else (row.get("m120"),)
                 if not all(isinstance(value, (int, float)) and not isinstance(value, bool)
-                           and math.isfinite(value) and value > 0 for value in ma120_values) \
-                        or ma120_values[1] <= ma120_values[0]:
+                           and math.isfinite(value) and value > 0 for value in ma120_values):
                     continue
-                ma120_details = {"requireRisingMa120ForConfirmation": True,
-                                 "m120Previous": ma120_values[0], "m120": ma120_values[1]}
+                if require_rising and row["m120"] <= previous["m120"]:
+                    continue
+                if require_order and row["m60"] <= row["m120"]:
+                    continue
+                ma120_details = {"requireRisingMa120ForConfirmation": require_rising,
+                                 "requireMa60AboveMa120ForConfirmation": require_order, "m120": row["m120"]}
+                if require_rising:
+                    ma120_details["m120Previous"] = previous["m120"]
             events.append({"id": f"{rule['id']}|{episode['time']}|{stage}", "ruleId": rule["id"],
                            "ruleVersion": rule["version"], "stage": stage, "time": row["t"],
                            "completedAt": (timestamp(row["t"]) + dt.timedelta(minutes=30)).isoformat(timespec="minutes"),

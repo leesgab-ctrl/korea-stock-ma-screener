@@ -199,7 +199,7 @@ class ImagePatternSearchTests(unittest.TestCase):
         payload = json.loads((root / "data/candidate-monitor.json").read_text(encoding="utf-8"))
         rules = json.loads((root / "data/image-search-rules.json").read_text(encoding="utf-8"))["rules"]
         # These frozen examples predate the added MA120 confirmation requirement.
-        rules = [{**rule, "requireRisingMa120ForConfirmation": False} for rule in rules]
+        rules = [{**rule, "requireRisingMa120ForConfirmation": False, "requireMa60AboveMa120ForConfirmation": False} for rule in rules]
         examples = {"128820": (rules[0], "2026-10-14T09:30+09:00", "2026-10-14T11:00+09:00"),
                     "084010": (rules[1], None, "2026-10-13T16:30+09:00")}
         for code, (rule, primary, confirmation) in examples.items():

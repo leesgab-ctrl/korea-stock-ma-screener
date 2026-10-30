@@ -18,14 +18,15 @@ class DeclineMa10Ma120GateTests(unittest.TestCase):
         for i, row in enumerate(self.rows):
             row["m120"] = 90 + i / 10
         for rule in self.rules:
-            rule.update(version=2, requireRisingMa120ForConfirmation=True)
+            rule.update(version=3, requireRisingMa120ForConfirmation=True, requireMa60AboveMa120ForConfirmation=True)
 
     def test_both_production_connections_require_the_new_condition(self):
         rules = json.loads(search.RULES_PATH.read_text(encoding="utf8"))["rules"]
         for rule_id in ("daesung-decline-ma40-recovery", "daehan-recovery-pattern"):
             rule = next(rule for rule in rules if rule["id"] == rule_id)
             self.assertTrue(rule["requireRisingMa120ForConfirmation"])
-            self.assertGreaterEqual(rule["version"], 2)
+            self.assertTrue(rule["requireMa60AboveMa120ForConfirmation"])
+            self.assertGreaterEqual(rule["version"], 3)
 
     def test_rising_ma120_allows_both_confirmation_paths(self):
         for rule in self.rules:
@@ -33,6 +34,15 @@ class DeclineMa10Ma120GateTests(unittest.TestCase):
             event = next(event for event in events if event["stage"] == "confirmation")
             self.assertGreater(event["m120"], event["m120Previous"])
             self.assertTrue(event["requireRisingMa120ForConfirmation"])
+            self.assertGreater(event["m60"], event["m120"])
+
+    def test_ma60_equal_or_below_rising_ma120_blocks_only_confirmation(self):
+        for difference in (0, -1):
+            rows = copy.deepcopy(self.rows)
+            rows[-1]["m120"] = rows[-1]["m60"] - difference
+            rows[-2]["m120"] = rows[-1]["m120"] - 0.1
+            self.assertEqual([event["stage"] for event in search.detect(rows, self.rules[0])], ["primary"])
+            self.assertEqual(search.detect(rows, self.rules[1]), [])
 
     def test_flat_falling_missing_and_invalid_ma120_block_only_confirmation(self):
         for value in (self.rows[-2]["m120"], 80, None, 0, True, float("nan"), float("inf")):
@@ -99,10 +109,12 @@ class DeclineMa10Ma120GateTests(unittest.TestCase):
         message = urllib.parse.parse_qs(urllib.parse.urlsplit(request.full_url).query)["message"][0]
         self.assertIn(title, message)
         self.assertIn("90.40 → 90.50", message)
+        self.assertIn("MA60 111.00 > MA120 90.50", message)
         self.assertIn(candidate["name"], message)
         condition = self.payload["notificationHistory"][-1]["condition"]
         self.assertTrue(condition["requireRisingMa120ForConfirmation"])
-        self.assertEqual(condition["ruleVersion"], 2)
+        self.assertTrue(condition["requireMa60AboveMa120ForConfirmation"])
+        self.assertEqual(condition["ruleVersion"], 3)
 
 
 if __name__ == "__main__":

@@ -200,7 +200,9 @@ def send(topic, candidate, payload, row, state, kind, current):
         line = "MA3" if kind == "imageMa3Breakout" else "MA10"
         ma120_note = (f"- 발송 추가조건: MA120 상승 {state['m120Previous']:,.2f} → {state['m120']:,.2f}\n"
                       if kind == "imageMa10Breakout" and state.get("requireRisingMa120ForConfirmation") else "")
-        if ma120_note:
+        if kind == "imageMa10Breakout" and state.get("requireMa60AboveMa120ForConfirmation"):
+            ma120_note += f"- 정배열 확인: MA60 {row['m60']:,.2f} > MA120 {state['m120']:,.2f}\n"
+        if kind == "imageMa10Breakout" and state.get("requireRisingMa120ForConfirmation"):
             notification_title = "하락중인 MA10이 MA40 돌파 MA120은 상승중"
         label = f"이미지조건 {stage}"
         heading = notification_title or f"이미지조건 · {stage}"
@@ -258,7 +260,7 @@ def send(topic, candidate, payload, row, state, kind, current):
     record_delivery(payload, candidate["code"], candidate["name"], row["t"], delivery.now().isoformat(), kind,
                     state.get("ruleName") or label, signature=signature, stage=state.get("stage", ""),
                     price_snapshot=price_snapshot, signal_price=row["c"], condition={
-                        key: state[key] for key in ("ruleId", "ruleVersion", "signalType", "requireRisingMa120ForConfirmation", "m120Previous", "m120")
+                        key: state[key] for key in ("ruleId", "ruleVersion", "signalType", "requireRisingMa120ForConfirmation", "requireMa60AboveMa120ForConfirmation", "m120Previous", "m120", "m60")
                         if key in state})
 
 
