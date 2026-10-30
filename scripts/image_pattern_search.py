@@ -295,13 +295,29 @@ def ma20_recovery_background(rows, start, end, rule):
     return pyramid_setup(rows, start, end, rule)
 
 
-def detect_ma60_near_rebound(rows, rule):
+def pyramid_watch_daily_reference(candidate, row):
+    chart = (candidate or {}).get("displayCharts", {}).get("daily", {})
+    daily = {bar["d"]: bar for bar in [*chart.get("history", []), *chart.get("series", [])]
+             if isinstance(bar.get("d"), str) and bar["d"] < row["t"][:10]}
+    prior = [daily[day] for day in sorted(daily)][-119:]
+    if len(prior) != 119 or not all(bar.get("complete") is not False
+            and isinstance(bar.get("c"), (int, float)) and not isinstance(bar["c"], bool)
+            and math.isfinite(bar["c"]) and bar["c"] > 0 for bar in prior):
+        return None
+    # Reconstruct today's daily averages at the signal time, without today's later close.
+    closes = [bar["c"] for bar in prior] + [row["c"]]
+    return {"day": row["t"][:10], "ma5": sum(closes[-5:]) / 5, "ma120": sum(closes) / 120,
+            "currentPrice": row["c"], "priceBasis": "completed_30m_close", "priorTradingDays": 119}
+
+
+def detect_ma60_near_rebound(rows, rule, candidate=None):
     events, previous, review, setup = [], None, None, None
     rearm = None
     limit = rule["maxGapPercent"]
     watch_bars = rule["watchBelowBars"]
     dip, below_window = None, []
-    pyramid_start, reviewed_peaks = 0, set()
+    pyramid_start, reviewed_peaks, notified_peaks = 0, set(), set()
+    gated_watch = rule.get("requireMa3Ma20CrossForWatch") is True or rule.get("requireDailyMa5BelowMa120ForWatch") is True
     for i, row in enumerate(rows):
         m20_valid = isinstance(row.get("m20"), (int, float)) and not isinstance(row["m20"], bool) \
             and math.isfinite(row["m20"]) and row["m20"] > 0
@@ -366,19 +382,32 @@ def detect_ma60_near_rebound(rows, rule):
                                          "gapPercent": (bar["m3"] / bar["m60"] - 1) * 100} for bar in below_window]}
                 reviewed_peaks.add(setup["pyramid"]["peakTime"])
                 rearm = None
-                # Requalification restores confirmation only, without repeating the first SMS.
-                if first_review:
+                # Requalification keeps the original review identity; watch sends remain once per peak.
+                if first_review and not gated_watch:
                     stage, event_review = "watch", review
-        if stage:
+        stages = [(stage, event_review, None)] if stage else []
+        watch_review = review or (event_review if stage == "confirmation" else None)
+        if gated_watch and watch_review and watch_review["pyramid"]["peakTime"] not in notified_peaks:
+            cross20 = previous and previous["m3"] <= previous["m20"] and row["m3"] > row["m20"]
+            daily = pyramid_watch_daily_reference(candidate, row) if rule.get("requireDailyMa5BelowMa120ForWatch") is True else None
+            if (rule.get("requireMa3Ma20CrossForWatch") is not True or cross20) and (
+                    rule.get("requireDailyMa5BelowMa120ForWatch") is not True or daily and daily["ma5"] < daily["ma120"]):
+                stages.append(("watch", watch_review, daily))
+                notified_peaks.add(watch_review["pyramid"]["peakTime"])
+        for stage, event_review, daily in stages:
             events.append({"id": f"{rule['id']}|{event_review['time']}|{stage}", "ruleId": rule["id"],
                            "ruleVersion": rule["version"], "stage": stage, "signalType": "ma3Ma60Near",
-                           "stageLabel": "피라미드형 1차 검토필요" if stage == "watch" else "MA3·MA60 상향 돌파 · 확인",
+                           "stageLabel": "피라미드형 MA3·MA20 돌파 · 사전검토" if stage == "watch" and gated_watch else
+                           "피라미드형 1차 검토필요" if stage == "watch" else "MA3·MA60 상향 돌파 · 확인",
                            "time": row["t"], "completedAt": (timestamp(row["t"]) + dt.timedelta(minutes=30)).isoformat(timespec="minutes"),
                            "episodeTime": event_review["time"], "downCrossTime": event_review["downCrossTime"],
                            "setupTime": event_review["setupTime"], "setupGapPercent": event_review["setupGapPercent"],
                            "gapPercent": gap, "maxGapPercent": limit, "nearBelowBars": watch_bars,
                            "watchBars": event_review["watchBars"], "pyramid": event_review["pyramid"],
-                           "price": row["c"], "m3": row["m3"], "m60": row["m60"], "simultaneous": False})
+                           "price": row["c"], "m3": row["m3"], "m20": row["m20"], "m60": row["m60"], "simultaneous": False,
+                           "requireMa3Ma20CrossForWatch": stage == "watch" and rule.get("requireMa3Ma20CrossForWatch") is True,
+                           "requireDailyMa5BelowMa120ForWatch": stage == "watch" and rule.get("requireDailyMa5BelowMa120ForWatch") is True,
+                           "dailyMa5Ma120": daily})
         previous = row
     return events
 
@@ -387,7 +416,7 @@ def detect(rows, rule, candidate=None):
     if rule["type"] == "first_rise_ma10_ma60_pullback":
         return first_rise_pullback.detect(rows, rule, candidate or {})
     if rule["type"] == "ma3_ma60_near_rebound":
-        return detect_ma60_near_rebound(rows, rule)
+        return detect_ma60_near_rebound(rows, rule, candidate)
     if rule["type"] == "ma20_pyramid_ma60_recovery":
         return detect_pyramid_recovery(rows, rule)
     if rule["type"] == "ma3_ma120_recovery":
@@ -531,7 +560,7 @@ def process(payload, current, topic="", no_notify=True, board=None, rules=None, 
             if not rows:
                 continue
             is_ah = candidate.get("candidateTier") == "ah" and not first_rise_rule
-            detected = detect(rows, rule, candidate) if first_rise_rule else detect(rows, rule)
+            detected = detect(rows, rule, candidate) if first_rise_rule or rule["type"] == "ma3_ma60_near_rebound" else detect(rows, rule)
             events = [event for event in detected if timestamp(event["time"]) >= registration
                       or (is_ah and timestamp(event["completedAt"]).date() == registration.date())]
             if candidate.get("candidateTier") == "first_rise":

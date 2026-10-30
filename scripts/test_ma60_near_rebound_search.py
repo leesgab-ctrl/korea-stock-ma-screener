@@ -13,6 +13,9 @@ class PyramidReviewTests(unittest.TestCase):
     def setUp(self):
         rules = json.loads(search.RULES_PATH.read_text(encoding="utf-8"))["rules"]
         self.rule = next(rule for rule in rules if rule["type"] == "ma3_ma60_near_rebound")
+        # Retain historical shape regressions; current notification policy is tested below.
+        self.rule = {**self.rule, "requireMa3Ma20CrossForWatch": False,
+                     "requireDailyMa5BelowMa120ForWatch": False, "disabledNotificationStages": []}
         self.legacy = next(rule for rule in rules if rule["type"] == "ma20_pyramid_ma60_recovery")
         start = search.timestamp("2026-10-15T09:00+09:00")
         m20 = [100, 101, 102, 103, 104, 105, 106, 105, 104, 103, 102, 101, 100, 99, 98, 98, 98]
@@ -33,7 +36,7 @@ class PyramidReviewTests(unittest.TestCase):
         return self.rows[index + 1]
 
     def detect(self):
-        return search.detect(self.rows, self.rule)
+        return search.detect(self.rows, self.rule, self.candidate)
 
     def run_at(self, clock, no_notify=False):
         return search.process(self.payload, search.timestamp("2026-10-15T" + clock + "+09:00"), "test-only", no_notify,
@@ -45,7 +48,7 @@ class PyramidReviewTests(unittest.TestCase):
             self.assertEqual(self.rule[key], self.legacy[key], key)
         self.assertEqual(self.rule["minFallSpeedRatio"], .45)
         self.assertEqual(self.legacy["minFallSpeedRatio"], .5)
-        self.assertEqual(self.rule["version"], 6)
+        self.assertEqual(self.rule["version"], 7)
         self.assertEqual(self.rule["maxGapPercent"], 2.5)
         self.assertEqual(self.rule["watchBelowBars"], 3)
         self.assertEqual(self.rule["imageIds"], ["7167e60c-b018-4cf6-9ccf-c3d40be2a815"])
@@ -316,6 +319,145 @@ class PyramidReviewTests(unittest.TestCase):
             for text in ("선행 MA20 피라미드", "2.5%", "전일 대비 +3.00%", "봉 완성 시각"):
                 self.assertIn(text, message)
             self.assertIn("1차 검토필요" if event["stage"] == "watch" else "MA60 돌파 확인", message)
+
+
+class PyramidWatchPolicyTests(unittest.TestCase):
+    bar = PyramidReviewTests.bar
+    detect = PyramidReviewTests.detect
+    run_at = PyramidReviewTests.run_at
+
+    def setUp(self):
+        PyramidReviewTests.setUp(self)
+        self.rule = next(rule for rule in json.loads(search.RULES_PATH.read_text(encoding="utf8"))["rules"]
+                         if rule["type"] == "ma3_ma60_near_rebound")
+        self.daily = []
+        day = dt.date(2026, 10, 14)
+        while len(self.daily) < 119:
+            if day.weekday() < 5:
+                self.daily.append({"d": day.isoformat(), "c": 200})
+            day -= dt.timedelta(days=1)
+        self.daily.reverse()
+        for bar in self.daily[-4:]:
+            bar["c"] = 100
+        self.candidate["displayCharts"]["daily"]["history"] = self.daily
+
+    def test_new_policy_keeps_the_entire_pyramid_background(self):
+        self.assertTrue(self.rule["requireMa3Ma20CrossForWatch"])
+        self.assertTrue(self.rule["requireDailyMa5BelowMa120ForWatch"])
+        self.assertEqual(self.rule["disabledNotificationStages"], ["confirmation"])
+        self.assertEqual(self.rule["minFallSpeedRatio"], .45)
+        events = self.detect()
+        self.assertEqual([event["stage"] for event in events], ["watch", "confirmation"])
+        self.assertEqual(events[0]["time"], self.bar(13)["t"])
+        self.assertLess(events[0]["dailyMa5Ma120"]["ma5"], events[0]["dailyMa5Ma120"]["ma120"])
+        for row in self.rows:
+            row["m20"] = 100
+        self.assertEqual(self.detect(), [])
+
+    def test_nearness_alone_does_not_send_but_completed_ma20_cross_sends_once(self):
+        self.run_at("10:00")
+        self.assertEqual(self.run_at("15:00"), 0)
+        self.assertEqual(self.run_at("15:59"), 0)
+        self.bar(13)["complete"] = False
+        self.assertEqual(self.run_at("16:00"), 0)
+        self.bar(13)["complete"] = True
+        self.assertEqual(self.run_at("16:00"), 1)
+        self.assertEqual(self.run_at("16:00"), 0)
+        self.assertEqual(self.run_at("16:30"), 0)
+        self.assertEqual(self.sender.call_count, 1)
+
+    def test_daily_equal_or_above_ma120_is_excluded(self):
+        for current in (100, 101):
+            self.setUp()
+            for bar in self.daily:
+                bar["c"] = 100
+            for row in self.rows:
+                row["c"] = current
+            events = self.detect()
+            self.assertFalse(any(event["stage"] == "watch" for event in events))
+            self.assertTrue(any(event["stage"] == "confirmation" for event in events))
+
+    def test_missing_or_invalid_daily_data_fails_closed_for_watch_only(self):
+        for mode in ("short", "missing", "nan", "bool", "incomplete"):
+            self.setUp()
+            if mode == "short":
+                self.daily.pop(0)
+            elif mode == "incomplete":
+                self.daily[-1]["complete"] = False
+            else:
+                self.daily[-1]["c"] = {"missing": None, "nan": float("nan"), "bool": True}[mode]
+            events = self.detect()
+            self.assertEqual([event["stage"] for event in events], ["confirmation"], mode)
+
+    def test_today_and_future_daily_closes_do_not_leak_into_historical_signal(self):
+        expected = self.detect()[0]["dailyMa5Ma120"]
+        self.daily.extend([{"d": "2026-10-15", "c": 10000}, {"d": "2026-10-16", "c": 20000}])
+        self.assertEqual(self.detect()[0]["dailyMa5Ma120"], expected)
+        self.assertAlmostEqual(expected["ma5"], (400 + 103) / 5)
+
+    def test_daily_series_and_history_are_deduplicated(self):
+        expected = self.detect()[0]["dailyMa5Ma120"]
+        self.candidate["displayCharts"]["daily"]["series"] = [dict(bar) for bar in self.daily[-10:]]
+        self.assertEqual(self.detect()[0]["dailyMa5Ma120"], expected)
+
+    def test_later_daily_qualification_does_not_replay_a_past_ma20_cross(self):
+        for bar in self.daily:
+            bar["c"] = 100
+        self.bar(13)["c"] = 100
+        for i in range(14, 17):
+            self.bar(i)["c"] = 99
+        self.assertFalse(any(event["stage"] == "watch" for event in self.detect()))
+
+    def test_rule_change_initializes_without_replaying_old_watch(self):
+        old_key = f"{self.candidate['code']}|{self.candidate['registeredAt']}|{self.rule['id']}|6"
+        self.payload["imageSearchNotificationState"] = {old_key: {"baseline": self.rows[0]["t"], "sent": {}}}
+        self.assertEqual(self.run_at("16:30"), 0)
+        self.sender.assert_not_called()
+
+    def test_already_above_ma20_or_just_touching_does_not_create_watch(self):
+        for i in range(11, 17):
+            self.bar(i)["m3"] = self.bar(i)["m20"] + .1
+        self.assertFalse(any(event["stage"] == "watch" for event in self.detect()))
+        self.setUp()
+        for i in range(13, 17):
+            self.bar(i)["m3"] = self.bar(i)["m20"]
+        self.assertFalse(any(event["stage"] == "watch" for event in self.detect()))
+
+    def test_ah_enrollment_does_not_send_confirmation_when_watch_is_excluded(self):
+        for bar in self.daily:
+            bar["c"] = 100
+        self.candidate.update(candidateTier="ah", registeredAt="2026-10-15T17:00+09:00", initialImport=False)
+        self.assertEqual(self.run_at("17:10"), 0)
+        self.sender.assert_not_called()
+
+    def test_ma20_and_ma60_cross_on_same_bar_sends_only_the_watch(self):
+        self.bar(13)["m3"] = 102
+        self.run_at("10:00")
+        self.assertEqual(self.run_at("16:00"), 1)
+        self.assertEqual(self.sender.call_args.args[4]["stage"], "watch")
+        self.assertEqual(self.run_at("16:30"), 0)
+
+    def test_old_receipts_are_preserved(self):
+        receipt = {"id": "old-pyramid-confirmation", "stage": "confirmation"}
+        self.payload["notificationHistory"] = [receipt.copy()]
+        self.run_at("10:00")
+        self.run_at("16:30")
+        self.assertEqual(self.payload["notificationHistory"], [receipt])
+
+    def test_watch_message_explains_both_new_gates(self):
+        event = dict(self.detect()[0], ruleName=self.rule["name"])
+        response = Mock()
+        response.read.return_value = b'{"attachment":{"url":"test"}}'
+        response.__enter__ = Mock(return_value=response)
+        response.__exit__ = Mock(return_value=False)
+        with patch.object(colors, "chart_image", return_value=b"image"), \
+                patch.object(colors.delivery, "capture", return_value={"status": "error"}), \
+                patch.object(colors.urllib.request, "urlopen", return_value=response) as opened:
+            search.send_alert("test-only", self.candidate, self.payload, self.bar(13), event, search.timestamp(event["completedAt"]))
+        message = urllib.parse.parse_qs(urllib.parse.urlsplit(opened.call_args.args[0].full_url).query)["message"][0]
+        self.assertIn("MA3가 MA20을 상향 돌파", message)
+        self.assertIn("일봉 제외조건 통과: MA5", message)
+        self.assertNotIn("아직 상승 전환", message)
 
 
 if __name__ == "__main__":

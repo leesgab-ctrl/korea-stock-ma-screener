@@ -134,10 +134,17 @@ def send(topic, candidate, payload, row, state, kind, current):
                    "MA3 재상승은 아직 확인하지 않은 눌림 관찰 알림입니다. 추가 하락할 수 있으며 즉시 매수 신호가 아닙니다.")
     elif kind == "imageMa60NearWatch":
         label = "피라미드형 1차 검토필요"
+        trigger_note = "- 아직 상승 전환이나 MA60 돌파가 확인된 것은 아닙니다. 다음 움직임을 미리 검토해 주세요.\n"
+        if state.get("requireMa3Ma20CrossForWatch"):
+            trigger_note = "- 완성된 30분봉에서 MA3가 MA20을 상향 돌파한 것을 확인했습니다.\n"
+        if state.get("dailyMa5Ma120"):
+            daily_ma = state["dailyMa5Ma120"]
+            trigger_note += (f"- 일봉 제외조건 통과: MA5 {daily_ma['ma5']:,.2f} < MA120 {daily_ma['ma120']:,.2f}\n"
+                             "- 일봉 현재값은 해당 30분봉 종가 기준으로 계산했습니다.\n")
         message = (f"[피라미드형 1차 검토필요 · 상승가능성 검토요청] {candidate['name']}({candidate['code']})\n"
                    f"- 선행 MA20 피라미드: 하루 상승 +{state['pyramid']['riseDayPercent']:.2f}% / 고점 후 하락 -{state['pyramid']['fallPercent']:.2f}%\n"
                    f"- MA3가 MA60 아래로 하락한 뒤, MA60 아래에서 두 선의 간격이 {state['maxGapPercent']:g}% 이내인 완성 30분봉이 {state['nearBelowBars']}개 연속 나왔습니다.\n"
-                   "- 아직 상승 전환이나 MA60 돌파가 확인된 것은 아닙니다. 다음 움직임을 미리 검토해 주세요.\n"
+                   f"{trigger_note}"
                    f"- 현재 MA3·MA60 간격 {state['gapPercent']:+.2f}%\n"
                    f"- MA3 {row['m3']:,.2f} / MA60 {row['m60']:,.2f}\n"
                    f"- 기준봉 종가 {price_text}\n- 봉 완성 시각 {state['completedAt']}\n"
@@ -266,7 +273,7 @@ def send(topic, candidate, payload, row, state, kind, current):
     record_delivery(payload, candidate["code"], candidate["name"], row["t"], delivery.now().isoformat(), kind,
                     state.get("ruleName") or label, signature=signature, stage=state.get("stage", ""),
                     price_snapshot=price_snapshot, signal_price=row["c"], condition={
-                        key: state[key] for key in ("ruleId", "ruleVersion", "signalType", "requireRisingMa120ForConfirmation", "requireMa60AboveMa120ForConfirmation", "requireMa40AboveMa120ForPrimary", "triggerPaths", "m120Previous", "m120", "m40Previous", "m60Previous", "m40", "m60")
+                        key: state[key] for key in ("ruleId", "ruleVersion", "signalType", "requireRisingMa120ForConfirmation", "requireMa60AboveMa120ForConfirmation", "requireMa40AboveMa120ForPrimary", "triggerPaths", "m120Previous", "m120", "m40Previous", "m60Previous", "m40", "m60", "requireMa3Ma20CrossForWatch", "requireDailyMa5BelowMa120ForWatch", "dailyMa5Ma120", "m20")
                         if key in state})
 
 
