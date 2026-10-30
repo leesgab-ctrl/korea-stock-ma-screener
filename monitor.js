@@ -355,9 +355,15 @@ async function loadData({ pollOnly = false } = {}) {
     const replays = replayResponse?.ok ? await replayResponse.json().catch(() => null) : null;
     state.imageReplayPayload = replays?.version === 1 && Array.isArray(replays.matches) ? replays : { matches: [] };
     if (historyChartMode) {
-      const referenceStart = new URLSearchParams(window.location.search).get('referenceStart');
-      const archived = [...(state.payload.history || []), ...(state.payload.analysisHistory || []),
-        ...(state.ahPayload?.candidates || []), ...(state.firstRisePayload?.candidates || []), ...(state.firstRisePayload?.history || []), ...(referenceStart ? state.payload.candidates || [] : [])].find(item => item.code === requestedCode);
+      const historyParams = new URLSearchParams(window.location.search);
+      const referenceStart = historyParams.get('referenceStart');
+      const historyActive = historyParams.get('historyStatus') === 'active';
+      const historyRegisteredAt = historyParams.get('historyRegisteredAt');
+      const activeRecords = [...(state.firstRisePayload?.candidates || []), ...(state.ahPayload?.candidates || []),
+        ...(state.payload.candidates || []), ...(state.payload.analysisCandidates || [])];
+      const archived = (historyActive ? activeRecords : [...(state.payload.history || []), ...(state.payload.analysisHistory || []),
+        ...(state.firstRisePayload?.history || []), ...activeRecords])
+        .find(item => item.code === requestedCode && (!historyRegisteredAt || item.registeredAt === historyRegisteredAt));
       state.payload.candidates = archived ? [archived] : [];
       state.selectedCode = archived?.code || null;
       document.body.classList.add("history-chart-mode");
@@ -365,7 +371,7 @@ async function loadData({ pollOnly = false } = {}) {
       if (archived) {
         const excludedCollecting = new URLSearchParams(window.location.search).get("excludedChart") === "1"
           && archived.verificationStatus !== "completed";
-        const end = referenceStart ? (new URLSearchParams(window.location.search).get('referenceEnd') || '').slice(0, 10)
+        const end = historyActive ? "" : referenceStart ? (new URLSearchParams(window.location.search).get('referenceEnd') || '').slice(0, 10)
           : excludedCollecting ? "" : (archived.verificationEndDate || archived.archivedAt || archived.outcome?.finalDate || "").slice(0, 10);
         const snapshot = structuredClone(archived);
         if (referenceStart && Number.isFinite(Date.parse(referenceStart))) snapshot.registeredAt = referenceStart;
@@ -389,7 +395,7 @@ async function loadData({ pollOnly = false } = {}) {
         renderDetail(snapshot);
         const label = document.createElement("strong");
         label.className = "history-end-label";
-        label.textContent = excludedCollecting ? "수동 제외 · 검증 종료일까지 가격 수집 중" : end ? `종료일 ${end} 기준` : "종료일 기록 없음";
+        label.textContent = historyActive ? "관리 중 · 최신 수집 기준" : excludedCollecting ? "수동 제외 · 검증 종료일까지 가격 수집 중" : end ? `종료일 ${end} 기준` : "종료일 기록 없음";
         elements.detailPanel.prepend(label);
       }
       else elements.detailPanel.textContent = "저장된 차트 자료가 없습니다.";

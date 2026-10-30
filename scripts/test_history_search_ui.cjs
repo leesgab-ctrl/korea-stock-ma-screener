@@ -19,6 +19,12 @@ const analysisHistory = [
   {...history[0], id: 'qa-active', code: '999002', name: '관리중종목', archiveReason: undefined},
   {code: '999003', name: '종료미확인', registeredAt: '2026-10-23'},
 ];
+const active = {...history[0], id: 'qa-active', code: '999002', name: '관리중종목', archiveReason: undefined,
+  archivedAt: undefined, registrationPrice: 1000};
+const ap = {...active, id: 'qa-ap', code: '211270', name: 'AP위성', candidateTier: 'first_rise',
+  registeredAt: '2026-10-25T00:26:18+09:00', dailySignalDate: '2026-10-23', tradingDaysRemaining: 5};
+const ah = {...active, id: 'qa-live-ah', code: '999004', name: 'AH관리중', candidateTier: 'ah',
+  registeredAt: '2026-10-29T09:00+09:00'};
 const server = http.createServer((request, response) => {
   const file = path.resolve(root, '.' + new URL(request.url, 'http://localhost').pathname);
   if (!file.startsWith(root + path.sep)) return response.writeHead(403).end();
@@ -37,11 +43,15 @@ const server = http.createServer((request, response) => {
       const errors = [];
       page.on('pageerror', error => errors.push(error.message));
       await page.route('**/data/candidate-monitor.json?*', route => route.fulfill({json: {
-        generatedAt: '2026-10-30T14:00+09:00', candidates: [{code: '999002'}], history, analysisHistory}}));
+        generatedAt: '2026-10-30T14:00+09:00', candidates: [active], analysisCandidates: [ap], history, analysisHistory}}));
+      await page.route('**/data/ah-monitor.json?*', route => route.fulfill({json: {candidates: [ah]}}));
+      await page.route('**/data/first-rise-monitor.json?*', route => route.fulfill({json: {candidates: [ap]}}));
       await page.route('**/data/reference-history.json?*', route => route.fulfill({json: {records: history.map(item => ({
         id: item.id, code: item.code, registeredAt: item.registeredAt, registrationPrice: 100, firstEntryVerified: false}))}}));
       await page.goto(`http://127.0.0.1:${server.address().port}/history.html`);
       await page.waitForFunction(() => document.querySelectorAll('#historyList tbody tr').length === 50);
+      assert.equal(await page.locator('#completedCount').textContent(), '63');
+      assert.match(await page.locator('#historyMeta').textContent(), /66.*관리 중 3.*종료 63/);
       const input = page.getByRole('searchbox', {name: '종목검색'});
       await input.fill('에프엔');
       assert.equal(await page.locator('#historyList tbody tr').count(), 1);
@@ -53,7 +63,7 @@ const server = http.createServer((request, response) => {
       await input.fill('');
       assert.equal(await page.locator('#historyList tbody tr').count(), 50);
       await page.getByRole('button', {name: '다음 페이지', exact: true}).click();
-      assert.equal(await page.locator('#historyList tbody tr').count(), 13);
+      assert.equal(await page.locator('#historyList tbody tr').count(), 16);
       await input.fill('qa60');
       assert.equal(await page.locator('#historyList tbody tr').count(), 1);
       await input.fill('대모');
@@ -66,10 +76,38 @@ const server = http.createServer((request, response) => {
       await input.fill('첫날상승종료');
       assert.equal(await page.locator('#historyList tbody tr').count(), 1);
       await input.fill('관리중종목');
-      assert.match(await page.locator('#historyList').textContent(), /검색 결과가 없습니다/);
+      assert.equal(await page.locator('#historyList tbody tr').count(), 1);
+      assert.equal(await page.locator('.history-management-state').textContent(), '관리 중');
+      await input.fill('AP위성');
+      assert.equal(await page.locator('#historyList tbody tr').count(), 1);
+      assert.equal(await page.locator('#historyList tbody tr td').nth(4).textContent(), '-');
+      assert.equal(await page.locator('#historyList tbody tr td').nth(7).textContent(), '-');
+      assert.equal(await page.locator('#completedCount').textContent(), '63');
+      assert.ok(await page.locator('.history-management-state').isVisible());
+      await page.getByRole('button', {name: 'AP위성', exact: true}).click();
+      const frameSrc = await page.locator('#historyList iframe').getAttribute('src');
+      assert.match(frameSrc, /stock=211270/);
+      assert.match(frameSrc, /historyStatus=active/);
+      assert.match(frameSrc, /historyRegisteredAt=2026-10-25/);
+      await input.fill('211270');
+      assert.equal(await page.locator('#historyList tbody tr').count(), 1);
+      await input.fill('AH관리중');
+      assert.equal(await page.locator('#historyList tbody tr').count(), 1);
       await input.fill('종료미확인');
       assert.match(await page.locator('#historyList').textContent(), /검색 결과가 없습니다/);
-      await input.fill('에프엔');
+      if (width === 320) {
+        await page.route('**/data/first-rise-monitor.json?*', route => route.abort());
+        await page.goto(`http://127.0.0.1:${server.address().port}/history.html`);
+        await page.waitForFunction(() => document.querySelector('#historyStatus').textContent.includes('일부 관리자료 조회 실패'));
+        await page.getByRole('searchbox', {name: '종목검색'}).fill('211270');
+        assert.equal(await page.locator('#historyList tbody tr').count(), 1);
+        await page.route('**/data/first-rise-monitor.json?*', route => route.fulfill({json: {candidates: []}}));
+        await page.goto(`http://127.0.0.1:${server.address().port}/history.html`);
+        await page.waitForFunction(() => document.querySelector('#historyStatus').textContent === '검증 이력 정상');
+        await page.getByRole('searchbox', {name: '종목검색'}).fill('211270');
+        assert.match(await page.locator('#historyList').textContent(), /검색 결과가 없습니다/);
+      }
+      await input.fill('AP위성');
       const box = await input.boundingBox();
       assert.ok(box.x >= 0 && box.x + box.width <= width + 1);
       await page.screenshot({path: path.join(root, `outputs/history-search-${width}.png`)});
@@ -77,6 +115,8 @@ const server = http.createServer((request, response) => {
       await page.waitForFunction(() => document.querySelectorAll('#historyList tbody tr').length === 50);
       await page.getByRole('searchbox', {name: '종목검색'}).fill('083500');
       assert.equal(await page.locator('#historyList tbody tr').count(), 1);
+      await page.getByRole('searchbox', {name: '종목검색'}).fill('AP위성');
+      assert.match(await page.locator('#historyList').textContent(), /검색 결과가 없습니다/);
       assert.deepEqual(errors, []);
       console.log(JSON.stringify({width, nameAndCodeSearch: true, ahArchiveSearch: true, firstRiseArchiveSearch: true, paginationReset: true, referenceSearch: true, errors}));
       await page.close();

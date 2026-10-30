@@ -24,19 +24,37 @@ const elements = {
 
 async function loadHistory() {
   try {
-    const response = await fetch(`data/candidate-monitor.json?t=${Date.now()}`, { cache: "no-store" });
+    const stamp = Date.now();
+    const [response, ahResponse, firstRiseResponse] = await Promise.all([
+      fetch(`data/candidate-monitor.json?t=${stamp}`, { cache: "no-store" }),
+      fetch(`data/ah-monitor.json?t=${stamp}`, { cache: "no-store" }).catch(() => null),
+      fetch(`data/first-rise-monitor.json?t=${stamp}`, { cache: "no-store" }).catch(() => null),
+    ]);
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const payload = await response.json();
-    const activeCodes = new Set((payload.candidates || []).map(item => item.code));
+    const ah = ahResponse?.ok ? await ahResponse.json() : {candidates: []};
+    const firstRise = firstRiseResponse?.ok ? await firstRiseResponse.json() : {candidates: []};
+    const recordKey = item => `${item.code}|${item.registeredAt}`;
+    const sharedActive = [...(payload.candidates || []), ...(payload.analysisCandidates || [])]
+      .filter(item => item.candidateTier === "ah" ? !ahResponse?.ok
+        : item.candidateTier === "first_rise" ? !firstRiseResponse?.ok : true);
+    const active = [...new Map([
+      ...sharedActive,
+      ...(ah.candidates || []), ...(firstRise.candidates || []),
+    ].filter(item => item.code && item.registeredAt && !item.archivedAt)
+      .map(item => [recordKey(item), {...item, historyStatus: "active",
+        historyAsOf: payload.generatedAt}])).values()];
+    const activeKeys = new Set(active.map(recordKey));
     const primaryHistory = (Array.isArray(payload.history) ? payload.history : []).filter(item => {
       const endedManual = item.archiveReason === "manual_excluded" && item.verificationEndDate
         && Date.parse(payload.generatedAt) >= Date.parse(`${item.verificationEndDate}T20:00:00+09:00`);
-      return (item.archiveReason === "window_completed" || item.verificationStatus === "completed" || endedManual) && !activeCodes.has(item.code);
+      return (item.archiveReason === "window_completed" || item.verificationStatus === "completed" || endedManual) && !activeKeys.has(recordKey(item));
     });
-    const additionalHistory = (Array.isArray(payload.analysisHistory) ? payload.analysisHistory : [])
-      .filter(item => item.archivedAt && !activeCodes.has(item.code));
+    const additionalHistory = [...(payload.analysisHistory || []), ...(firstRise.history || [])]
+      .filter(item => item.archivedAt && !activeKeys.has(recordKey(item)));
     state.history = [...new Map([...additionalHistory, ...primaryHistory]
-      .map(item => [`${item.code}|${item.registeredAt}`, item])).values()];
+      .map(item => [recordKey(item), item])).values()];
+    if (!referenceHistoryMode) state.history.push(...active);
     state.excludedCodes = new Set((payload.manualExclusions || []).map((r) => r.code));
     if (referenceHistoryMode) {
       const referenceResponse = await fetch(`data/reference-history.json?t=${Date.now()}`, {cache: 'no-store'});
@@ -59,7 +77,8 @@ async function loadHistory() {
     }
     renderSummary();
     renderHistory();
-    elements.historyStatus.textContent = referenceHistoryMode ? '상승조정형 이력 정상' : "종료 후보 이력 정상";
+    elements.historyStatus.textContent = referenceHistoryMode ? '상승조정형 이력 정상'
+      : !ahResponse?.ok || !firstRiseResponse?.ok ? "검증 이력 정상 · 일부 관리자료 조회 실패" : "검증 이력 정상";
     elements.historyUpdatedAt.textContent = payload.generatedAt
       ? `마지막 갱신 ${formatDateTime(payload.generatedAt)}`
       : "갱신 기록 없음";
@@ -76,7 +95,8 @@ function historyEvaluation(item) {
   if (item.referenceEntry && !item.referenceEntryVerified) return {valid: false, registered: null,
     end: null, baseline: null, finalPrice: null, entryUnknown: true};
   const registered = item.registeredAt?.slice(0, 10);
-  const end = (item.verificationEndDate || item.archivedAt || item.outcome?.finalDate || "").slice(0, 10);
+  const active = item.historyStatus === "active";
+  const end = (active ? item.historyAsOf || "" : item.verificationEndDate || item.archivedAt || item.outcome?.finalDate || "").slice(0, 10);
   const chart = item.displayCharts?.daily;
   const daily = [...new Map([...(chart?.history || []), ...(chart?.series || [])].map(row => [row.d, row])).values()]
     .filter(row => row.complete !== false && row.c > 0).sort((a, b) => a.d.localeCompare(b.d));
@@ -89,6 +109,7 @@ function historyEvaluation(item) {
   ].filter(row => row.price > 0 && Date.parse(row.time) >= Date.parse(item.registeredAt) && row.time.slice(0, 10) <= end)
     .sort((a, b) => Date.parse(a.time) - Date.parse(b.time));
   const finalPrice = prices.at(-1)?.price ?? null;
+  if (active) return {valid: false, registered, end: null, baseline, finalPrice, active: true};
   const rows = daily.filter(row => Date.parse(`${row.d}T15:30:00+09:00`) >= Date.parse(item.registeredAt) && row.d <= end);
   if (!baseline || !end || !rows.length) return {valid: false, registered, end, baseline, finalPrice};
   const hit = rows.find(row => row.c >= baseline * 1.05);
@@ -101,14 +122,15 @@ function historyEvaluation(item) {
 }
 
 function renderSummary() {
-  const results = state.history.map(historyEvaluation);
+  const completed = state.history.filter(item => item.historyStatus !== "active");
+  const results = completed.map(historyEvaluation);
   const summaryFor = key => {
     const evaluated = results.filter(result => Number.isFinite(result[key]));
     const reached = evaluated.filter(result => result[key] >= 5);
     return evaluated.length ? `${reached.length}종목 ${percentFormatter.format(100 * reached.length / evaluated.length)}%` : "평가 대기";
   };
-  elements.completedCount.textContent = formatter.format(state.history.length);
-  elements.evaluationNote.textContent = "관리기간 완료 종목만 표시 · 등록 다음 거래일부터 일봉 종가 기준 · 자료 부족은 해당 기간 집계 제외";
+  elements.completedCount.textContent = formatter.format(completed.length);
+  elements.evaluationNote.textContent = "통계는 관리기간 완료 종목만 집계 · 관리 중 종목은 목록에서 확인 · 자료 부족은 해당 기간 집계 제외";
   if (referenceHistoryMode) elements.evaluationNote.textContent = '과거 참고 이력은 후보 등록일 기준 · 실기록 이력은 저장된 상승조정형 편입일 기준 · 자료 부족은 집계 제외';
   elements.reachedCount.textContent = summaryFor("fiveReturn");
   elements.reachedRate.textContent = summaryFor("peakReturn");
@@ -119,12 +141,14 @@ function renderHistory() {
   const records = state.history.filter((item) => {
     if (!keyword) return true;
     return String(item.name || "").toLowerCase().includes(keyword) || String(item.code || "").includes(keyword);
-  }).sort((a, b) => String(b.registeredAt || "").localeCompare(String(a.registeredAt || ""))
+  }).sort((a, b) => Number(b.historyStatus === "active") - Number(a.historyStatus === "active")
+    || String(b.registeredAt || "").localeCompare(String(a.registeredAt || ""))
     || String(a.name || a.code).localeCompare(String(b.name || b.code), "ko"));
   elements.historyList.innerHTML = "";
-  elements.historyMeta.textContent = `저장 이력 ${records.length}종목`;
+  const activeCount = records.filter(item => item.historyStatus === "active").length;
+  elements.historyMeta.textContent = `저장 이력 ${records.length}건 · 관리 중 ${activeCount} · 종료 ${records.length - activeCount}`;
   if (!records.length) {
-    elements.historyList.innerHTML = `<div class="empty-list">${state.history.length ? "검색 결과가 없습니다." : "관리기간이 끝난 종목부터 이력이 쌓입니다."}</div>`;
+    elements.historyList.innerHTML = `<div class="empty-list">${state.history.length ? "검색 결과가 없습니다." : "저장된 관리 종목이 없습니다."}</div>`;
     return;
   }
 
@@ -151,6 +175,14 @@ function renderHistory() {
       <td class="${returnClass(result.peakReturn)} ${result.peakReturn >= 5 ? "target-hit" : ""}">${formatReturn(result.peakReturn)}</td>
       <td title="${escapeHtml(result.end || "")}">${escapeHtml(result.end?.slice(5) || "-")}</td>`;
     body.append(row);
+    const management = document.createElement("small");
+    management.className = "history-management-state";
+    management.textContent = item.historyStatus === "active" ? "관리 중" : "관리 종료";
+    row.cells[1].append(management);
+    if (result.active) {
+      row.cells[7].textContent = "-";
+      row.cells[7].title = "관리기간 종료 전";
+    }
     row.querySelectorAll("td").forEach((cell, index) => {
       cell.dataset.label = table.querySelectorAll("th")[index].textContent;
     });
@@ -173,6 +205,8 @@ function renderHistory() {
       const frame = document.createElement("iframe");
       frame.title = `${item.name || item.code} 30분봉과 일봉 전체 이력`;
       frame.src = `monitor.html?historyChart=1&stock=${encodeURIComponent(item.code)}`
+        + (!referenceHistoryMode ? `&historyRegisteredAt=${encodeURIComponent(item.registeredAt)}` : '')
+        + (item.historyStatus === "active" ? '&historyStatus=active' : '')
         + (referenceHistoryMode ? `&referenceStart=${encodeURIComponent(item.registeredAt)}&referenceEnd=${encodeURIComponent(item.verificationEndDate)}` : '');
       cell.append(frame); detail.append(cell); row.after(detail);
       frame.addEventListener("load", () => {

@@ -107,8 +107,25 @@ const server = http.createServer((request, response) => {
       await page.waitForFunction(n => document.querySelectorAll('#candidateList > .candidate').length === n,
         legacy.candidates.filter(x => !x.candidateTier || x.candidateTier === 'core').length);
       assert.equal(await page.locator('#candidateList > .candidate').count(), legacy.candidates.filter(x => !x.candidateTier || x.candidateTier === 'core').length);
+      await page.goto(base + '/history.html');
+      const activeStock = first.candidates.find(item => item.code === '211270') || first.candidates[0];
+      await page.getByRole('searchbox', {name: '종목검색'}).fill(activeStock.code);
+      const activeHistoryRow = page.locator('#historyList tbody tr').filter({has: page.getByText('관리 중', {exact: true})}).first();
+      await activeHistoryRow.getByRole('button', {name: activeStock.name, exact: true}).click();
+      const historyFrame = page.frameLocator('.history-chart-row iframe').first();
+      await historyFrame.locator('#maChart').waitFor({state: 'visible'});
+      assert.match(await historyFrame.locator('.history-end-label').textContent(), /관리 중.*최신 수집/);
+      const historyPixels = await historyFrame.locator('#maChart').evaluate(canvas => {
+        const data = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data;
+        let colored = 0;
+        for (let i = 0; i < data.length; i += 4) if (data[i+3] && Math.max(...data.slice(i, i+3)) - Math.min(...data.slice(i, i+3)) > 40) colored++;
+        return colored;
+      });
+      assert.ok(historyPixels > 200);
+      assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1));
+      await page.screenshot({path: path.join(root, `outputs/history-active-chart-${width}.png`)});
       assert.deepEqual(errors, []);
-      console.log(JSON.stringify({width, candidates: first.candidates.length, coloredPixels: pixels, errors}));
+      console.log(JSON.stringify({width, candidates: first.candidates.length, coloredPixels: pixels, activeHistoryChartPixels: historyPixels, errors}));
       await page.close();
     }
     const page = await browser.newPage();
