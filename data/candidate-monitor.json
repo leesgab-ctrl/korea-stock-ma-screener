@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-11-26T02:17:49+09:00",
+  "generatedAt": "2026-11-25T14:37:14+09:00",
   "asOf": "2026-11-25",
   "source": "네이버 증권 일봉 및 분봉",
   "strategy": {
@@ -26,9 +26,9 @@
     "expandedAkCandidates": 0,
     "signals": 0,
     "signalHistory": 0,
-    "setup": 1,
+    "setup": 0,
     "rising": 0,
-    "watching": 0,
+    "watching": 1,
     "insufficient": 0,
     "ineligible": 1,
     "excluded": 0,
@@ -857,13 +857,13 @@
             "d": "2026-11-25",
             "o": 27550,
             "h": 27550,
-            "l": 23550,
-            "c": 23750,
-            "v": 148530,
-            "m5": 24870.0,
-            "m10": 23395.0,
-            "m20": 23072.5,
-            "m60": 23130.0
+            "l": 24350,
+            "c": 24450,
+            "v": 131763,
+            "m5": 25010.0,
+            "m10": 23465.0,
+            "m20": 23107.5,
+            "m60": 23141.67
           }
         ]
       },
@@ -1564,22 +1564,6 @@
             "l": 24450,
             "c": 24450,
             "v": 3412
-          },
-          {
-            "t": "2026-11-25T14:30+09:00",
-            "o": 24450,
-            "h": 24600,
-            "l": 24400,
-            "c": 24550,
-            "v": 3266
-          },
-          {
-            "t": "2026-11-25T15:00+09:00",
-            "o": 24550,
-            "h": 24550,
-            "l": 24400,
-            "c": 24500,
-            "v": 3345
           }
         ]
       },
@@ -1589,30 +1573,30 @@
         "baselineTime": "2026-11-25T14:00+09:00"
       },
       "intraday": {
-        "quotePrice": 24500,
-        "quoteTime": "2026-11-25T15:30+09:00",
+        "quotePrice": 24450,
+        "quoteTime": "2026-11-25T14:35+09:00",
         "quotePreviousClose": 26100,
-        "quoteChangePct": -6.13,
+        "quoteChangePct": -6.32,
         "sessionRecovery": {
-          "date": "2026-11-26",
+          "date": "2026-11-25",
           "matched": false,
           "dataStatus": "pending"
         },
         "dataStatus": "ok",
-        "barCount": 89,
-        "lastBarTime": "2026-11-25T15:00+09:00",
-        "lastPrice": 24500,
+        "barCount": 87,
+        "lastBarTime": "2026-11-25T14:00+09:00",
+        "lastPrice": 24450,
         "baselineMa20AboveMa40": false,
         "baselineInferred": false,
-        "ma3": 24500.0,
-        "ma20": 25310.0,
-        "ma40": 26043.75,
-        "ma60": 24444.17,
+        "ma3": 24433.33,
+        "ma20": 25482.5,
+        "ma40": 25868.75,
+        "ma60": 24333.33,
         "dailyMa10": 23465.0,
-        "fallCount": 19,
+        "fallCount": 17,
         "structuralExcluded": false,
         "riseCount": 0,
-        "reversalIndex": 88,
+        "reversalIndex": 86,
         "reversalUnderMa40": true,
         "priorDeathCross": true,
         "deathCrossIndex": 84,
@@ -2358,30 +2342,6 @@
             "m20": 25482.5,
             "m40": 25868.75,
             "m60": 24333.33
-          },
-          {
-            "t": "2026-11-25T14:30+09:00",
-            "o": 24450,
-            "h": 24600,
-            "l": 24400,
-            "c": 24550,
-            "v": 3266,
-            "m3": 24466.67,
-            "m20": 25392.5,
-            "m40": 25956.25,
-            "m60": 24387.5
-          },
-          {
-            "t": "2026-11-25T15:00+09:00",
-            "o": 24550,
-            "h": 24550,
-            "l": 24400,
-            "c": 24500,
-            "v": 3345,
-            "m3": 24500.0,
-            "m20": 25310.0,
-            "m40": 26043.75,
-            "m60": 24444.17
           }
         ]
       },
@@ -2517,48 +2477,14 @@
           "m20": 25482.5,
           "m40": 25868.75,
           "m60": 24333.33
-        },
-        {
-          "t": "2026-11-25T14:30+09:00",
-          "o": 24450,
-          "h": 24600,
-          "l": 24400,
-          "c": 24550,
-          "v": 3266,
-          "m3": 24466.67,
-          "m20": 25392.5,
-          "m40": 25956.25,
-          "m60": 24387.5
-        },
-        {
-          "t": "2026-11-25T15:00+09:00",
-          "o": 24550,
-          "h": 24550,
-          "l": 24400,
-          "c": 24500,
-          "v": 3345,
-          "m3": 24500.0,
-          "m20": 25310.0,
-          "m40": 26043.75,
-          "m60": 24444.17
         }
       ],
       "outcome": {
         "ruleVersion": 3,
         "basisDate": "2026-11-25",
-        "dataStatus": "ok",
+        "dataStatus": "insufficient",
         "startPrice": 24450,
-        "targetPrice": 25672.5,
-        "peakPrice": 24550,
-        "peakDate": "2026-11-25",
-        "peakReturnPct": 0.41,
-        "finalPrice": 24500,
-        "finalDate": "2026-11-25",
-        "finalReturnPct": 0.2,
-        "reached5Pct": false,
-        "reached5PctDate": null,
-        "reached5PctTradingDays": null,
-        "observedTradingDays": 1
+        "reached5Pct": false
       },
       "displayCharts": {
         "intraday": {
@@ -2568,8 +2494,8 @@
           "timeframe": "minute30",
           "session": "regular_and_aftermarket",
           "dataStatus": "ok",
-          "fetchedAt": "2026-11-26T02:17:49+09:00",
-          "sourceAsOf": "20261126021700",
+          "fetchedAt": "2026-11-26T02:45:50+09:00",
+          "sourceAsOf": "20261126024500",
           "marketStatus": "CLOSE",
           "barCount": 149,
           "history": [
@@ -7502,7 +7428,7 @@
           "timeframe": "day",
           "session": "regular_and_aftermarket",
           "dataStatus": "ok",
-          "fetchedAt": "2026-11-26T02:17:49+09:00",
+          "fetchedAt": "2026-11-26T02:45:50+09:00",
           "sourceAsOf": null,
           "marketStatus": null,
           "barCount": 250,
@@ -10299,11 +10225,11 @@
           "previousClose": 26450.0,
           "change": -10.21,
           "time": "2026-11-25T20:00:00+09:00",
-          "fetchedAt": "2026-11-26T02:17:49+09:00"
+          "fetchedAt": "2026-11-26T02:45:50+09:00"
         }
       },
       "paperStrategy": {
-        "group": "unclassified",
+        "group": "insufficient",
         "excludedReason": null,
         "events": [],
         "historicalPatterns": [],
@@ -10386,8 +10312,7 @@
       "tracking": {
         "ruleVersion": 5,
         "baselineMa20AboveMa40": true,
-        "baselineTime": "2026-11-20T12:30+09:00",
-        "breachedMa60": false
+        "baselineTime": "2026-11-20T12:30+09:00"
       },
       "intradayHistory": {
         "series": [
@@ -11398,22 +11323,6 @@
             "l": 6350,
             "c": 6450,
             "v": 30753
-          },
-          {
-            "t": "2026-11-25T14:30+09:00",
-            "o": 6400,
-            "h": 6470,
-            "l": 6330,
-            "c": 6330,
-            "v": 75846
-          },
-          {
-            "t": "2026-11-25T15:00+09:00",
-            "o": 6350,
-            "h": 6360,
-            "l": 6290,
-            "c": 6360,
-            "v": 30358
           }
         ]
       },
@@ -11425,8 +11334,8 @@
           "timeframe": "minute30",
           "session": "regular_and_aftermarket",
           "dataStatus": "ok",
-          "fetchedAt": "2026-11-26T02:17:49+09:00",
-          "sourceAsOf": "20261126021700",
+          "fetchedAt": "2026-11-26T02:45:50+09:00",
+          "sourceAsOf": "20261126024500",
           "marketStatus": "CLOSE",
           "barCount": 217,
           "history": [
@@ -18603,7 +18512,7 @@
           "timeframe": "day",
           "session": "regular_and_aftermarket",
           "dataStatus": "ok",
-          "fetchedAt": "2026-11-26T02:17:49+09:00",
+          "fetchedAt": "2026-11-26T02:45:50+09:00",
           "sourceAsOf": null,
           "marketStatus": null,
           "barCount": 250,
@@ -21400,7 +21309,7 @@
           "previousClose": 6280.0,
           "change": -2.23,
           "time": "2026-11-25T20:00:00+09:00",
-          "fetchedAt": "2026-11-26T02:17:49+09:00"
+          "fetchedAt": "2026-11-26T02:45:50+09:00"
         }
       },
       "registrationDayBars": [
@@ -22277,51 +22186,52 @@
             "o": 6150,
             "h": 7150,
             "l": 6010,
-            "c": 6140,
-            "v": 1685473,
-            "m5": 6072.0,
-            "m10": 5847.0,
-            "m20": 5433.5,
-            "m60": 5631.67
+            "c": 6450,
+            "v": 1527799,
+            "m5": 6134.0,
+            "m10": 5878.0,
+            "m20": 5449.0,
+            "m60": 5636.83
           }
         ]
       },
       "intraday": {
-        "quotePrice": 6360,
-        "quoteTime": "2026-11-25T15:30+09:00",
+        "quotePrice": 6450,
+        "quoteTime": "2026-11-25T14:35+09:00",
         "quotePreviousClose": 5960,
-        "quoteChangePct": 6.71,
+        "quoteChangePct": 8.22,
         "sessionRecovery": {
-          "date": "2026-11-26",
+          "date": "2026-11-25",
           "matched": false,
           "dataStatus": "pending"
         },
         "dataStatus": "ok",
-        "barCount": 128,
-        "lastBarTime": "2026-11-25T15:00+09:00",
-        "lastPrice": 6360,
+        "barCount": 126,
+        "lastBarTime": "2026-11-25T14:00+09:00",
+        "lastPrice": 6450,
         "baselineMa20AboveMa40": true,
         "baselineInferred": false,
-        "ma3": 6380.0,
-        "ma20": 6372.5,
-        "ma40": 6377.0,
-        "ma60": 6267.83,
+        "ma3": 6423.33,
+        "ma20": 6386.0,
+        "ma40": 6362.0,
+        "ma60": 6247.17,
         "dailyMa10": 5878.0,
-        "fallCount": 6,
+        "fallCount": 4,
         "structuralExcluded": false,
         "riseCount": 0,
-        "reversalIndex": 127,
-        "reversalUnderMa40": true,
-        "priorDeathCross": true,
-        "deathCrossIndex": 127,
-        "eligibleReversal": true,
-        "ma60Ready": true,
+        "reversalIndex": 125,
+        "reversalUnderMa40": false,
+        "priorDeathCross": false,
+        "deathCrossIndex": null,
+        "eligibleReversal": false,
+        "rawRiseCount": 0,
+        "ma60Ready": false,
         "breachedMa60": false,
-        "recoveredMa60": true,
-        "entryTarget": "MA40",
-        "ma3AboveTarget": true,
+        "recoveredMa60": false,
+        "entryTarget": null,
+        "ma3AboveTarget": false,
         "breachedDailyMa10": false,
-        "signalRule": "ma3_ma40",
+        "signalRule": null,
         "signalReady": false,
         "series": [
           {
@@ -23055,30 +22965,6 @@
             "m20": 6386.0,
             "m40": 6362.0,
             "m60": 6247.17
-          },
-          {
-            "t": "2026-11-25T14:30+09:00",
-            "o": 6400,
-            "h": 6470,
-            "l": 6330,
-            "c": 6330,
-            "v": 75846,
-            "m3": 6400.0,
-            "m20": 6376.5,
-            "m40": 6370.0,
-            "m60": 6256.5
-          },
-          {
-            "t": "2026-11-25T15:00+09:00",
-            "o": 6350,
-            "h": 6360,
-            "l": 6290,
-            "c": 6360,
-            "v": 30358,
-            "m3": 6380.0,
-            "m20": 6372.5,
-            "m40": 6377.0,
-            "m60": 6267.83
           }
         ]
       },
@@ -23091,16 +22977,16 @@
         "peakPrice": 7150,
         "peakDate": "2026-11-25",
         "peakReturnPct": 17.02,
-        "finalPrice": 6140,
+        "finalPrice": 6450,
         "finalDate": "2026-11-25",
-        "finalReturnPct": 0.49,
+        "finalReturnPct": 5.56,
         "reached5Pct": true,
         "reached5PctDate": "2026-11-23",
         "reached5PctTradingDays": 1,
         "observedTradingDays": 4
       },
       "paperStrategy": {
-        "group": "unclassified",
+        "group": "target",
         "excludedReason": null,
         "events": [],
         "historicalPatterns": [],
@@ -23131,8 +23017,8 @@
           "timeframe": "minute30",
           "session": "regular_and_aftermarket",
           "dataStatus": "ok",
-          "fetchedAt": "2026-11-26T02:17:49+09:00",
-          "sourceAsOf": "20261126021800",
+          "fetchedAt": "2026-11-26T02:45:50+09:00",
+          "sourceAsOf": "20261126024600",
           "marketStatus": "CLOSE",
           "barCount": 201,
           "history": [
@@ -29781,7 +29667,7 @@
           "timeframe": "day",
           "session": "regular_and_aftermarket",
           "dataStatus": "ok",
-          "fetchedAt": "2026-11-26T02:17:49+09:00",
+          "fetchedAt": "2026-11-26T02:45:50+09:00",
           "sourceAsOf": null,
           "marketStatus": null,
           "barCount": 250,
@@ -33518,7 +33404,7 @@
       "archivedAt": "2026-11-19",
       "archiveReason": "candidate_replaced",
       "verificationStatus": "collecting",
-      "verificationUpdatedAt": "2026-11-26T02:17:49+09:00",
+      "verificationUpdatedAt": "2026-11-26T02:45:50+09:00",
       "verificationErrors": [],
       "referenceVerificationStatus": "collecting",
       "referenceVerificationErrors": []
@@ -33545,8 +33431,8 @@
           "timeframe": "minute30",
           "session": "regular_and_aftermarket",
           "dataStatus": "ok",
-          "fetchedAt": "2026-11-26T02:17:49+09:00",
-          "sourceAsOf": "20261126021800",
+          "fetchedAt": "2026-11-26T02:45:50+09:00",
+          "sourceAsOf": "20261126024600",
           "marketStatus": "CLOSE",
           "barCount": 239,
           "history": [
@@ -41449,7 +41335,7 @@
           "timeframe": "day",
           "session": "regular_and_aftermarket",
           "dataStatus": "ok",
-          "fetchedAt": "2026-11-26T02:17:49+09:00",
+          "fetchedAt": "2026-11-26T02:45:50+09:00",
           "sourceAsOf": null,
           "marketStatus": null,
           "barCount": 250,
@@ -45196,7 +45082,7 @@
       "archivedAt": "2026-11-17",
       "archiveReason": "candidate_replaced",
       "verificationStatus": "collecting",
-      "verificationUpdatedAt": "2026-11-26T02:17:49+09:00",
+      "verificationUpdatedAt": "2026-11-26T02:45:50+09:00",
       "verificationErrors": [],
       "referenceVerificationStatus": "collecting",
       "referenceVerificationErrors": []
@@ -1055909,8 +1055795,8 @@
           "timeframe": "minute30",
           "session": "regular_and_aftermarket",
           "dataStatus": "ok",
-          "fetchedAt": "2026-11-26T02:17:49+09:00",
-          "sourceAsOf": "20261126021700",
+          "fetchedAt": "2026-11-26T02:45:50+09:00",
+          "sourceAsOf": "20261126024500",
           "marketStatus": "CLOSE",
           "barCount": 600,
           "history": [
@@ -1075726,7 +1075612,7 @@
           "timeframe": "day",
           "session": "regular_and_aftermarket",
           "dataStatus": "ok",
-          "fetchedAt": "2026-11-26T02:17:49+09:00",
+          "fetchedAt": "2026-11-26T02:45:50+09:00",
           "sourceAsOf": null,
           "marketStatus": null,
           "barCount": 250,
@@ -1078523,7 +1078409,7 @@
           "previousClose": 4835.0,
           "change": -1.55,
           "time": "2026-11-25T20:00:00+09:00",
-          "fetchedAt": "2026-11-26T02:17:49+09:00"
+          "fetchedAt": "2026-11-26T02:45:50+09:00"
         }
       }
     },
@@ -1078538,8 +1078424,8 @@
           "timeframe": "minute30",
           "session": "regular_and_aftermarket",
           "dataStatus": "ok",
-          "fetchedAt": "2026-11-26T02:17:49+09:00",
-          "sourceAsOf": "20261126021700",
+          "fetchedAt": "2026-11-26T02:45:50+09:00",
+          "sourceAsOf": "20261126024500",
           "marketStatus": "CLOSE",
           "barCount": 600,
           "history": [
@@ -1098355,7 +1098241,7 @@
           "timeframe": "day",
           "session": "regular_and_aftermarket",
           "dataStatus": "ok",
-          "fetchedAt": "2026-11-26T02:17:49+09:00",
+          "fetchedAt": "2026-11-26T02:45:50+09:00",
           "sourceAsOf": null,
           "marketStatus": null,
           "barCount": 250,
@@ -1101152,7 +1101038,7 @@
           "previousClose": 1154.0,
           "change": -10.31,
           "time": "2026-11-25T20:00:00+09:00",
-          "fetchedAt": "2026-11-26T02:17:49+09:00"
+          "fetchedAt": "2026-11-26T02:45:50+09:00"
         }
       }
     },
@@ -1101167,8 +1101053,8 @@
           "timeframe": "minute30",
           "session": "regular_and_aftermarket",
           "dataStatus": "ok",
-          "fetchedAt": "2026-11-26T02:17:49+09:00",
-          "sourceAsOf": "20261126021800",
+          "fetchedAt": "2026-11-26T02:45:50+09:00",
+          "sourceAsOf": "20261126024600",
           "marketStatus": "CLOSE",
           "barCount": 560,
           "history": [
@@ -1119664,7 +1119550,7 @@
           "timeframe": "day",
           "session": "regular_and_aftermarket",
           "dataStatus": "ok",
-          "fetchedAt": "2026-11-26T02:17:49+09:00",
+          "fetchedAt": "2026-11-26T02:45:50+09:00",
           "sourceAsOf": null,
           "marketStatus": null,
           "barCount": 250,
@@ -1122461,7 +1122347,7 @@
           "previousClose": 1650.0,
           "change": -8.97,
           "time": "2026-11-25T20:00:00+09:00",
-          "fetchedAt": "2026-11-26T02:17:49+09:00"
+          "fetchedAt": "2026-11-26T02:45:50+09:00"
         }
       }
     }
@@ -1125167,34 +1125053,24 @@
       "recoveryBaseline": "2026-11-19T14:30+09:00"
     },
     "381620|2026-11-20T13:11:00+09:00": {
-      "last": "2026-11-25T19:30+09:00",
+      "last": "2026-11-24T19:30+09:00",
       "purple": false,
       "compact": false,
-      "spread": 2.3931867999928524,
+      "spread": 5.307420882315306,
       "convergenceBreakout": false,
       "recoveryMa10Breakout": false,
       "recoveryRuleVersion": 1,
       "recoveryBaseline": "2026-11-20T14:30+09:00"
     },
     "289220|2026-11-23T12:55:28+09:00": {
-      "last": "2026-11-25T19:30+09:00",
+      "last": "2026-11-24T19:30+09:00",
       "purple": false,
       "compact": false,
-      "spread": 2.3720108655316263,
+      "spread": 2.550901358624058,
       "convergenceBreakout": false,
       "recoveryMa10Breakout": false,
       "recoveryRuleVersion": 1,
       "recoveryBaseline": "2026-11-23T14:30+09:00"
-    },
-    "372320|2026-11-25T14:37:14+09:00": {
-      "last": "2026-11-25T19:30+09:00",
-      "purple": false,
-      "compact": false,
-      "spread": 8.561437351754563,
-      "convergenceBreakout": false,
-      "recoveryMa10Breakout": false,
-      "recoveryRuleVersion": 1,
-      "recoveryBaseline": "2026-11-25T19:30+09:00"
     }
   },
   "analysisCandidates": [
@@ -1125228,7 +1125104,7 @@
           "timeframe": "day",
           "session": "regular_and_aftermarket",
           "dataStatus": "ok",
-          "fetchedAt": "2026-11-26T02:16:55+09:00",
+          "fetchedAt": "2026-11-26T02:45:42+09:00",
           "sourceAsOf": null,
           "marketStatus": null,
           "barCount": 250,
@@ -1128025,8 +1127901,8 @@
           "timeframe": "minute30",
           "session": "regular_and_aftermarket",
           "dataStatus": "ok",
-          "fetchedAt": "2026-11-26T02:16:55+09:00",
-          "sourceAsOf": "20261126021700",
+          "fetchedAt": "2026-11-26T02:45:42+09:00",
+          "sourceAsOf": "20261126024500",
           "marketStatus": "CLOSE",
           "barCount": 196,
           "history": [
@@ -1133530,7 +1133406,7 @@
           "previousClose": 1131.0,
           "change": 0.88,
           "time": "2026-11-25T20:00:00+09:00",
-          "fetchedAt": "2026-11-26T02:16:55+09:00"
+          "fetchedAt": "2026-11-26T02:45:42+09:00"
         }
       },
       "tradingDaysRemaining": 3,
@@ -1319297,21 +1319173,21 @@
   "validationSummary": {
     "totalDetected": 78,
     "manualExcluded": 11,
-    "evaluated": 65,
+    "evaluated": 64,
     "completed": 76,
     "reached5Pct": 44,
-    "reached5PctRate": 67.7,
+    "reached5PctRate": 68.8,
     "basis": "화면 등록시점 가격 기준, 등록 이후부터 종료일까지 +5% (실제 매매수익 아님)"
   },
   "displayChartSummary": {
-    "updatedAt": "2026-11-26T02:17:49+09:00",
+    "updatedAt": "2026-11-26T02:45:50+09:00",
     "candidateCount": 2,
     "holdingCount": 3,
     "errors": 0
   },
   "imageSearch": {
     "version": 1,
-    "updatedAt": "2026-11-26T02:17:49+09:00",
+    "updatedAt": "2026-11-26T02:45:50+09:00",
     "status": "ok",
     "scope": "active_ak_ag_ah_first_rise",
     "rules": [
